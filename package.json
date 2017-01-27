@@ -1,0 +1,88 @@
+{
+  "name": "audryrose-server",
+  "version": "0.0.1",
+  "description": "Parse server for Audry Rose",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/enjoyjeremy/audryrose-server.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.15.2",
+    "bugsnag-js": "^3.0.7",
+    "cheerio": "^0.22.0",
+    "cookie-parser": "^1.4.3",
+    "dotenv": "^2.0.0",
+    "express": "~4.11.x",
+    "express-handlebars": "^3.0.0",
+    "handlebars": "^4.0.6",
+    "handlebars-helpers": "^0.7.5",
+    "jquery": "^3.1.1",
+    "mailchimp": "^1.1.4",
+    "moment": "^2.17.1",
+    "parse": "~1.8.0",
+    "parse-dashboard": "^1.0.21",
+    "parse-server": "*",
+    "request": "^2.79.0",
+    "underscore": "^1.8.3",
+    "xmlreader": "^0.2.3"
+  },
+  "devDependencies": {
+    "babel-plugin-uglify": "latest",
+    "babel-polyfill": "^6.5.0",
+    "babel-preset-es2015": "latest",
+    "babelify": "latest",
+    "bootstrap": "^3.3.6",
+    "bootstrap-sass": "^3.3.6",
+    "browser-sync": "^2.18.2",
+    "browserify": "latest",
+    "browserify-shim": "latest",
+    "envify": "latest",
+    "exorcist": "latest",
+    "jquery": "^3.1.1",
+    "kerberos": "~0.0.x",
+    "node-sass": "latest",
+    "nodemon": "latest",
+    "uglify-js": "latest",
+    "uglifyify": "latest",
+    "underscore": "^1.8.3",
+    "watchify": "latest"
+  },
+  "scripts": {
+    "develop": "NODE_ENV=development npm run watch",
+    "deploy": "npm version patch && git push origin master && git push heroku master",
+    "watch": "npm run watch-assets & nodemon ./index.js localhost 1337",
+    "build": "npm run build-css && npm run build-js",
+    "watch-assets": "npm run watch-js & npm run watch-css",
+    "build-js": "browserify -g uglifyify lib/app.js > public/js/app-bundle.js",
+    "watch-js": "watchify lib/app.js -o 'exorcist public/js/app-bundle.js.map > public/js/app-bundle.js' -v -d -t",
+    "build-css": "node-sass scss/app.scss public/css/styles.min.css",
+    "watch-css": "node-sass -w scss/app.scss public/css/styles.min.css",
+    "start": "node index.js"
+  },
+  "browser": {
+    "jquery": "./node_modules/jquery/dist/jquery.js"
+  },
+  "browserify-shim": {
+    "jquery": "$"
+  },
+  "browserify": {
+    "transform": [
+      "browserify-shim",
+      "envify",
+      [
+        "babelify",
+        {
+          "presets": [
+            "es2015"
+          ],
+          "compact": false
+        }
+      ]
+    ]
+  },
+  "engines": {
+    "node": ">=4.3"
+  }
+}

@@ -1,0 +1,25 @@
+@charset 'utf-8';
+
+$gray-base:                 #000;
+$brand-primary:             #0090ff;
+$text-color:                #555;
+$font-family-sans-serif:    "museo-sans-rounded",sans-serif;
+$font-size-base:            16px;
+$font-size-h1:              30px;
+$font-size-h2:              26px;
+$font-size-h3:              20px;
+$font-size-h4:              20px;
+$font-size-h5:              14px;
+$font-size-h6:              12px;
+$headings-font-weight:      100;
+$headings-color:            $gray-base;
+$line-height-base:          1.7;
+$headings-line-height:      1.7;
+$icon-font-path:            "../fonts/bootstrap/";
+
+$grid-gutter-width:         40px;
+
+$border-radius-base:        8px;
+
+@import "bootstrap";
+@import 'styles';

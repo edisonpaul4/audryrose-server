@@ -1,0 +1,39 @@
+/////////////////////////////
+// GLOBAL STYLES
+/////////////////////////////
+
+html, body, #app {}
+body {}
+h1, h2, h3, h4, h5, h6 {}
+h1 {
+	line-height: 1.25;
+}
+h2 {}
+h3 {}
+h4 {}
+h5 {
+	color: #999;
+	text-transform: uppercase;
+	letter-spacing: 2px;
+}
+p {}
+button, input[type="submit"], input[type="button"] {}
+a.button {
+	white-space: nowrap;
+}
+dd {
+	margin-bottom: 20px;
+}
+.columns {}
+.wrapper {}
+
+
+/////////////////////////////
+// RESPONSIVE BREAKPOINTS
+/////////////////////////////
+
+@media (min-width: 768px) {}
+
+@media (min-width: 992px) {}
+
+@media (min-width: 1200px) {}
