@@ -1,6 +1,4 @@
 var _ = require('underscore');
-var jssha2 = require('./libs/jssha2/sha2.js');
-var xmlreader = require('xmlreader');
 var moment = require('moment');
 var request = require('request');
 var cheerio = require('cheerio');
