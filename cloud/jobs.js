@@ -2,17 +2,34 @@ var _ = require('underscore');
 var moment = require('moment');
 var request = require('request');
 var cheerio = require('cheerio');
+var BigCommerce = require('node-bigcommerce');
 
 // CONFIG
-
+// Set up Bigcommerce API
+var bigCommerce = new BigCommerce({
+  logLevel: 'info',
+  clientId: process.env.BC_CLIENT_ID,
+  secret: process.env.BC_CLIENT_SECRET,
+  callback: 'https://audryrose.herokuapp.com/auth',
+  responseType: 'json'
+});
+bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
+bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 
 /////////////////////////
 //  BACKGROUND JOBS    //
 /////////////////////////
 
-Parse.Cloud.job("schedulerJob", function(request, status) {
-  console.log("\n\n----==== Initialized schedulerJob ====----");
-	status.success("Complete!");
+Parse.Cloud.job("test", function(request, status) {
+  bigCommerce.get('/store', function(err, data, response){
+    var message = "Successfully connected to " + data.name + ". The store id is " + data.id + ".";
+    console.log(message);
+    status.success(message);
+  }, function(error) {
+  	console.log(JSON.stringify(error));
+		status.error(error.message);
+  });
+	
 });
 
 /////////////////////////
