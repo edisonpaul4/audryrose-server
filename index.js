@@ -19,7 +19,8 @@ var api = new ParseServer({
   cloud: __dirname + process.env.CLOUD_CODE_MAIN || __dirname + '/cloud/main.js',
   appId: process.env.APP_ID || 'app',
   masterKey: process.env.MASTER_KEY || '',
-  serverURL: process.env.SERVER_URL || 'http://localhost:1337/parse'
+  serverURL: process.env.SERVER_URL || 'http://localhost:1337/parse',
+//   verbose: true
 //   liveQuery: { classNames: ["Product"] }
 });
 
