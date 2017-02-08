@@ -61,7 +61,7 @@ app.get('/', function (req, res) {
 var port = process.env.PORT || 1337;
 var httpServer = require('http').createServer(app);
 httpServer.listen(port, function() {
-  console.log('reflectr server running on port ' + port + '.');
+  console.log('Audry Rose server running on port ' + port + '.');
 });
 
 // This will enable the Live Query real-time server
