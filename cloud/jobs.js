@@ -42,6 +42,8 @@ Parse.Cloud.job("updateProducts", function(request, status) {
   var totalProductsAdded = 0;
   var products = [];
   
+  var startTime = moment();
+  
   bigCommerce.get('/products/count', function(err, data, response){
     totalProducts = data.count;
     return data.count;
@@ -57,7 +59,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
       page++;
       promise = promise.then(function() {
         return delay(10).then(function() {
-          var request = '/products?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:desc';
+          var request = '/products?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE;
           return bigCommerce.get(request);
         }).then(function(response) {
   				_.each(response, function(product) {
@@ -101,15 +103,84 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     return promise;
     
   }).then(function() {
+    var now = moment();
+    var jobTime = moment.duration(now.diff(startTime)).humanize();
     var message = totalProducts + ' products in Bigcommerce. ';
     message += products.length + ' products loaded. ';
     message += totalProductsAdded + ' products added. ';
+    message += 'Job time: ' + jobTime;
     console.log(message);
     status.success(message);
   }, function(error) {
   	console.log(JSON.stringify(error));
 		status.error(error.message);
   });
+});
+
+Parse.Cloud.job("updateProductVariants", function(request, status) {
+  var totalProducts = 0;
+  var totalProductsProcessed = 0;
+  var totalVariantsAdded = 0;
+  var products = [];
+  
+  var startTime = moment();
+  
+  var productsQuery = new Parse.Query(Product);
+  productsQuery.doesNotExist('variants');
+  productsQuery.equalTo('productId', 575);
+  productsQuery.limit(100);
+  
+  productsQuery.count().then(function(count) {
+    totalProducts = count;
+    console.log("Total products: " + totalProducts);
+    return productsQuery.find({useMasterKey:true});
+    
+  }).then(function(products) {
+    console.log('Number of products to get variants: ' + products.length);
+    var promise = Parse.Promise.as();
+		_.each(products, function(product) {
+  		console.log('process product id: ' + product.get('productId'));
+  		promise = promise.then(function() {
+    		console.log('do it');
+        return Parse.Cloud.httpRequest({
+          method: 'post',
+          url: process.env.SERVER_URL + '/functions/loadProductVariants',
+          headers: {
+            'X-Parse-Application-Id': process.env.APP_ID,
+            'X-Parse-Master-Key': process.env.MASTER_KEY
+          },
+          params: {
+            productId: product.get('productId')
+          }
+        });
+    		
+  		}).then(function(variantsAdded) {
+    		totalProductsProcessed++;
+    		variantsAdded += variantsAdded;
+    		console.log('variantsAdded: ' + variantsAdded);
+        return variantsAdded;
+        
+      }, function(error) {
+    		return "Error creating variants: " + error.message;
+  			
+  		});
+    });		
+		return promise;
+    
+  }).then(function() {
+    var now = moment();
+    var jobTime = moment.duration(now.diff(startTime)).humanize();
+    var message = totalProducts + ' products needing variants. ';
+    message += totalProductsProcessed + ' products processed. ';
+    message += totalVariantsAdded + ' variants added. ';
+    message += 'Job time: ' + jobTime;
+    console.log(message);
+    status.success(message);
+    
+  }, function(error) {
+	  status.error(error.message);
+  });
+  
 });
 
 Parse.Cloud.job("updateOrders", function(request, status) {
@@ -217,30 +288,31 @@ var delay = function(t) {
 }
 
 var createProductObject = function(productData, currentProduct) {
-  var product = (currentProduct) ? currentProduct : new Product();
+  var productObj = (currentProduct) ? currentProduct : new Product();
   
-  product.set('productId', productData.id);
-  product.set('name', productData.name);
-  product.set('sku', productData.sku);
-  product.set('price', parseFloat(productData.price));
-  product.set('cost_price', parseFloat(productData.cost_price));
-  product.set('retail_price', parseFloat(productData.retail_price));
-  product.set('sale_price', parseFloat(productData.sale_price));
-  product.set('calculated_price', parseFloat(productData.calculated_price));
-  product.set('is_visible', productData.is_visible);
-  product.set('inventory_tracking', productData.inventory_tracking);
-  product.set('total_sold', productData.total_sold);
-  product.set('date_created', moment.utc(productData.date_created, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
-  product.set('brand_id', productData.brand_id);
-  product.set('view_count', productData.view_count);
-  product.set('categories', productData.categories);
-  product.set('date_modified', moment.utc(productData.date_modified, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
-  product.set('condition', productData.condition);
-  product.set('is_preorder_only', productData.is_preorder_only);
-  product.set('custom_url', productData.custom_url);
-  product.set('primary_image', productData.primary_image);
-  product.set('availability', productData.availability);
-  return product;
+  productObj.set('productId', productData.id);
+  productObj.set('name', productData.name);
+  productObj.set('sku', productData.sku);
+  productObj.set('price', parseFloat(productData.price));
+  productObj.set('cost_price', parseFloat(productData.cost_price));
+  productObj.set('retail_price', parseFloat(productData.retail_price));
+  productObj.set('sale_price', parseFloat(productData.sale_price));
+  productObj.set('calculated_price', parseFloat(productData.calculated_price));
+  productObj.set('is_visible', productData.is_visible);
+  productObj.set('inventory_tracking', productData.inventory_tracking);
+  productObj.set('total_sold', productData.total_sold);
+  productObj.set('date_created', moment.utc(productData.date_created, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
+  productObj.set('brand_id', productData.brand_id);
+  productObj.set('view_count', productData.view_count);
+  productObj.set('categories', productData.categories);
+  productObj.set('date_modified', moment.utc(productData.date_modified, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
+  productObj.set('condition', productData.condition);
+  productObj.set('is_preorder_only', productData.is_preorder_only);
+  productObj.set('custom_url', productData.custom_url);
+  productObj.set('option_set_id', productData.option_set_id);
+  productObj.set('primary_image', productData.primary_image);
+  productObj.set('availability', productData.availability);
+  return productObj;
 }
 
 var createOrderObject = function(orderData, currentOrder) {
