@@ -1,0 +1,20 @@
+#!/usr/bin/env node
+var request = require('request');
+
+var url = process.env.SERVER_URL + '/jobs/updateProductVariants';
+var options = {
+  method: "GET",
+  url: url,
+  headers: {
+    'User-Agent': 'request',
+    'X-Parse-Application-Id': process.env.APP_ID,
+    'X-Parse-Master-Key': process.env.MASTER_KEY,
+    'Content-Type': "application/json"    
+  }
+};
+
+request.post(options).on('response', function(response, body) {
+  console.log('updateProductVariants success');
+}).on('error', function(error, body) {
+  console.error('updateProductVariants error');
+});
