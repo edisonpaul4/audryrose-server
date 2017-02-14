@@ -127,7 +127,6 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
   
   var productsQuery = new Parse.Query(Product);
   productsQuery.doesNotExist('variants');
-  productsQuery.equalTo('productId', 575);
   productsQuery.limit(100);
   
   productsQuery.count().then(function(count) {
