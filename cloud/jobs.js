@@ -127,7 +127,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
   
   var productsQuery = new Parse.Query(Product);
   productsQuery.doesNotExist('variants');
-  productsQuery.limit(100);
+  productsQuery.limit(1);
   
   productsQuery.count().then(function(count) {
     totalProducts = count;
@@ -140,7 +140,6 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
 		_.each(products, function(product) {
   		console.log('process product id: ' + product.get('productId'));
   		promise = promise.then(function() {
-    		console.log('do it');
         return Parse.Cloud.httpRequest({
           method: 'post',
           url: process.env.SERVER_URL + '/functions/loadProductVariants',
@@ -153,11 +152,10 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
           }
         });
     		
-  		}).then(function(variantsAdded) {
+  		}).then(function(response) {
     		totalProductsProcessed++;
-    		variantsAdded += variantsAdded;
-    		console.log('variantsAdded: ' + variantsAdded);
-        return variantsAdded;
+    		totalVariantsAdded += response.data.result;
+        return totalVariantsAdded;
         
       }, function(error) {
     		return "Error creating variants: " + error.message;

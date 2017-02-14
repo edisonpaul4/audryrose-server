@@ -61,6 +61,9 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   
   }).then(function(res) {
     bcProductRules = res;
+    console.log('option_set: ' + JSON.stringify(bcProduct.option_set));
+    console.log('options: ' + JSON.stringify(bcProduct.options));
+    if (!bcProduct.option_set) return null;
     var optionSetsRequest = '/optionsets/' + bcProduct.option_set_id + '/options';
     console.log(optionSetsRequest);
     return bigCommerce.get(optionSetsRequest);
@@ -69,6 +72,25 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     bcProductOptions = res;
     
     var promise = Parse.Promise.as();
+    
+    // Create a single variant if product has no options
+    if (!bcProductOptions) {
+      var variantId = productId;
+      promise = promise.then(function() {
+        return createProductVariantObject(variantId, null).save(null, {useMasterKey: true});
+        
+      }).then(function(variantObject) {
+        allVariants.push(variantObject);
+        totalVariantsAdded++;
+        return variantObject;
+        
+      }, function(error) {
+    		return "Error saving variant: " + error.message;
+  			
+  		});
+      return promise;
+    }
+    
     
     // Create an array of all the option values
     var values = [];
@@ -106,16 +128,19 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     
     // Populate and save the variants
     _.each(variants, function(valueIds) {
+      if (!valueIds.length) valueIds = [valueIds];
       var variantOptions = [];
       var variantId = productId;
       var isNew = true;
-      // Find the options data based on variantId
       _.each(valueIds, function(valueId) {
-        _.each(values, function(value) {
-          _.each(value, function(valueSet) {
-            if (valueId == valueSet.option_value_id) {
-              variantOptions.push(valueSet);
-              variantId += '-' + valueSet.option_value_id;
+        // Find the options data based on variantId
+        _.each(values, function(valueSet) {
+          
+          _.each(valueSet, function(value) {
+            if (valueId == value.option_value_id) {
+              console.log(value.option_value_id);
+              variantOptions.push(value);
+              variantId += '-' + value.option_value_id;
             }
           });
         });
@@ -237,7 +262,7 @@ var createProductVariantObject = function(variantId, variantOptions, currentVari
   var variantObj = (currentVariant) ? currentVariant : new ProductVariant();
   
   variantObj.set('variantId', variantId);
-  variantObj.set('variantOptions', variantOptions);
+  if (variantOptions) variantObj.set('variantOptions', variantOptions);
   
   return variantObj;
 }
