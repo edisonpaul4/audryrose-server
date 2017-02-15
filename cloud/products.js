@@ -158,7 +158,6 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
           
           _.each(valueSet, function(value) {
             if (valueId == value.option_value_id) {
-              console.log(value.option_value_id);
               variantOptions.push(value);
               variantId += '-' + value.option_value_id;
             }
@@ -281,7 +280,45 @@ var allCombinations = function(array) {
 var createProductVariantObject = function(variantId, variantOptions, currentVariant) {
   var variantObj = (currentVariant) ? currentVariant : new ProductVariant();
   
-  variantObj.set('variantId', variantId);
+  if (!currentVariant) {
+    variantObj.set('variantId', variantId);
+  
+  	if (variantOptions) {
+  		variantOptions.map(function(variantOption, i) {
+    		console.log(variantOption);
+    		if (variantOption.option_id === 32 || variantOption.option_id === 18) {
+      		variantObj.set('size_label', variantOption.label);
+      		variantObj.set('size_value', variantOption.value);
+    		}
+    		if (variantOption.option_id === 3 || variantOption.option_id === 31 || variantOption.option_id === 36 || variantOption.option_id === 30) {
+      		variantObj.set('color_label', variantOption.label);
+      		variantObj.set('color_value', variantOption.value);
+    		}
+    		if (variantOption.option_id === 33) {
+      		variantObj.set('gemstone_label', variantOption.label);
+      		variantObj.set('gemstone_value', variantOption.value);
+    		}
+    		if (variantOption.option_id === 27) {
+      		variantObj.set('font_label', variantOption.label);
+      		variantObj.set('font_value', variantOption.value);
+    		}
+    		if (variantOption.option_id === 26) {
+      		variantObj.set('letter_label', variantOption.label);
+      		variantObj.set('letter_value', variantOption.value);
+    		}
+    		if (variantOption.option_id === 35) {
+      		variantObj.set('length_label', variantOption.label);
+      		variantObj.set('length_value', variantOption.value);
+    		}
+    		if (variantOption.option_id === 34) {
+      		variantObj.set('singlepair_label', variantOption.label);
+      		variantObj.set('singlepair_value', variantOption.value);
+    		}
+    		return variantOption;
+  		});
+  	}
+  }
+  
   if (variantOptions) variantObj.set('variantOptions', variantOptions);
   
   return variantObj;
