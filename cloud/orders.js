@@ -10,6 +10,7 @@ var Order = Parse.Object.extend('Order');
 Parse.Cloud.define("getOrders", function(request, response) {
   var ordersQuery = new Parse.Query(Order);
   ordersQuery.descending("date_created");
+  ordersQuery.limit(50);
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
   ordersQuery.find({useMasterKey:true}).then(function(orders) {
