@@ -24,6 +24,8 @@ const BIGCOMMERCE_BATCH_SIZE = 250;
 Parse.Cloud.define("getProducts", function(request, response) {
   var productsQuery = new Parse.Query(Product);
   productsQuery.descending("date_created");
+  productsQuery.include('variants');
+  productsQuery.limit(50);
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
   productsQuery.find({useMasterKey:true}).then(function(products) {
@@ -31,6 +33,24 @@ Parse.Cloud.define("getProducts", function(request, response) {
 	  
   }, function(error) {
 	  response.error("Unable to get products: " + error.message);
+	  
+  });
+});
+
+Parse.Cloud.define("getProductVariants", function(request, response) {
+  var productId = request.params.productId;
+  
+  var variantsQuery = new Parse.Query(ProductVariant);
+  variantsQuery.equalTo('productId', productId);
+  variantsQuery.descending('variantId');
+  variantsQuery.limit(100000);
+//   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
+  
+  variantsQuery.find({useMasterKey:true}).then(function(variants) {
+	  response.success(variants);
+	  
+  }, function(error) {
+	  response.error("Unable to get variants: " + error.message);
 	  
   });
 });
