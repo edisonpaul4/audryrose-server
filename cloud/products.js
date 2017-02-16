@@ -143,7 +143,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         var isEnabled = optionIsPurchasingEnabled(optionValue.option_id, optionValue.option_value_id, bcProductRules);
         if (isEnabled) valueSet.push(optionValue);
       });
-      values.push(valueSet);
+      if (valueSet.length) values.push(valueSet);
     });
     
     // Get all possible combinations of option value ids
@@ -214,6 +214,35 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   }, function(error) {
   	console.log(JSON.stringify(error));
 		response.error(error.message);
+  });
+});
+
+Parse.Cloud.define("reloadProduct", function(request, response) {
+  var productId = parseInt(request.params.productId);
+  
+  Parse.Cloud.httpRequest({
+    method: 'post',
+    url: process.env.SERVER_URL + '/functions/loadProductVariants',
+    headers: {
+      'X-Parse-Application-Id': process.env.APP_ID,
+      'X-Parse-Master-Key': process.env.MASTER_KEY
+    },
+    params: {
+      productId: productId
+    }
+  }).then(function(response) {
+    
+    var productsQuery = new Parse.Query(Product);
+    productsQuery.equalTo("productId", productId);
+    productsQuery.include("variants");
+    return productsQuery.first();
+    
+  }).then(function(product) {
+	  response.success(product);
+	  
+  }, function(error) {
+	  response.error("Unable to reload product: " + error.message);
+	  
   });
 });
 
