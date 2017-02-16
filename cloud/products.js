@@ -16,20 +16,31 @@ var bigCommerce = new BigCommerce({
 bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
+const PRODUCTS_PER_PAGE = 50;
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
 /////////////////////////
 
 Parse.Cloud.define("getProducts", function(request, response) {
+  var totalProducts;
+  var totalPages;
+  var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
+  
   var productsQuery = new Parse.Query(Product);
   productsQuery.descending("date_created");
   productsQuery.include('variants');
-  productsQuery.limit(50);
+  productsQuery.limit(PRODUCTS_PER_PAGE);
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
-  productsQuery.find({useMasterKey:true}).then(function(products) {
-	  response.success(products);
+  productsQuery.count().then(function(count) {
+    totalProducts = count;
+    totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
+    productsQuery.skip((currentPage - 1) * PRODUCTS_PER_PAGE);
+    return productsQuery.find({useMasterKey:true});
+    
+  }).then(function(products) {
+	  response.success({products: products, totalPages: totalPages});
 	  
   }, function(error) {
 	  response.error("Unable to get products: " + error.message);
