@@ -48,24 +48,6 @@ Parse.Cloud.define("getProducts", function(request, response) {
   });
 });
 
-Parse.Cloud.define("getProductVariants", function(request, response) {
-  var productId = request.params.productId;
-  
-  var variantsQuery = new Parse.Query(ProductVariant);
-  variantsQuery.equalTo('productId', productId);
-  variantsQuery.descending('variantId');
-  variantsQuery.limit(100000);
-//   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
-  
-  variantsQuery.find({useMasterKey:true}).then(function(variants) {
-	  response.success(variants);
-	  
-  }, function(error) {
-	  response.error("Unable to get variants: " + error.message);
-	  
-  });
-});
-
 Parse.Cloud.define("loadProductVariants", function(request, response) {
   console.log('updateProductVariants');
   var totalVariantsAdded = 0;
