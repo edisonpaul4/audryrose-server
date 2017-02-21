@@ -1,4 +1,5 @@
 var _ = require('underscore');
+var moment = require('moment');
 var BigCommerce = require('node-bigcommerce');
 
 var Product = Parse.Object.extend('Product');
@@ -46,6 +47,31 @@ Parse.Cloud.define("getProducts", function(request, response) {
 	  response.error("Unable to get products: " + error.message);
 	  
   });
+});
+
+Parse.Cloud.define("loadProduct", function(request, response) {
+  var product = request.params.product;
+  var added = false;
+  
+  var productQuery = new Parse.Query(Product);
+  productQuery.equalTo('productId', parseFloat(product.id));
+  productQuery.first().then(function(productResult) {
+    if (productResult) {
+      console.log('Product ' + productResult.get('productId') + ' exists.');
+      return createProductObject(product, productResult).save(null, {useMasterKey: true});
+    } else {
+      console.log('Product ' + product.id + ' is new.');
+      added = true;
+      return createProductObject(product).save(null, {useMasterKey: true});
+    }
+    
+  }).then(function(productObject) {
+    response.success({added: added});
+    
+  }, function(error) {
+		response.error("Error saving product: " + error.message);
+		
+	});
 });
 
 Parse.Cloud.define("loadProductVariants", function(request, response) {
@@ -228,6 +254,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   });
 });
 
+
 /////////////////////////
 //  UTILITY FUNCTIONS  //
 /////////////////////////
@@ -297,6 +324,34 @@ var allCombinations = function(array) {
   }
 
   return combine(array);
+}
+
+var createProductObject = function(productData, currentProduct) {
+  var productObj = (currentProduct) ? currentProduct : new Product();
+  
+  productObj.set('productId', parseInt(productData.id));
+  productObj.set('name', productData.name);
+  productObj.set('sku', productData.sku);
+  productObj.set('price', parseFloat(productData.price));
+  productObj.set('cost_price', parseFloat(productData.cost_price));
+  productObj.set('retail_price', parseFloat(productData.retail_price));
+  productObj.set('sale_price', parseFloat(productData.sale_price));
+  productObj.set('calculated_price', parseFloat(productData.calculated_price));
+  productObj.set('is_visible', productData.is_visible == 'true');
+  productObj.set('inventory_tracking', productData.inventory_tracking);
+  productObj.set('total_sold', parseInt(productData.total_sold));
+  productObj.set('date_created', moment.utc(productData.date_created, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
+  productObj.set('brand_id', parseInt(productData.brand_id));
+  productObj.set('view_count', parseInt(productData.view_count));
+  productObj.set('categories', productData.categories);
+  productObj.set('date_modified', moment.utc(productData.date_modified, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
+  productObj.set('condition', productData.condition);
+  productObj.set('is_preorder_only', productData.is_preorder_only == 'true');
+  productObj.set('custom_url', productData.custom_url);
+  productObj.set('option_set_id', parseInt(productData.option_set_id));
+  productObj.set('primary_image', productData.primary_image);
+  productObj.set('availability', productData.availability);
+  return productObj;
 }
 
 var createProductVariantObject = function(variantId, variantOptions, currentVariant) {

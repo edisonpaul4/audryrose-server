@@ -77,30 +77,31 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     console.log('Number of products to search: ' + products.length);
     var promise = Parse.Promise.as();
 		_.each(products, function(product) {
-      promise = promise.then(function() {
-        var productQuery = new Parse.Query(Product);
-        productQuery.equalTo('productId', product.id);
-        return productQuery.first();
-          
-      }).then(function(productResult) {
-        if (productResult) {
-          console.log('Product ' + productResult.get('productId') + ' exists.');
-          return createProductObject(product, productResult).save(null, {useMasterKey: true});
-        } else {
-          console.log('Product ' + product.id + ' is new.');
-          totalProductsAdded++;
-          return createProductObject(product).save(null, {useMasterKey: true});
-        }
-        
-      }).then(function(productObject) {
-        return totalProductsAdded;
+  		console.log('process product id: ' + product.id);
+  		promise = promise.then(function() {
+        return Parse.Cloud.httpRequest({
+          method: 'post',
+          url: process.env.SERVER_URL + '/functions/loadProduct',
+          headers: {
+            'X-Parse-Application-Id': process.env.APP_ID,
+            'X-Parse-Master-Key': process.env.MASTER_KEY
+          },
+          params: {
+            product: product
+          }
+        });
+    		
+  		}).then(function(response) {
+    		if (response.added) totalProductsAdded++;
+        return response;
         
       }, function(error) {
-    		return "Error saving product: " + error.message;
+    		return "Error creating variants: " + error.message;
   			
   		});
-    });
-    return promise;
+    });		
+		return promise;
+
     
   }).then(function() {
     var now = moment();
@@ -218,29 +219,29 @@ Parse.Cloud.job("updateOrders", function(request, status) {
     console.log('Number of orders to search: ' + orders.length);
     var promise = Parse.Promise.as();
 		_.each(orders, function(order) {
-      promise = promise.then(function() {
-        var orderQuery = new Parse.Query(Order);
-        orderQuery.equalTo('orderId', order.id);
-        return orderQuery.first();
-          
-      }).then(function(orderResult) {
-        if (orderResult) {
-          console.log('Order ' + orderResult.get('orderId') + ' exists.');
-          return createOrderObject(order, orderResult).save(null, {useMasterKey: true});
-        } else {
-          console.log('Order ' + order.id + ' is new.');
-          totalOrdersAdded++;
-          return createOrderObject(order).save(null, {useMasterKey: true});
-        }
-        
-      }).then(function(orderObject) {
-        return totalOrdersAdded;
+  		console.log('process orders id: ' + orders.id);
+  		promise = promise.then(function() {
+        return Parse.Cloud.httpRequest({
+          method: 'post',
+          url: process.env.SERVER_URL + '/functions/loadOrder',
+          headers: {
+            'X-Parse-Application-Id': process.env.APP_ID,
+            'X-Parse-Master-Key': process.env.MASTER_KEY
+          },
+          params: {
+            order: order
+          }
+        });
+    		
+  		}).then(function(response) {
+    		if (response.added) totalOrdersAdded++;
+        return response;
         
       }, function(error) {
-    		return "Error saving order: " + error.message;
+    		return "Error creating order: " + error.message;
   			
   		});
-    });
+    });			
     return promise;
     
   }).then(function() {
@@ -282,87 +283,4 @@ var delay = function(t) {
   return new Promise(function(resolve) { 
     setTimeout(resolve, t)
   });
-}
-
-var createProductObject = function(productData, currentProduct) {
-  var productObj = (currentProduct) ? currentProduct : new Product();
-  
-  productObj.set('productId', productData.id);
-  productObj.set('name', productData.name);
-  productObj.set('sku', productData.sku);
-  productObj.set('price', parseFloat(productData.price));
-  productObj.set('cost_price', parseFloat(productData.cost_price));
-  productObj.set('retail_price', parseFloat(productData.retail_price));
-  productObj.set('sale_price', parseFloat(productData.sale_price));
-  productObj.set('calculated_price', parseFloat(productData.calculated_price));
-  productObj.set('is_visible', productData.is_visible);
-  productObj.set('inventory_tracking', productData.inventory_tracking);
-  productObj.set('total_sold', productData.total_sold);
-  productObj.set('date_created', moment.utc(productData.date_created, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
-  productObj.set('brand_id', productData.brand_id);
-  productObj.set('view_count', productData.view_count);
-  productObj.set('categories', productData.categories);
-  productObj.set('date_modified', moment.utc(productData.date_modified, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
-  productObj.set('condition', productData.condition);
-  productObj.set('is_preorder_only', productData.is_preorder_only);
-  productObj.set('custom_url', productData.custom_url);
-  productObj.set('option_set_id', productData.option_set_id);
-  productObj.set('primary_image', productData.primary_image);
-  productObj.set('availability', productData.availability);
-  return productObj;
-}
-
-var createOrderObject = function(orderData, currentOrder) {
-  var order = (currentOrder) ? currentOrder : new Order();
-  
-  order.set('orderId', orderData.id);
-  order.set('date_created', moment.utc(orderData.date_created, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
-  order.set('date_modified', moment.utc(orderData.date_modified, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
-  order.set('billing_address', orderData.billing_address);
-  order.set('customer_id', orderData.customer_id);
-  order.set('date_shipped', orderData.date_shipped);
-  order.set('status_id', orderData.status_id);
-  order.set('status', orderData.status);
-  order.set('subtotal_ex_tax', parseFloat(orderData.subtotal_ex_tax));
-  order.set('subtotal_inc_tax', parseFloat(orderData.subtotal_inc_tax));
-  order.set('subtotal_tax', parseFloat(orderData.subtotal_tax));
-  order.set('base_shipping_cost', parseFloat(orderData.base_shipping_cost));
-  order.set('shipping_cost_ex_tax', parseFloat(orderData.shipping_cost_ex_tax));
-  order.set('shipping_cost_inc_tax', parseFloat(orderData.shipping_cost_inc_tax));
-  order.set('shipping_cost_tax', parseFloat(orderData.shipping_cost_tax));
-  order.set('shipping_cost_tax_class_id', orderData.shipping_cost_tax_class_id);
-  order.set('base_handling_cost', parseFloat(orderData.base_handling_cost));
-  order.set('handling_cost_ex_tax', parseFloat(orderData.handling_cost_ex_tax));
-  order.set('handling_cost_inc_tax', parseFloat(orderData.handling_cost_inc_tax));
-  order.set('handling_cost_tax', parseFloat(orderData.handling_cost_tax));
-  order.set('handling_cost_tax_class_id', orderData.handling_cost_tax_class_id);
-  order.set('base_wrapping_cost', parseFloat(orderData.base_wrapping_cost));
-  order.set('wrapping_cost_ex_tax', parseFloat(orderData.wrapping_cost_ex_tax));
-  order.set('wrapping_cost_inc_tax', parseFloat(orderData.wrapping_cost_inc_tax));
-  order.set('wrapping_cost_tax', parseFloat(orderData.wrapping_cost_tax));
-  order.set('wrapping_cost_tax_class_id', orderData.wrapping_cost_tax_class_id);
-  order.set('total_ex_tax', parseFloat(orderData.total_ex_tax));
-  order.set('total_inc_tax', parseFloat(orderData.total_inc_tax));
-  order.set('total_tax', parseFloat(orderData.total_tax));
-  order.set('items_total', orderData.items_total);
-  order.set('items_shipped', orderData.items_shipped);
-  order.set('payment_method', orderData.payment_method);
-  order.set('payment_provider_id', orderData.payment_provider_id);
-  order.set('payment_status', orderData.payment_status);
-  order.set('refunded_amount', parseFloat(orderData.refunded_amount));
-  order.set('store_credit_amount', parseFloat(orderData.store_credit_amount));
-  order.set('gift_certificate_amount', parseFloat(orderData.gift_certificate_amount));
-  order.set('currency_id', orderData.currency_id);
-  order.set('currency_code', orderData.currency_code);
-  order.set('currency_exchange_rate', parseFloat(orderData.currency_exchange_rate));
-  order.set('default_currency_id', orderData.default_currency_id);
-  order.set('default_currency_code', orderData.default_currency_code);
-  order.set('staff_notes', orderData.staff_notes);
-  order.set('customer_message', orderData.customer_message);
-  order.set('discount_amount', parseFloat(orderData.discount_amount));
-  order.set('coupon_discount', parseFloat(orderData.coupon_discount));
-  order.set('shipping_address_count', orderData.shipping_address_count);
-  order.set('is_deleted', orderData.is_deleted);
-  
-  return order;
 }
