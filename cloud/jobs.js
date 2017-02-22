@@ -181,6 +181,87 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
   
 });
 
+Parse.Cloud.job("updateCategories", function(request, status) {
+  var totalCategories = 0;
+  var totalCategoriesAdded = 0;
+  var categories = [];
+  
+  var startTime = moment();
+  
+  bigCommerce.get('/categories/count', function(err, data, response){
+    totalCategories = data.count;
+    return data.count;
+    
+  }).then(function(count) {
+    
+    var numBatches = Math.ceil(totalCategories / BIGCOMMERCE_BATCH_SIZE);
+    console.log('Number of batches: ' + numBatches);
+    
+    var promise = Parse.Promise.as();
+    var pages = Array.apply(null, {length: numBatches}).map(Number.call, Number);
+    _.each(pages, function(page) {
+      page++;
+      promise = promise.then(function() {
+        return delay(10).then(function() {
+          var request = '/categories?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE;
+          return bigCommerce.get(request);
+        }).then(function(response) {
+  				_.each(response, function(category) {
+    				categories.push(category);
+          });
+          return true;
+        }, function(error) {
+          console.log(error.message);
+        });
+      });
+    });
+    return promise;
+    
+  }).then(function() {
+    console.log('Number of categories to search: ' + categories.length);
+    var promise = Parse.Promise.as();
+		_.each(categories, function(category) {
+  		console.log('process category id: ' + category.id);
+  		promise = promise.then(function() {
+        return Parse.Cloud.httpRequest({
+          method: 'post',
+          url: process.env.SERVER_URL + '/functions/loadCategory',
+          headers: {
+            'X-Parse-Application-Id': process.env.APP_ID,
+            'X-Parse-Master-Key': process.env.MASTER_KEY
+          },
+          params: {
+            category: category
+          }
+        });
+    		
+  		}).then(function(response) {
+    		if (response.added) totalCategoriesAdded++;
+        return response;
+        
+      }, function(error) {
+    		return "Error creating categories: " + error.message;
+  			
+  		});
+    });		
+		return promise;
+
+    
+  }).then(function() {
+    var now = moment();
+    var jobTime = moment.duration(now.diff(startTime)).humanize();
+    var message = totalCategories + ' categories in Bigcommerce. ';
+    message += categories.length + ' categories loaded. ';
+    message += totalCategoriesAdded + ' categories added. ';
+    message += 'Job time: ' + jobTime;
+    console.log(message);
+    status.success(message);
+  }, function(error) {
+  	console.log(JSON.stringify(error));
+		status.error(error.message);
+  });
+});
+
 Parse.Cloud.job("updateOrders", function(request, status) {
   var totalOrders = 0;
   var totalOrdersAdded = 0;

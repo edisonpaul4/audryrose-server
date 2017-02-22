@@ -4,6 +4,7 @@ var BigCommerce = require('node-bigcommerce');
 
 var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');
+var Category = Parse.Object.extend('Category');
 
 // CONFIG
 // Set up Bigcommerce API
@@ -255,6 +256,63 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   });
 });
 
+Parse.Cloud.define("saveProductStatus", function(request, response) {
+  var productId = parseInt(request.params.productId);
+  var status = parseInt(request.params.status);
+  
+  var isActive = status == 'active' ? true : false;
+  
+  var productQuery = new Parse.Query(Product);
+  productQuery.equalTo('productId', productId);
+  productQuery.first().then(function(productResult) {
+    if (productResult) {
+      productResult.set('is_active', isActive);
+      return productResult.save(null, {useMasterKey: true});
+    } else {
+      response.error("Error finding product: " + error.message);
+    }
+    
+  }).then(function(productObject) {
+    var productsQuery = new Parse.Query(Product);
+    productsQuery.equalTo("productId", productId);
+    productsQuery.include("variants");
+    return productsQuery.first();
+    
+  }).then(function(product) {
+	  response.success(product);
+    
+  }, function(error) {
+		response.error("Error saving product: " + error.message);
+		
+	});
+  
+});
+
+Parse.Cloud.define("loadCategory", function(request, response) {
+  var category = request.params.category;
+  var added = false;
+  
+  var categoryQuery = new Parse.Query(Category);
+  categoryQuery.equalTo('categoryId', parseFloat(category.id));
+  categoryQuery.first().then(function(categoryResult) {
+    if (categoryResult) {
+      console.log('Category ' + categoryResult.get('categoryId') + ' exists.');
+      return createCategoryObject(category, categoryResult).save(null, {useMasterKey: true});
+    } else {
+      console.log('Category ' + category.id + ' is new.');
+      added = true;
+      return createCategoryObject(category).save(null, {useMasterKey: true});
+    }
+    
+  }).then(function(categoryObject) {
+    response.success({added: added});
+    
+  }, function(error) {
+		response.error("Error saving category: " + error.message);
+		
+	});
+});
+
 
 /////////////////////////
 //  UTILITY FUNCTIONS  //
@@ -427,4 +485,14 @@ var getProductSort = function(productsQuery, currentSort) {
       break;
   }
   return productsQuery;
+}
+
+var createCategoryObject = function(categoryData, currentCategory) {
+  var categoryObj = (currentCategory) ? currentCategory : new Category();
+  
+  categoryObj.set('categoryId', parseInt(categoryData.id));
+  categoryObj.set('parent_id', parseInt(categoryData.parent_id));
+  categoryObj.set('name', categoryData.name);
+  categoryObj.set('parent_category_list', categoryData.parent_category_list);
+  return categoryObj;
 }
