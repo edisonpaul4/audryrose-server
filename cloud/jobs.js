@@ -186,6 +186,8 @@ Parse.Cloud.job("updateOrders", function(request, status) {
   var totalOrdersAdded = 0;
   var orders = [];
   
+  var startTime = moment();
+  
   bigCommerce.get('/orders/count', function(err, data, response){
     totalOrders = data.count;
     return data.count;
@@ -219,7 +221,7 @@ Parse.Cloud.job("updateOrders", function(request, status) {
     console.log('Number of orders to search: ' + orders.length);
     var promise = Parse.Promise.as();
 		_.each(orders, function(order) {
-  		console.log('process orders id: ' + orders.id);
+  		console.log('process orders id: ' + order.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -245,9 +247,12 @@ Parse.Cloud.job("updateOrders", function(request, status) {
     return promise;
     
   }).then(function() {
+    var now = moment();
+    var jobTime = moment.duration(now.diff(startTime)).humanize();
     var message = totalOrders + ' orders in Bigcommerce. ';
     message += orders.length + ' orders loaded. ';
     message += totalOrdersAdded + ' orders added. ';
+    message += 'Job time: ' + jobTime;
     console.log(message);
     status.success(message);
   }, function(error) {
