@@ -27,9 +27,10 @@ Parse.Cloud.define("getProducts", function(request, response) {
   var totalProducts;
   var totalPages;
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
+  var currentSort = (request.params.sort) ? request.params.sort : 'date-added-desc';
   
   var productsQuery = new Parse.Query(Product);
-  productsQuery.descending("date_created");
+  productsQuery = getProductSort(productsQuery, currentSort)
   productsQuery.include('variants');
   productsQuery.limit(PRODUCTS_PER_PAGE);
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
@@ -399,4 +400,31 @@ var createProductVariantObject = function(variantId, variantOptions, currentVari
   if (variantOptions) variantObj.set('variantOptions', variantOptions);
   
   return variantObj;
+}
+
+var getProductSort = function(productsQuery, currentSort) {
+  switch (currentSort) {
+    case 'date-added-desc':
+      productsQuery.descending("date_created");
+      break;
+    case 'date-added-asc':
+      productsQuery.ascending("date_created");
+      break;
+    case 'price-desc':
+      productsQuery.descending("price");
+      break;
+    case 'price-asc':
+      productsQuery.ascending("price");
+      break;
+    case 'stock-desc':
+      productsQuery.descending("total_stock");
+      break;
+    case 'stock-asc':
+      productsQuery.ascending("total_stock");
+      break;
+    default:
+      productsQuery.descending("date_created");
+      break;
+  }
+  return productsQuery;
 }
