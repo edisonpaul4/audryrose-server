@@ -17,11 +17,37 @@ var bigCommerce = new BigCommerce({
 bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
-const PRODUCTS_PER_PAGE = 50;
+const DESIGNERS_PER_PAGE = 50;
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
 /////////////////////////
+
+Parse.Cloud.define("getDesigners", function(request, response) {
+  var totalDesigners;
+  var totalPages;
+  var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
+  var currentSort = (request.params.sort) ? request.params.sort : 'name-asc';
+  
+  var designersQuery = new Parse.Query(Designer);
+  designersQuery = getDesignerSort(designersQuery, currentSort)
+  designersQuery.limit(DESIGNERS_PER_PAGE);
+//   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
+  
+  designersQuery.count().then(function(count) {
+    totalDesigners = count;
+    totalPages = Math.ceil(totalDesigners / DESIGNERS_PER_PAGE);
+    designersQuery.skip((currentPage - 1) * DESIGNERS_PER_PAGE);
+    return designersQuery.find({useMasterKey:true});
+    
+  }).then(function(designers) {
+	  response.success({designers: designers, totalPages: totalPages});
+	  
+  }, function(error) {
+	  response.error("Unable to get designers: " + error.message);
+	  
+  });
+});
 
 Parse.Cloud.define("loadDesigner", function(request, response) {
   var designer = request.params.designer;
@@ -71,4 +97,19 @@ var createDesignerObject = function(designerData, currentDesigner) {
   designer.set('image_file', designerData.image_file);
   
   return designer;
+}
+
+var getDesignerSort = function(designersQuery, currentSort) {
+  switch (currentSort) {
+    case 'name-desc':
+      designersQuery.descending("name");
+      break;
+    case 'name-asc':
+      designersQuery.ascending("name");
+      break;
+    default:
+      designersQuery.ascending("name");
+      break;
+  }
+  return designersQuery;
 }

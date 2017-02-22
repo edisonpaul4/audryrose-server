@@ -7,6 +7,7 @@ var ProductVariant = Parse.Object.extend('ProductVariant');
 var Category = Parse.Object.extend('Category');
 var Classification = Parse.Object.extend('Classification');
 var Department = Parse.Object.extend('Department');
+var Designer = Parse.Object.extend('Designer');
 
 // CONFIG
 // Set up Bigcommerce API
@@ -37,6 +38,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include('variants');
   productsQuery.include("department");
   productsQuery.include("classification");
+  productsQuery.include("designer");
   productsQuery.limit(PRODUCTS_PER_PAGE);
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
@@ -61,7 +63,8 @@ Parse.Cloud.define("loadProduct", function(request, response) {
   
   var classes = [];
   var departments = [];
-  var updatedClassification = {};
+  var designers = [];
+  var updatedClassification;
   
   var classesQuery = new Parse.Query(Classification);
   classesQuery.limit(1000);
@@ -75,6 +78,13 @@ Parse.Cloud.define("loadProduct", function(request, response) {
   }).then(function(result) {
     departments = result;
     
+    var designersQuery = new Parse.Query(Designer);
+    designersQuery.limit(1000);
+    return designersQuery.find();
+    
+  }).then(function(result) {
+    designers = result;
+    
     var productQuery = new Parse.Query(Product);
     productQuery.equalTo('productId', parseFloat(product.id));
     return productQuery.first();
@@ -83,11 +93,11 @@ Parse.Cloud.define("loadProduct", function(request, response) {
     if (productResult) {
       console.log('Product ' + productResult.get('productId') + ' exists.');
       
-      return createProductObject(product, classes, departments, productResult);
+      return createProductObject(product, classes, departments, designers, productResult);
     } else {
       console.log('Product ' + product.id + ' is new.');
       added = true;
-      return createProductObject(product, classes, departments);
+      return createProductObject(product, classes, designers, departments);
     }
     
   }).then(function(productObject) {
@@ -310,6 +320,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
     productsQuery.include("variants");
     productsQuery.include("department");
     productsQuery.include("classification");
+    productsQuery.include("designer");
     return productsQuery.first();
     
   }).then(function(product) {
@@ -343,6 +354,7 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
     productsQuery.include("variants");
     productsQuery.include("department");
     productsQuery.include("classification");
+    productsQuery.include("designer");
     return productsQuery.first();
     
   }).then(function(product) {
@@ -452,7 +464,7 @@ var allCombinations = function(array) {
   return combine(array);
 }
 
-var createProductObject = function(productData, classes, departments, currentProduct) {
+var createProductObject = function(productData, classes, departments, designers, currentProduct) {
   var productObj = (currentProduct) ? currentProduct : new Product();
   
   productObj.set('productId', parseInt(productData.id));
@@ -478,6 +490,8 @@ var createProductObject = function(productData, classes, departments, currentPro
   productObj.set('primary_image', productData.primary_image);
   productObj.set('availability', productData.availability);
   
+  if (!productObj.has('is_active')) productObj.set('is_active', true);
+  
   var updatedClassification;
   if (!productObj.get('classification')) {
     _.each(classes, function(classObj) {
@@ -490,13 +504,17 @@ var createProductObject = function(productData, classes, departments, currentPro
     });
   }
   
-  if (!productObj.get('department')) {
-    _.each(departments, function(departmentObj) {
-      if (departmentObj.get('category_id') && productData.categories.indexOf(departmentObj.get('category_id').toString()) >= 0) {
-        productObj.set('department', departmentObj);
-      }
-    });
-  }
+  _.each(departments, function(departmentObj) {
+    if (departmentObj.get('category_id') && productData.categories.indexOf(departmentObj.get('category_id').toString()) >= 0) {
+      productObj.set('department', departmentObj);
+    }
+  });
+  
+  _.each(designers, function(designerObj) {
+    if (productObj.get('brand_id') == designerObj.get('designerId')) {
+      productObj.set('designer', designerObj);
+    }
+  });
   
   return {product: productObj, classification: updatedClassification};
 }
