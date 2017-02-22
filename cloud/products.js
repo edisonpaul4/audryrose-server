@@ -323,9 +323,9 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
 
 Parse.Cloud.define("saveProductStatus", function(request, response) {
   var productId = parseInt(request.params.productId);
-  var status = parseInt(request.params.status);
+  var status = request.params.status;
   
-  var isActive = status == 'active' ? true : false;
+  var isActive = (status == 'active') ? true : false;
   
   var productQuery = new Parse.Query(Product);
   productQuery.equalTo('productId', productId);
