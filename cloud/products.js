@@ -5,6 +5,8 @@ var BigCommerce = require('node-bigcommerce');
 var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');
 var Category = Parse.Object.extend('Category');
+var Classification = Parse.Object.extend('Classification');
+var Department = Parse.Object.extend('Department');
 
 // CONFIG
 // Set up Bigcommerce API
@@ -33,6 +35,8 @@ Parse.Cloud.define("getProducts", function(request, response) {
   var productsQuery = new Parse.Query(Product);
   productsQuery = getProductSort(productsQuery, currentSort)
   productsQuery.include('variants');
+  productsQuery.include("department");
+  productsQuery.include("classification");
   productsQuery.limit(PRODUCTS_PER_PAGE);
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
@@ -55,19 +59,49 @@ Parse.Cloud.define("loadProduct", function(request, response) {
   var product = request.params.product;
   var added = false;
   
-  var productQuery = new Parse.Query(Product);
-  productQuery.equalTo('productId', parseFloat(product.id));
-  productQuery.first().then(function(productResult) {
+  var classes = [];
+  var departments = [];
+  var updatedClassification = {};
+  
+  var classesQuery = new Parse.Query(Classification);
+  classesQuery.limit(1000);
+  classesQuery.find().then(function(result) {
+    classes = result;
+    
+    var departmentsQuery = new Parse.Query(Department);
+    departmentsQuery.limit(1000);
+    return departmentsQuery.find();
+    
+  }).then(function(result) {
+    departments = result;
+    
+    var productQuery = new Parse.Query(Product);
+    productQuery.equalTo('productId', parseFloat(product.id));
+    return productQuery.first();
+    
+  }).then(function(productResult) {
     if (productResult) {
       console.log('Product ' + productResult.get('productId') + ' exists.');
-      return createProductObject(product, productResult).save(null, {useMasterKey: true});
+      
+      return createProductObject(product, classes, departments, productResult);
     } else {
       console.log('Product ' + product.id + ' is new.');
       added = true;
-      return createProductObject(product).save(null, {useMasterKey: true});
+      return createProductObject(product, classes, departments);
     }
     
   }).then(function(productObject) {
+    if (productObject.classification) updatedClassification = productObject.classification;
+    return productObject.product.save(null, {useMasterKey: true});
+    
+  }).then(function(result) {
+    if (updatedClassification) {
+      return updatedClassification.save(null, {useMasterKey: true});
+    } else {
+      return true;
+    }
+    
+  }).then(function(result) {
     response.success({added: added});
     
   }, function(error) {
@@ -229,22 +263,53 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
 
 Parse.Cloud.define("reloadProduct", function(request, response) {
   var productId = parseInt(request.params.productId);
-  
-  Parse.Cloud.httpRequest({
-    method: 'post',
-    url: process.env.SERVER_URL + '/functions/loadProductVariants',
-    headers: {
-      'X-Parse-Application-Id': process.env.APP_ID,
-      'X-Parse-Master-Key': process.env.MASTER_KEY
-    },
-    params: {
-      productId: productId
-    }
+  var product;
+  var bcProduct;
+
+  var productQuery = new Parse.Query(Product);
+  productQuery.equalTo('productId', productId);
+  productQuery.first().then(function(result) {
+    product = result;
+    var productRequest = '/products/' + productId;
+    console.log(productRequest);
+    return bigCommerce.get(productRequest);
+    
+  }).then(function(res) {
+    bcProduct = res;
+    
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/loadProduct',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      },
+      params: {
+        product: bcProduct
+      }
+    });
+    
+  }).then(function(response) {
+    
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/loadProductVariants',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      },
+      params: {
+        productId: productId
+      }
+    });
+    
   }).then(function(response) {
     
     var productsQuery = new Parse.Query(Product);
     productsQuery.equalTo("productId", productId);
     productsQuery.include("variants");
+    productsQuery.include("department");
+    productsQuery.include("classification");
     return productsQuery.first();
     
   }).then(function(product) {
@@ -276,6 +341,8 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
     var productsQuery = new Parse.Query(Product);
     productsQuery.equalTo("productId", productId);
     productsQuery.include("variants");
+    productsQuery.include("department");
+    productsQuery.include("classification");
     return productsQuery.first();
     
   }).then(function(product) {
@@ -385,7 +452,7 @@ var allCombinations = function(array) {
   return combine(array);
 }
 
-var createProductObject = function(productData, currentProduct) {
+var createProductObject = function(productData, classes, departments, currentProduct) {
   var productObj = (currentProduct) ? currentProduct : new Product();
   
   productObj.set('productId', parseInt(productData.id));
@@ -410,7 +477,28 @@ var createProductObject = function(productData, currentProduct) {
   productObj.set('option_set_id', parseInt(productData.option_set_id));
   productObj.set('primary_image', productData.primary_image);
   productObj.set('availability', productData.availability);
-  return productObj;
+  
+  var updatedClassification;
+  if (!productObj.get('classification')) {
+    _.each(classes, function(classObj) {
+      if (classObj.get('category_id') && productData.categories.indexOf(classObj.get('category_id').toString()) >= 0) {
+        productObj.set('classification', classObj);
+        classObj.increment('last_number');
+        productObj.set('classification_number', classObj.get('last_number'));
+        updatedClassification = classObj;
+      }
+    });
+  }
+  
+  if (!productObj.get('department')) {
+    _.each(departments, function(departmentObj) {
+      if (departmentObj.get('category_id') && productData.categories.indexOf(departmentObj.get('category_id').toString()) >= 0) {
+        productObj.set('department', departmentObj);
+      }
+    });
+  }
+  
+  return {product: productObj, classification: updatedClassification};
 }
 
 var createProductVariantObject = function(variantId, variantOptions, currentVariant) {
