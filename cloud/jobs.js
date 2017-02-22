@@ -93,7 +93,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
         });
     		
   		}).then(function(response) {
-    		if (response.added) totalProductsAdded++;
+    		if (response.data.result.added) totalProductsAdded++;
         return response;
         
       }, function(error) {
@@ -237,7 +237,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
         });
     		
   		}).then(function(response) {
-    		if (response.added) totalCategoriesAdded++;
+    		if (response.data.result.added) totalCategoriesAdded++;
         return response;
         
       }, function(error) {
@@ -318,7 +318,7 @@ Parse.Cloud.job("updateOrders", function(request, status) {
         });
     		
   		}).then(function(response) {
-    		if (response.added) totalOrdersAdded++;
+    		if (response.data.result.added) totalOrdersAdded++;
         return response;
         
       }, function(error) {
@@ -342,6 +342,88 @@ Parse.Cloud.job("updateOrders", function(request, status) {
 		status.error(error.message);
   });
 });
+
+Parse.Cloud.job("updateDesigners", function(request, status) {
+  var totalDesigners = 0;
+  var totalDesignersAdded = 0;
+  var designers = [];
+  
+  var startTime = moment();
+  
+  bigCommerce.get('/brands/count', function(err, data, response){
+    totalDesigners = data.count;
+    return data.count;
+    
+  }).then(function(count) {
+    
+    var numBatches = Math.ceil(totalDesigners / BIGCOMMERCE_BATCH_SIZE);
+    console.log('Number of batches: ' + numBatches);
+    
+    var promise = Parse.Promise.as();
+    var pages = Array.apply(null, {length: numBatches}).map(Number.call, Number);
+    _.each(pages, function(page) {
+      page++;
+      promise = promise.then(function() {
+        return delay(10).then(function() {
+          var request = '/brands?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:desc';
+          return bigCommerce.get(request);
+        }).then(function(response) {
+  				_.each(response, function(designer) {
+    				designers.push(designer);
+          });
+          return true;
+        }, function(error) {
+          console.log(error.message);
+        });
+      });
+    });
+    return promise;
+    
+  }).then(function() {
+    console.log('Number of designers to search: ' + designers.length);
+    var promise = Parse.Promise.as();
+		_.each(designers, function(designer) {
+  		console.log('process designers id: ' + designer.id);
+  		promise = promise.then(function() {
+        return Parse.Cloud.httpRequest({
+          method: 'post',
+          url: process.env.SERVER_URL + '/functions/loadDesigner',
+          headers: {
+            'X-Parse-Application-Id': process.env.APP_ID,
+            'X-Parse-Master-Key': process.env.MASTER_KEY
+          },
+          params: {
+            designer: designer
+          }
+        });
+    		
+  		}).then(function(response) {
+    		console.log(JSON.stringify(response));
+    		if (response.data.result.added) totalDesignersAdded++;
+        return response;
+        
+      }, function(error) {
+    		return "Error creating designer: " + error.message;
+  			
+  		});
+    });			
+    return promise;
+    
+  }).then(function() {
+    var now = moment();
+    var jobTime = moment.duration(now.diff(startTime)).humanize();
+    var message = totalDesigners + ' designers in Bigcommerce. ';
+    message += designers.length + ' designers loaded. ';
+    message += totalDesignersAdded + ' designers added. ';
+    message += 'Job time: ' + jobTime;
+    console.log(message);
+    status.success(message);
+  }, function(error) {
+  	console.log(JSON.stringify(error));
+		status.error(error.message);
+  });
+});
+
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //

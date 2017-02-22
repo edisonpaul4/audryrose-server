@@ -5,6 +5,7 @@
 require('./auth.js');
 require('./orders.js');
 require('./products.js');
+require('./designers.js');
 
 
 ///////////////////////
