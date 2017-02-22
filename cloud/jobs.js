@@ -76,7 +76,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
   }).then(function() {
     console.log('Number of products to search: ' + products.length);
     var promise = Parse.Promise.as();
-    products = products.slice(0,1);// REMOVE
+//     products = products.slice(0,1);// REMOVE
 		_.each(products, function(product) {
   		console.log('process product id: ' + product.id);
   		promise = promise.then(function() {
