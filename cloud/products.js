@@ -32,14 +32,29 @@ Parse.Cloud.define("getProducts", function(request, response) {
   var totalPages;
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
   var currentSort = (request.params.sort) ? request.params.sort : 'date-added-desc';
+  var search = request.params.search;
   
   var productsQuery = new Parse.Query(Product);
-  productsQuery = getProductSort(productsQuery, currentSort)
+  if (search) {
+    var regex = new RegExp(search.toLowerCase(), 'gi');
+    var searchTerms = search.split(' ');
+    var addPlural = function(term) { return term + 's'; };
+    var pluralTerms = _.map(searchTerms, addPlural);
+    searchTerms = searchTerms.concat(pluralTerms);
+    
+    var searchSkuQuery = new Parse.Query(Product);
+    searchSkuQuery.matches('sku', regex);
+    var searchNameQuery = new Parse.Query(Product);
+    searchNameQuery.containedIn('search_terms', searchTerms);
+    productsQuery = Parse.Query.or(searchSkuQuery, searchNameQuery);
+  }
+  productsQuery = getProductSort(productsQuery, currentSort);
   productsQuery.include('variants');
   productsQuery.include("department");
   productsQuery.include("classification");
   productsQuery.include("designer");
   productsQuery.limit(PRODUCTS_PER_PAGE);
+  
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
   productsQuery.count().then(function(count) {
@@ -390,6 +405,25 @@ Parse.Cloud.define("loadCategory", function(request, response) {
 		response.error("Error saving category: " + error.message);
 		
 	});
+});
+
+
+/////////////////////////
+//  BEFORE SAVE        //
+/////////////////////////
+
+Parse.Cloud.beforeSave("Product", function(request, response) {
+  var product = request.object;
+
+  var toLowerCase = function(w) { return w.toLowerCase(); };
+
+  var searchTerms = product.get("name").split(' ');
+  searchTerms = _.map(searchTerms, toLowerCase);
+  var stopWords = ["the", "in", "and", "with"];
+  searchTerms = _.filter(searchTerms, function(w) { return !_.contains(stopWords, w); });
+  console.log(searchTerms);
+  product.set("search_terms", searchTerms);
+  response.success();
 });
 
 
