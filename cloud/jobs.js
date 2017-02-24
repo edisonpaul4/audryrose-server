@@ -128,8 +128,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
   var startTime = moment();
   
   var productsQuery = new Parse.Query(Product);
-  productsQuery.doesNotExist('variants');
-  productsQuery.limit(100);
+  productsQuery.limit(10000);
   
   productsQuery.count().then(function(count) {
     totalProducts = count;
