@@ -22,6 +22,7 @@ bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
 const PRODUCTS_PER_PAGE = 50;
+const yearLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
@@ -32,10 +33,15 @@ Parse.Cloud.define("getProducts", function(request, response) {
   var totalPages;
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
   var currentSort = (request.params.sort) ? request.params.sort : 'date-added-desc';
-  var search = request.params.search;
+  var search = request.params.search ? request.params.search : null;
+  var subpage = request.params.subpage ? request.params.subpage : null;
+  var filters = request.params.filters ? request.params.filters : null;
+  console.log('search: ' + search);
   
   var productsQuery = new Parse.Query(Product);
+  
   if (search) {
+    
     var regex = new RegExp(search.toLowerCase(), 'gi');
     var searchTerms = search.split(' ');
     var addPlural = function(term) { return term + 's'; };
@@ -47,6 +53,29 @@ Parse.Cloud.define("getProducts", function(request, response) {
     var searchNameQuery = new Parse.Query(Product);
     searchNameQuery.containedIn('search_terms', searchTerms);
     productsQuery = Parse.Query.or(searchSkuQuery, searchNameQuery);
+    
+  } else {
+    
+    if (filters.designer && filters.designer != 'all') {
+      var designerQuery = new Parse.Query(Designer);
+      designerQuery.equalTo('name', filters.designer);
+      productsQuery.matchesQuery('designer', designerQuery);
+    }
+    
+    if (filters.price && filters.price != 'all') {
+      var price = filters.price.split('-');
+      var min = parseFloat(price[0]);
+      var max = price[1] ? parseFloat(price[1]) : null;
+      productsQuery.greaterThanOrEqualTo('price', min);
+      if (max) productsQuery.lessThanOrEqualTo('price', max);
+    }
+    
+    if (filters.class && filters.class != 'all') {
+      var classQuery = new Parse.Query(Classification);
+      classQuery.equalTo('name', filters.class);
+      productsQuery.matchesQuery('classification', classQuery);
+    }
+    
   }
   productsQuery = getProductSort(productsQuery, currentSort);
   productsQuery.include('variants');
@@ -54,6 +83,22 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include("classification");
   productsQuery.include("designer");
   productsQuery.limit(PRODUCTS_PER_PAGE);
+  
+  switch (subpage) {
+    case 'in-stock':
+      productsQuery.greaterThan('total_stock', 0);
+      break;
+    case 'need-to-order':
+      break;
+    case 'waiting-to-receive':
+      break;
+    case 'being-resized':
+      break;
+    case 'all':
+      break;
+    default:
+      break;
+  }
   
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
@@ -68,6 +113,32 @@ Parse.Cloud.define("getProducts", function(request, response) {
 	  
   }, function(error) {
 	  response.error("Unable to get products: " + error.message);
+	  
+  });
+});
+
+Parse.Cloud.define("getProductFilters", function(request, response) {  
+  
+  var designers = [];
+  var designersQuery = new Parse.Query(Designer);
+  designersQuery.ascending('name');
+  designersQuery.limit(10000);
+  
+  var classes = [];
+  var classesQuery = new Parse.Query(Classification);
+  classesQuery.ascending('name');
+  classesQuery.limit(10000);
+  
+  designersQuery.find({useMasterKey:true}).then(function(result) {
+    designers = result;
+    return classesQuery.find({useMasterKey:true});
+    
+  }).then(function(result) {
+    classes = result;
+	  response.success({designers: designers, classes: classes});
+	  
+  }, function(error) {
+	  response.error("Unable to get designers: " + error.message);
 	  
   });
 });
@@ -146,6 +217,9 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   var productId = request.params.productId;
   var productQuery = new Parse.Query(Product);
   productQuery.equalTo('productId', parseInt(productId));
+  productQuery.include('department');
+  productQuery.include('classification');
+  productQuery.include('designer');
   
   productQuery.first().then(function(result) {
     product = result;
@@ -177,7 +251,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     if (!bcProductOptions) {
       var variantId = productId;
       promise = promise.then(function() {
-        return createProductVariantObject(variantId, null).save(null, {useMasterKey: true});
+        return createProductVariantObject(product, variantId, null).save(null, {useMasterKey: true});
         
       }).then(function(variantObject) {
         allVariants.push(variantObject);
@@ -254,11 +328,11 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         if (variantResult) {
           console.log('Variant ' + variantResult.get('variantId') + ' exists.');
           isNew = false;
-          return createProductVariantObject(variantId, variantOptions, variantResult).save(null, {useMasterKey: true});
+          return createProductVariantObject(product, variantId, variantOptions, variantResult).save(null, {useMasterKey: true});
         } else {
           console.log('Variant ' + variantId + ' is new.');
           totalVariantsAdded++;
-          return createProductVariantObject(variantId, variantOptions).save(null, {useMasterKey: true});
+          return createProductVariantObject(product, variantId, variantOptions).save(null, {useMasterKey: true});
         }
         
       }).then(function(variantObject) {
@@ -553,7 +627,7 @@ var createProductObject = function(productData, classes, departments, designers,
   return {product: productObj, classification: updatedClassification};
 }
 
-var createProductVariantObject = function(variantId, variantOptions, currentVariant) {
+var createProductVariantObject = function(product, variantId, variantOptions, currentVariant) {
   var variantObj = (currentVariant) ? currentVariant : new ProductVariant();
   
   if (!currentVariant) {
@@ -594,6 +668,21 @@ var createProductVariantObject = function(variantId, variantOptions, currentVari
   		});
   	}
   }
+  
+	// Create style number
+	var designer = product.get('designer');
+	var department = product.get('department');
+	var styleNumber = '';
+	styleNumber += (designer) ? designer.get('abbreviation') : '[DESIGNER]';
+	var dateCreated = product.get('date_created');
+  var yearNum = parseFloat(moment(dateCreated.iso).format('YYYY')) - 2015;
+  styleNumber += yearLetters[yearNum];
+  var seasonNum = parseFloat(moment(dateCreated.iso).format('M'))
+  styleNumber += seasonNum;
+  styleNumber += (department) ? department.get('letter') : '[DEPARTMENT]';
+  styleNumber += (product.get('classification_number')) ? product.get('classification_number') : '[CLASS]';
+  variantObj.set('styleNumber', styleNumber);
+  console.log(styleNumber);
   
   if (variantOptions) variantObj.set('variantOptions', variantOptions);
   
