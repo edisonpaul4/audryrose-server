@@ -64,7 +64,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
     return productsQuery.find({useMasterKey:true});
     
   }).then(function(products) {
-	  response.success({products: products, totalPages: totalPages});
+	  response.success({products: products, totalPages: totalPages, totalProducts: totalProducts});
 	  
   }, function(error) {
 	  response.error("Unable to get products: " + error.message);
