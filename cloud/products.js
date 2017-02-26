@@ -247,11 +247,26 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     
     var promise = Parse.Promise.as();
     
+    ////////////////////////////////////////////////////////
     // Create a single variant if product has no options
+    ////////////////////////////////////////////////////////
     if (!bcProductOptions) {
       var variantId = productId;
       promise = promise.then(function() {
-        return createProductVariantObject(product, variantId, null).save(null, {useMasterKey: true});
+        var variantQuery = new Parse.Query(ProductVariant);
+        variantQuery.equalTo('variantId', variantId);
+        return variantQuery.first();
+          
+      }).then(function(variantResult) {
+        if (variantResult) {
+          console.log('Variant ' + variantResult.get('variantId') + ' exists.');
+          isNew = false;
+          return createProductVariantObject(product, variantId, null, variantResult).save(null, {useMasterKey: true});
+        } else {
+          console.log('Variant ' + variantId + ' is new.');
+          totalVariantsAdded++;
+          return createProductVariantObject(product, variantId, null).save(null, {useMasterKey: true});
+        }
         
       }).then(function(variantObject) {
         allVariants.push(variantObject);
@@ -263,88 +278,92 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   			
   		});
       return promise;
-    }
     
-    
-    // Create an array of all the option values
-    var values = [];
-    _.each(bcProductOptions, function(option) {
-      var valueSet = [];
-      _.each(option.values, function(optionValue) {
-        optionValue.option_set_id = option.option_set_id;
-        optionValue.option_id = option.option_id;
-        optionValue.display_name = option.display_name;
-        optionValue.value_sort_order = optionValue.sort_order;
-        optionValue.sort_order = option.sort_order;
-        optionValue.is_required = option.is_required;
-        var priceAdjustment = optionPriceAdjustment(optionValue.option_id, optionValue.option_value_id, bcProductRules);
-        if (priceAdjustment) {
-          console.log('save price adjustment');
-          optionValue.adjuster = priceAdjustment.adjuster;
-          optionValue.adjuster_value = priceAdjustment.adjuster_value;
-        }
-        var isEnabled = optionIsPurchasingEnabled(optionValue.option_id, optionValue.option_value_id, bcProductRules);
-        if (isEnabled) valueSet.push(optionValue);
+    ////////////////////////////////////////////////////////
+    // Create multiple variants if product has options
+    ////////////////////////////////////////////////////////
+    } else {
+      
+      // Create an array of all the option values
+      var values = [];
+      _.each(bcProductOptions, function(option) {
+        var valueSet = [];
+        _.each(option.values, function(optionValue) {
+          optionValue.option_set_id = option.option_set_id;
+          optionValue.option_id = option.option_id;
+          optionValue.display_name = option.display_name;
+          optionValue.value_sort_order = optionValue.sort_order;
+          optionValue.sort_order = option.sort_order;
+          optionValue.is_required = option.is_required;
+          var priceAdjustment = optionPriceAdjustment(optionValue.option_id, optionValue.option_value_id, bcProductRules);
+          if (priceAdjustment) {
+            console.log('save price adjustment');
+            optionValue.adjuster = priceAdjustment.adjuster;
+            optionValue.adjuster_value = priceAdjustment.adjuster_value;
+          }
+          var isEnabled = optionIsPurchasingEnabled(optionValue.option_id, optionValue.option_value_id, bcProductRules);
+          if (isEnabled) valueSet.push(optionValue);
+        });
+        if (valueSet.length) values.push(valueSet);
       });
-      if (valueSet.length) values.push(valueSet);
-    });
-    
-    // Get all possible combinations of option value ids
-    var valueIds = [];
-    _.each(values, function(value) {
-      var valueIdsSet = [];
-      _.each(value, function(valueSet) {
-        if (valueIdsSet.indexOf(valueSet.option_value_id) < 1) valueIdsSet.push(valueSet.option_value_id);
+      
+      // Get all possible combinations of option value ids
+      var valueIds = [];
+      _.each(values, function(value) {
+        var valueIdsSet = [];
+        _.each(value, function(valueSet) {
+          if (valueIdsSet.indexOf(valueSet.option_value_id) < 1) valueIdsSet.push(valueSet.option_value_id);
+        });
+        valueIds.push(valueIdsSet);
       });
-      valueIds.push(valueIdsSet);
-    });
-    var variants = allCombinations(valueIds);
-    
-    // Populate and save the variants
-    _.each(variants, function(valueIds) {
-      if (!valueIds.length) valueIds = [valueIds];
-      var variantOptions = [];
-      var variantId = productId;
-      var isNew = true;
-      _.each(valueIds, function(valueId) {
-        // Find the options data based on variantId
-        _.each(values, function(valueSet) {
-          
-          _.each(valueSet, function(value) {
-            if (valueId == value.option_value_id) {
-              variantOptions.push(value);
-              variantId += '-' + value.option_value_id;
-            }
+      var variants = allCombinations(valueIds);
+      
+      // Populate and save the variants
+      _.each(variants, function(valueIds) {
+        if (!valueIds.length) valueIds = [valueIds];
+        var variantOptions = [];
+        var variantId = productId;
+        var isNew = true;
+        _.each(valueIds, function(valueId) {
+          // Find the options data based on variantId
+          _.each(values, function(valueSet) {
+            
+            _.each(valueSet, function(value) {
+              if (valueId == value.option_value_id) {
+                variantOptions.push(value);
+                variantId += '-' + value.option_value_id;
+              }
+            });
           });
         });
-      });
-      // Check if variant exists
-      promise = promise.then(function() {
-        var variantQuery = new Parse.Query(ProductVariant);
-        variantQuery.equalTo('variantId', variantId);
-        return variantQuery.first();
+        // Check if variant exists
+        promise = promise.then(function() {
+          var variantQuery = new Parse.Query(ProductVariant);
+          variantQuery.equalTo('variantId', variantId);
+          return variantQuery.first();
+            
+        }).then(function(variantResult) {
+          if (variantResult) {
+            console.log('Variant ' + variantResult.get('variantId') + ' exists.');
+            isNew = false;
+            return createProductVariantObject(product, variantId, variantOptions, variantResult).save(null, {useMasterKey: true});
+          } else {
+            console.log('Variant ' + variantId + ' is new.');
+            totalVariantsAdded++;
+            return createProductVariantObject(product, variantId, variantOptions).save(null, {useMasterKey: true});
+          }
           
-      }).then(function(variantResult) {
-        if (variantResult) {
-          console.log('Variant ' + variantResult.get('variantId') + ' exists.');
-          isNew = false;
-          return createProductVariantObject(product, variantId, variantOptions, variantResult).save(null, {useMasterKey: true});
-        } else {
-          console.log('Variant ' + variantId + ' is new.');
-          totalVariantsAdded++;
-          return createProductVariantObject(product, variantId, variantOptions).save(null, {useMasterKey: true});
-        }
-        
-      }).then(function(variantObject) {
-        allVariants.push(variantObject);
-        return variantObject;
-        
-      }, function(error) {
-    		return "Error saving variant: " + error.message;
-  			
-  		});
-    });
-    return promise;
+        }).then(function(variantObject) {
+          allVariants.push(variantObject);
+          return variantObject;
+          
+        }, function(error) {
+      		return "Error saving variant: " + error.message;
+    			
+    		});
+      });
+      return promise;
+    }
     
   }).then(function() {
     product.set('variants', allVariants);
