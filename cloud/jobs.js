@@ -310,6 +310,7 @@ Parse.Cloud.job("updateOrders", function(request, status) {
     return promise;
     
   }).then(function() {
+    orders = orders.slice(0,5); // REMOVE THIS, ONLY FOR TESTING
     console.log('Number of orders to search: ' + orders.length);
     var promise = Parse.Promise.as();
 		_.each(orders, function(order) {

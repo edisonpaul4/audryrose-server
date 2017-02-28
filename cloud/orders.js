@@ -191,6 +191,38 @@ Parse.Cloud.define("loadOrderProducts", function(request, response) {
 //  BEFORE SAVE        //
 /////////////////////////
 
+Parse.Cloud.beforeSave("Order", function(request, response) {
+  var order = request.object;
+
+  var toLowerCase = function(w) { return w.toLowerCase(); };
+  
+  var searchTerms = [];
+  // Add customer name to search terms
+  var billingAddress = order.get('billing_address');
+  searchTerms.push(billingAddress.first_name);
+  searchTerms.push(billingAddress.last_name);
+  searchTerms.push(billingAddress.email);
+  searchTerms.push(order.get('orderId').toString());
+/*
+  if (order.has('orderProducts')) {
+    var orderProducts = order.get('orderProducts');
+    console.log(orderProducts);
+    _.each(orderProducts, function(orderProduct) {
+      
+      var nameTerms = orderProduct.get('name').split(' ');
+      searchTerms = searchTerms.concat(nameTerms);
+    });
+  }
+*/
+  console.log(searchTerms);
+  searchTerms = _.map(searchTerms, toLowerCase);
+  var stopWords = ["the", "in", "and", "with"];
+  searchTerms = _.filter(searchTerms, function(w) { return !_.contains(stopWords, w); });
+  console.log(searchTerms);
+  order.set("search_terms", searchTerms);
+  response.success();
+});
+
 Parse.Cloud.beforeSave("OrderProduct", function(request, response) {
   var orderProduct = request.object;
   var productOptions =  orderProduct.get('product_options');
