@@ -134,7 +134,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
 	var expiredProducts = new Parse.Query(Product);
 	expiredProducts.lessThan("variantsUpdatedAt", expireDate.toDate());
 	var productsQuery = Parse.Query.or(neverUpdated, expiredProducts);
-  productsQuery.limit(200);
+  productsQuery.limit(50);
   
   productsQuery.count().then(function(count) {
     totalProducts = count;
@@ -398,7 +398,7 @@ Parse.Cloud.job("updateOrderProducts", function(request, status) {
     
   }).then(function() {
     console.log('Number of orders to search: ' + orders.length);
-    orders = orders.slice(0,5); // REMOVE THIS, ONLY FOR TESTING
+    //orders = orders.slice(0,5); // REMOVE THIS, ONLY FOR TESTING
 //     return true;
     var promise = Parse.Promise.as();
 		_.each(orders, function(order) {
