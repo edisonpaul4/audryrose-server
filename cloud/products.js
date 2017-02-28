@@ -42,9 +42,12 @@ Parse.Cloud.define("getProducts", function(request, response) {
   
   if (search) {
     
+    var addPlural = function(term) { return term + 's'; };
+    var toLowerCase = function(w) { return w.toLowerCase(); };
+    
     var regex = new RegExp(search.toLowerCase(), 'gi');
     var searchTerms = search.split(' ');
-    var addPlural = function(term) { return term + 's'; };
+    searchTerms = _.map(searchTerms, toLowerCase);
     var pluralTerms = _.map(searchTerms, addPlural);
     searchTerms = searchTerms.concat(pluralTerms);
     
