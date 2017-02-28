@@ -203,18 +203,20 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
   searchTerms.push(billingAddress.last_name);
   searchTerms.push(billingAddress.email);
   searchTerms.push(order.get('orderId').toString());
+  
+  // Add the product names as search terms - needs to use promises
 /*
   if (order.has('orderProducts')) {
     var orderProducts = order.get('orderProducts');
     console.log(orderProducts);
     _.each(orderProducts, function(orderProduct) {
-      
+      var orderProductQuery = new Parse.Query(OrderProduct);
       var nameTerms = orderProduct.get('name').split(' ');
       searchTerms = searchTerms.concat(nameTerms);
     });
   }
 */
-  console.log(searchTerms);
+  
   searchTerms = _.map(searchTerms, toLowerCase);
   var stopWords = ["the", "in", "and", "with"];
   searchTerms = _.filter(searchTerms, function(w) { return !_.contains(stopWords, w); });
