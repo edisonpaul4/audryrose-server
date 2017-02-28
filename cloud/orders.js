@@ -100,31 +100,6 @@ Parse.Cloud.define("getOrders", function(request, response) {
 });
 
 Parse.Cloud.define("loadOrder", function(request, response) {
-  var order = request.params.order;
-  var added = false;
-  
-  var orderQuery = new Parse.Query(Order);
-  orderQuery.equalTo('orderId', parseInt(order.id));
-  orderQuery.first().then(function(orderResult) {
-    if (orderResult) {
-      console.log('Order ' + orderResult.get('orderId') + ' exists.');
-      return createOrderObject(order, orderResult).save(null, {useMasterKey: true});
-    } else {
-      console.log('Order ' + order.id + ' is new.');
-      added = true;
-      return createOrderObject(order).save(null, {useMasterKey: true});
-    }
-    
-  }).then(function(orderObject) {
-    response.success({added: added});
-    
-  }, function(error) {
-    response.error("Error saving order: " + error.message);
-		
-	});
-});
-
-Parse.Cloud.define("loadOrderProducts", function(request, response) {
   var bcOrder = request.params.order;
   var orderObj;
   var orderProducts = [];

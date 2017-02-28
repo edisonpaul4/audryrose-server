@@ -268,7 +268,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
   });
 });
 
-Parse.Cloud.job("updateOrders", function(request, status) {
+Parse.Cloud.job("updateAllOrders", function(request, status) {
   var totalOrders = 0;
   var ordersToProcess = 0;
   var totalOrdersAdded = 0;
@@ -355,7 +355,7 @@ Parse.Cloud.job("updateOrders", function(request, status) {
   });
 });
 
-Parse.Cloud.job("updateOrderProducts", function(request, status) {
+Parse.Cloud.job("updateRecentOrders", function(request, status) {
   var totalOrders = 0;
   var totalOrderProductsAdded = 0;
   var orders = [];
@@ -408,7 +408,7 @@ Parse.Cloud.job("updateOrderProducts", function(request, status) {
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadOrderProducts',
+          url: process.env.SERVER_URL + '/functions/loadOrder',
           headers: {
             'X-Parse-Application-Id': process.env.APP_ID,
             'X-Parse-Master-Key': process.env.MASTER_KEY

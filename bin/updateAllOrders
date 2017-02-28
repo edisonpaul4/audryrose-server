@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 var request = require('request');
 
-var url = process.env.SERVER_URL + '/jobs/updateOrders';
+var url = process.env.SERVER_URL + '/jobs/updateAllOrders';
 var options = {
   method: "GET",
   url: url,
@@ -14,7 +14,7 @@ var options = {
 };
 
 request.post(options).on('response', function(response, body) {
-  console.log('updateOrders success');
+  console.log('success');
 }).on('error', function(error, body) {
-  console.error('updateOrders error');
+  console.error('error');
 });
