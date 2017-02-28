@@ -20,9 +20,16 @@ var api = new ParseServer({
   appId: process.env.APP_ID || 'app',
   masterKey: process.env.MASTER_KEY || '',
   serverURL: process.env.SERVER_URL || 'http://localhost:1337/parse',
-//   verbose: true
-//   liveQuery: { classNames: ["Product"] }
+  verbose: false,
+  loggerAdapter: {
+    module: "parse-server/lib/Adapters/Logger/WinstonLoggerAdapter",
+    options: {
+      logLevel: 'error'
+    }
+  }
 });
+
+
 
 var dashboard = new ParseDashboard({
   "apps": [
@@ -63,6 +70,3 @@ var httpServer = require('http').createServer(app);
 httpServer.listen(port, function() {
   console.log('Audry Rose server running on port ' + port + '.');
 });
-
-// This will enable the Live Query real-time server
-ParseServer.createLiveQueryServer(httpServer);

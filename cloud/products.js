@@ -270,7 +270,6 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         
       }).then(function(variantObject) {
         allVariants.push(variantObject);
-        totalVariantsAdded++;
         return variantObject;
         
       }, function(error) {
@@ -366,6 +365,8 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     }
     
   }).then(function() {
+		var now = new Date();
+		product.set("variantsUpdatedAt", now);
     product.set('variants', allVariants);
     return product.save(null, {useMasterKey: true});
     
@@ -649,46 +650,59 @@ var createProductObject = function(productData, classes, departments, designers,
 var createProductVariantObject = function(product, variantId, variantOptions, currentVariant) {
   var variantObj = (currentVariant) ? currentVariant : new ProductVariant();
   
+  variantObj.set('productId', product.get('productId'));
+  
   if (!currentVariant) {
     variantObj.set('variantId', variantId);
-  
-  	if (variantOptions) {
-  		variantOptions.map(function(variantOption, i) {
-    		console.log(variantOption);
-    		if (variantOption.option_id === 32 || variantOption.option_id === 18) {
-      		variantObj.set('size_label', variantOption.label);
-      		variantObj.set('size_value', variantOption.value);
-    		}
-    		if (variantOption.option_id === 3 || variantOption.option_id === 31 || variantOption.option_id === 36 || variantOption.option_id === 30) {
-      		variantObj.set('color_label', variantOption.label);
-      		variantObj.set('color_value', variantOption.value);
-    		}
-    		if (variantOption.option_id === 33) {
-      		variantObj.set('gemstone_label', variantOption.label);
-      		variantObj.set('gemstone_value', variantOption.value);
-    		}
-    		if (variantOption.option_id === 27) {
-      		variantObj.set('font_label', variantOption.label);
-      		variantObj.set('font_value', variantOption.value);
-    		}
-    		if (variantOption.option_id === 26) {
-      		variantObj.set('letter_label', variantOption.label);
-      		variantObj.set('letter_value', variantOption.value);
-    		}
-    		if (variantOption.option_id === 35) {
-      		variantObj.set('length_label', variantOption.label);
-      		variantObj.set('length_value', variantOption.value);
-    		}
-    		if (variantOption.option_id === 34) {
-      		variantObj.set('singlepair_label', variantOption.label);
-      		variantObj.set('singlepair_value', variantOption.value);
-    		}
-    		return variantOption;
-  		});
-  	}
   }
   
+  var optionValueIds = [];
+	if (variantOptions) {
+		variantOptions.map(function(variantOption, i) {
+  		optionValueIds.push(variantOption.option_value_id);
+  		if (variantOption.option_id === 32 || variantOption.option_id === 18) {
+    		variantObj.set('size_label', variantOption.label);
+    		variantObj.set('size_value', variantOption.value);
+  		}
+  		if (variantOption.option_id === 3 || variantOption.option_id === 31 || variantOption.option_id === 36 || variantOption.option_id === 30) {
+    		variantObj.set('color_label', variantOption.label);
+    		variantObj.set('color_value', variantOption.value);
+  		}
+  		if (variantOption.option_id === 33) {
+    		variantObj.set('gemstone_label', variantOption.label);
+    		variantObj.set('gemstone_value', variantOption.value);
+  		}
+  		if (variantOption.option_id === 27) {
+    		variantObj.set('font_label', variantOption.label);
+    		variantObj.set('font_value', variantOption.value);
+  		}
+  		if (variantOption.option_id === 26) {
+    		variantObj.set('letter_label', variantOption.label);
+    		variantObj.set('letter_value', variantOption.value);
+  		}
+  		if (variantOption.option_id === 35) {
+    		variantObj.set('length_label', variantOption.label);
+    		variantObj.set('length_value', variantOption.value);
+  		}
+  		if (variantOption.option_id === 34) {
+    		variantObj.set('singlepair_label', variantOption.label);
+    		variantObj.set('singlepair_value', variantOption.value);
+  		}
+  		return variantOption;
+		});
+	}
+	variantObj.set('optionValueIds', optionValueIds);
+  
 	// Create style number
+  var styleNumber = createStyleNumber(product);
+  variantObj.set('styleNumber', styleNumber);
+  
+  if (variantOptions) variantObj.set('variantOptions', variantOptions);
+  
+  return variantObj;
+}
+
+var createStyleNumber = function(product) {
 	var designer = product.get('designer');
 	var department = product.get('department');
 	var styleNumber = '';
@@ -700,12 +714,8 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
   styleNumber += seasonNum;
   styleNumber += (department) ? department.get('letter') : '[DEPARTMENT]';
   styleNumber += (product.get('classification_number')) ? product.get('classification_number') : '[CLASS]';
-  variantObj.set('styleNumber', styleNumber);
-  console.log(styleNumber);
-  
-  if (variantOptions) variantObj.set('variantOptions', variantOptions);
-  
-  return variantObj;
+
+  return styleNumber;
 }
 
 var getProductSort = function(productsQuery, currentSort) {
