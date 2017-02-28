@@ -38,11 +38,13 @@ Parse.Cloud.define("getOrders", function(request, response) {
   
   if (search) {
     
+    var toLowerCase = function(w) { return w.toLowerCase(); };
+    
     var regex = new RegExp(search.toLowerCase(), 'gi');
     var searchTerms = search.split(' ');
-    var addPlural = function(term) { return term + 's'; };
-    var pluralTerms = _.map(searchTerms, addPlural);
-    searchTerms = searchTerms.concat(pluralTerms);
+    searchTerms = _.map(searchTerms, toLowerCase);
+    
+    console.log(searchTerms);
     
     var searchOrderNumberQuery = new Parse.Query(Order);
     searchOrderNumberQuery.matches('orderId', regex);
@@ -89,7 +91,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
     return ordersQuery.find({useMasterKey:true});
     
   }).then(function(orders) {
-	  response.success({orders: orders, totalPages: totalPages});
+	  response.success({orders: orders, totalPages: totalPages, totalOrders: totalOrders});
 	  
   }, function(error) {
 	  response.error("Unable to get orders: " + error.message);
@@ -196,33 +198,42 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
 
   var toLowerCase = function(w) { return w.toLowerCase(); };
   
+  var processSearchTerms = function(searchTerms) {
+    searchTerms = _.map(searchTerms, toLowerCase);
+    var stopWords = ["the", "in", "and", "with"];
+    searchTerms = _.filter(searchTerms, function(w) { return !_.contains(stopWords, w); });
+    return searchTerms;
+  }
+  
   var searchTerms = [];
   // Add customer name to search terms
   var billingAddress = order.get('billing_address');
-  searchTerms.push(billingAddress.first_name);
-  searchTerms.push(billingAddress.last_name);
-  searchTerms.push(billingAddress.email);
+  searchTerms.push(toLowerCase(billingAddress.first_name));
+  searchTerms.push(toLowerCase(billingAddress.last_name));
+  searchTerms.push(toLowerCase(billingAddress.email));
   searchTerms.push(order.get('orderId').toString());
   
   // Add the product names as search terms - needs to use promises
-/*
   if (order.has('orderProducts')) {
     var orderProducts = order.get('orderProducts');
-    console.log(orderProducts);
-    _.each(orderProducts, function(orderProduct) {
-      var orderProductQuery = new Parse.Query(OrderProduct);
-      var nameTerms = orderProduct.get('name').split(' ');
-      searchTerms = searchTerms.concat(nameTerms);
+    Parse.Object.fetchAll(orderProducts).then(function(orderProductObjects) {
+      _.each(orderProductObjects, function(orderProduct) {
+        var nameTerms = orderProduct.get('name').split(' ');
+        nameTerms = _.map(nameTerms, toLowerCase);
+        searchTerms = searchTerms.concat(nameTerms);
+      });
+      return searchTerms;
+    }).then(function() {
+      searchTerms = processSearchTerms(searchTerms);
+      order.set("search_terms", searchTerms);
+      response.success();
     });
+  } else {
+    searchTerms = processSearchTerms(searchTerms);
+    order.set("search_terms", searchTerms);
+    response.success();
   }
-*/
   
-  searchTerms = _.map(searchTerms, toLowerCase);
-  var stopWords = ["the", "in", "and", "with"];
-  searchTerms = _.filter(searchTerms, function(w) { return !_.contains(stopWords, w); });
-  console.log(searchTerms);
-  order.set("search_terms", searchTerms);
-  response.success();
 });
 
 Parse.Cloud.beforeSave("OrderProduct", function(request, response) {
@@ -262,10 +273,10 @@ var getOrderSort = function(productsQuery, currentSort) {
       productsQuery.ascending("date_created");
       break;
     case 'total-desc':
-      productsQuery.descending("total");
+      productsQuery.descending("total_inc_tax");
       break;
     case 'total-asc':
-      productsQuery.ascending("total");
+      productsQuery.ascending("total_inc_tax");
       break;
     default:
       productsQuery.descending("date_created");

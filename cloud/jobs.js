@@ -270,6 +270,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
 
 Parse.Cloud.job("updateOrders", function(request, status) {
   var totalOrders = 0;
+  var ordersToProcess = 0;
   var totalOrdersAdded = 0;
   var orders = [];
   
@@ -279,14 +280,14 @@ Parse.Cloud.job("updateOrders", function(request, status) {
   
   bigCommerce.get('/orders/count', function(err, data, response){
     totalOrders = data.count;
-    var ordersToProcess = totalOrders > 2000 ? 2000 : totalOrders;
-    var ordersToProcess = 5;
-    console.log('Total orders to process: ' + ordersToProcess);
-    return ordersToProcess;
+    console.log(totalOrders);
+    return totalOrders;
     
   }).then(function(count) {
-    
-    var numBatches = Math.ceil(totalOrders / BIGCOMMERCE_BATCH_SIZE);
+    //ordersToProcess = totalOrders > 2000 ? 2000 : totalOrders; // Uncomment this to process up to 2000 orders
+    ordersToProcess = totalOrders; // Uncomment this to process all orders
+    console.log('Total orders to process: ' + ordersToProcess);
+    var numBatches = Math.ceil(ordersToProcess / BIGCOMMERCE_BATCH_SIZE);
     console.log('Number of batches: ' + numBatches);
     
     var promise = Parse.Promise.as();
@@ -310,7 +311,7 @@ Parse.Cloud.job("updateOrders", function(request, status) {
     return promise;
     
   }).then(function() {
-    //orders = orders.slice(0,5); // REMOVE THIS, ONLY FOR TESTING
+    //orders = orders.slice(0,5); // REMOVE THIS ONLY FOR TESTING
     console.log('Number of orders to search: ' + orders.length);
     var promise = Parse.Promise.as();
 		_.each(orders, function(order) {
