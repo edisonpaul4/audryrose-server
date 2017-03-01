@@ -36,7 +36,6 @@ Parse.Cloud.define("getProducts", function(request, response) {
   var search = request.params.search ? request.params.search : null;
   var subpage = request.params.subpage ? request.params.subpage : null;
   var filters = request.params.filters ? request.params.filters : null;
-  console.log('search: ' + search);
   
   var productsQuery = new Parse.Query(Product);
   
@@ -474,6 +473,30 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
     
   }, function(error) {
 		response.error("Error saving product: " + error.message);
+		
+	});
+  
+});
+
+Parse.Cloud.define("saveVariant", function(request, response) {
+  var objectId = request.params.objectId;
+  var inventory = parseInt(request.params.inventory);
+  
+  var variantQuery = new Parse.Query(ProductVariant);
+  variantQuery.equalTo('objectId', objectId);
+  variantQuery.first().then(function(variant) {
+    if (variant) {
+      variant.set('inventory_level', inventory);
+      return variant.save(null, {useMasterKey: true});
+    } else {
+      response.error("Error finding variant: " + error.message);
+    }
+    
+  }).then(function(variantObject) {
+	  response.success(variantObject);
+    
+  }, function(error) {
+		response.error("Error saving variant: " + error.message);
 		
 	});
   
