@@ -19,7 +19,7 @@ var bigCommerce = new BigCommerce({
 bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
-const NUM_DAYS_TO_EXPIRE = 0;
+const NUM_DAYS_TO_EXPIRE = 1;
 
 /////////////////////////
 //  BACKGROUND JOBS    //
