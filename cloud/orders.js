@@ -29,10 +29,11 @@ const BIGCOMMERCE_BATCH_SIZE = 250;
 Parse.Cloud.define("getOrders", function(request, response) {
   var totalOrders;
   var totalPages;
+  var tabCounts;
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
   var currentSort = (request.params.sort) ? request.params.sort : 'date-added-desc';
   var search = request.params.search ? request.params.search : null;
-  var subpage = request.params.subpage ? request.params.subpage : null;
+  var subpage = request.params.subpage ? request.params.subpage : 'awaiting-fulfillment';
 //   var filters = request.params.filters ? request.params.filters : null;
   
   var ordersQuery = new Parse.Query(Order);
@@ -81,17 +82,83 @@ Parse.Cloud.define("getOrders", function(request, response) {
   ordersQuery.include('orderProducts.variant.designer');
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
-  ordersQuery.count().then(function(count) {
+  Parse.Cloud.httpRequest({
+    method: 'post',
+    url: process.env.SERVER_URL + '/functions/getOrderTabCounts',
+    headers: {
+      'X-Parse-Application-Id': process.env.APP_ID,
+      'X-Parse-Master-Key': process.env.MASTER_KEY
+    }
+  }).then(function(response) {
+    tabCounts = response.data.result;
+    return ordersQuery.count();
+    
+  }).then(function(count) {
     totalOrders = count;
     totalPages = Math.ceil(totalOrders / ORDERS_PER_PAGE);
     ordersQuery.skip((currentPage - 1) * ORDERS_PER_PAGE);
     return ordersQuery.find({useMasterKey:true});
     
   }).then(function(orders) {
-	  response.success({orders: orders, totalPages: totalPages, totalOrders: totalOrders});
+	  response.success({orders: orders, totalPages: totalPages, totalOrders: totalOrders, tabCounts: tabCounts});
 	  
   }, function(error) {
 	  response.error("Unable to get orders: " + error.message);
+	  
+  });
+});
+
+Parse.Cloud.define("getOrderTabCounts", function(request, response) {  
+  
+  var tabs = {};
+  
+  var afQuery = new Parse.Query(Order);
+  afQuery.equalTo('status', 'Awaiting Fulfillment');
+  var psQuery = new Parse.Query(Order);
+  psQuery.equalTo('status', 'Partially Shipped');
+  var awaitingFulfillmentQuery = Parse.Query.or(afQuery, psQuery);
+  
+  var resizableQuery = new Parse.Query(Order);
+  resizableQuery.equalTo('resizable', true); 
+  
+  var fullyShippableQuery = new Parse.Query(Order);
+  fullyShippableQuery.equalTo('fullyShippable', true);  
+  
+  var partiallyShippableQuery = new Parse.Query(Order);
+  partiallyShippableQuery.equalTo('partiallyShippable', true);  
+  
+  var cannotShipQuery = new Parse.Query(Order);
+  cannotShipQuery.equalTo('cannotShip', true);  
+  
+  var fulfilledQuery = new Parse.Query(Order);
+  fulfilledQuery.equalTo('status', 'Shipped');
+  
+  awaitingFulfillmentQuery.count().then(function(count) {
+    tabs.awaitingFulfillment = count;
+    return resizableQuery.count();
+    
+  }).then(function(count) {
+    tabs.resizable = count;
+    return fullyShippableQuery.count();
+    
+  }).then(function(count) {
+    tabs.fullyShippable = count;
+    return partiallyShippableQuery.count();
+    
+  }).then(function(count) {
+    tabs.partiallyShippable = count;
+    return cannotShipQuery.count();
+    
+  }).then(function(count) {
+    tabs.cannotShip = count;
+    return fulfilledQuery.count();
+    
+  }).then(function(count) {
+    tabs.fulfilled = count;
+	  response.success(tabs);
+	  
+  }, function(error) {
+	  response.error("Unable to get order counts: " + error.message);
 	  
   });
 });

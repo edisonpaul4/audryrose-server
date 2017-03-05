@@ -32,10 +32,11 @@ const yearLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
 Parse.Cloud.define("getProducts", function(request, response) {
   var totalProducts;
   var totalPages;
+  var tabCounts;
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
   var currentSort = (request.params.sort) ? request.params.sort : 'date-added-desc';
   var search = request.params.search ? request.params.search : null;
-  var subpage = request.params.subpage ? request.params.subpage : null;
+  var subpage = request.params.subpage ? request.params.subpage : 'in-stock';
   var filters = request.params.filters ? request.params.filters : null;
   
   var productsQuery = new Parse.Query(Product);
@@ -93,10 +94,13 @@ Parse.Cloud.define("getProducts", function(request, response) {
       productsQuery.greaterThan('total_stock', 0);
       break;
     case 'need-to-order':
+      productsQuery.greaterThan('variantsOutOfStock', 0);
       break;
     case 'waiting-to-receive':
+      productsQuery.equalTo('hasVendorBuy', true);
       break;
     case 'being-resized':
+      productsQuery.equalTo('hasResizeRequest', true);
       break;
     case 'all':
       break;
@@ -106,17 +110,73 @@ Parse.Cloud.define("getProducts", function(request, response) {
   
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
-  productsQuery.count().then(function(count) {
+  
+  Parse.Cloud.httpRequest({
+    method: 'post',
+    url: process.env.SERVER_URL + '/functions/getProductTabCounts',
+    headers: {
+      'X-Parse-Application-Id': process.env.APP_ID,
+      'X-Parse-Master-Key': process.env.MASTER_KEY
+    }
+  }).then(function(response) {
+    tabCounts = response.data.result;
+    return productsQuery.count();
+    
+  }).then(function(count) {
     totalProducts = count;
     totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
     productsQuery.skip((currentPage - 1) * PRODUCTS_PER_PAGE);
     return productsQuery.find({useMasterKey:true});
     
   }).then(function(products) {
-	  response.success({products: products, totalPages: totalPages, totalProducts: totalProducts});
+	  response.success({products: products, totalPages: totalPages, totalProducts: totalProducts, tabCounts: tabCounts});
 	  
   }, function(error) {
 	  response.error("Unable to get products: " + error.message);
+	  
+  });
+});
+
+Parse.Cloud.define("getProductTabCounts", function(request, response) {  
+  
+  var tabs = {};
+  
+  var inStockQuery = new Parse.Query(Product);
+  inStockQuery.greaterThan('total_stock', 0);
+  
+  var needToOrderQuery = new Parse.Query(Product);
+  needToOrderQuery.greaterThan('variantsOutOfStock', 0);
+  
+  var waitingToReceiveQuery = new Parse.Query(Product);
+  waitingToReceiveQuery.equalTo('hasVendorBuy', true);
+  
+  var beingResizedQuery = new Parse.Query(Product);
+  beingResizedQuery.equalTo('hasResizeRequest', true);
+  
+  var allQuery = new Parse.Query(Product);
+  
+  inStockQuery.count().then(function(count) {
+    tabs.inStock = count;
+    return needToOrderQuery.count();
+    
+  }).then(function(count) {
+    tabs.needToOrder = count;
+    return waitingToReceiveQuery.count();
+    
+  }).then(function(count) {
+    tabs.waitingToReceive = count;
+    return beingResizedQuery.count();
+    
+  }).then(function(count) {
+    tabs.beingResized = count;
+    return allQuery.count();
+    
+  }).then(function(count) {
+    tabs.all = count;
+	  response.success(tabs);
+	  
+  }, function(error) {
+	  response.error("Unable to get product counts: " + error.message);
 	  
   });
 });
@@ -266,7 +326,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         if (variantResult) {
           console.log('Variant ' + variantResult.get('variantId') + ' exists.');
           isNew = false;
-          return createProductVariantObject(product, variantId, null, variantResult).save(null, {useMasterKey: true});
+          return createProductVariantObject(product, variantId, null, variantResult);
         } else {
           console.log('Variant ' + variantId + ' is new.');
           totalVariantsAdded++;
@@ -274,7 +334,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         }
         
       }).then(function(variantObject) {
-        return variantObject/* .save(null, {useMasterKey: true}) */;
+        return variantObject.save(null, {useMasterKey: true});
         
       }).then(function(variantObject) {
         allVariants.push(variantObject);
@@ -361,7 +421,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
           }
           
         }).then(function(variantObject) {
-          return variantObject/* .save(null, {useMasterKey: true}) */;
+          return variantObject.save(null, {useMasterKey: true});
           
         }).then(function(variantObject) {
           allVariants.push(variantObject);
@@ -558,7 +618,24 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
   var alwaysResize = categories.indexOf('39') >= 0;
   product.set("alwaysResize", alwaysResize);
   
-  response.success();
+  if (product.has('variants')) {
+    var variants = product.get('variants');
+    Parse.Object.fetchAll(variants).then(function(variantObjects) {
+      var totalStock = 0;
+      _.each(variantObjects, function(variant) {
+        var inventory = variant.get('inventory_level');
+        if (inventory) totalStock += inventory;
+      });
+      return totalStock;
+    }).then(function(totalStock) {
+      console.log('total stock: ' + totalStock);
+      product.set('total_stock', totalStock);
+      response.success();
+    });
+  } else {
+    product.set('total_stock', 0);
+    response.success();
+  }
 });
 
 
