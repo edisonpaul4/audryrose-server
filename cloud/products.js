@@ -552,6 +552,12 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
   searchTerms = _.filter(searchTerms, function(w) { return !_.contains(stopWords, w); });
   console.log(searchTerms);
   product.set("search_terms", searchTerms);
+  
+  // Set whether to always resize (only if in Antiques "39" category)
+  var categories = product.get('categories');
+  var alwaysResize = categories.indexOf('39') >= 0;
+  product.set("alwaysResize", alwaysResize);
+  
   response.success();
 });
 
@@ -792,8 +798,9 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
 	}
 	variantObj.set('optionValueIds', optionValueIds);
 	
-	variantObj.set('designer', product.get('designer'));
-  
+	// Duplicate some properties from parent product
+	if (product.has('designer')) variantObj.set('designer', product.get('designer'));
+	if (product.has('alwaysResize')) variantObj.set('alwaysResize', product.get('alwaysResize'));
   if (product.has('styleNumber')) variantObj.set('styleNumber', product.get('styleNumber'));
   
   return variantObj;
