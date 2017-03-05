@@ -4,6 +4,7 @@ var BigCommerce = require('node-bigcommerce');
 
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
+var OrderProduct = Parse.Object.extend('OrderProduct');
 var ProductVariant = Parse.Object.extend('ProductVariant');
 
 const ORDERS_PER_PAGE = 50;
@@ -53,35 +54,23 @@ Parse.Cloud.define("getOrders", function(request, response) {
     ordersQuery = Parse.Query.or(searchOrderNumberQuery, searchTermsQuery);
     
   } else {
-    ordersQuery.notEqualTo('status', 'Incomplete');
     
-/*
-    if (filters.designer && filters.designer != 'all') {
-      var designerQuery = new Parse.Query(Designer);
-      designerQuery.equalTo('name', filters.designer);
-      productsQuery.matchesQuery('designer', designerQuery);
+    console.log(subpage);
+    switch (subpage) {
+      case 'fulfilled':
+        ordersQuery.equalTo('status', 'Shipped');
+        break;
+      default:
+        ordersQuery.notEqualTo('status', 'Incomplete');
+        break;
     }
-    
-    if (filters.price && filters.price != 'all') {
-      var price = filters.price.split('-');
-      var min = parseFloat(price[0]);
-      var max = price[1] ? parseFloat(price[1]) : null;
-      productsQuery.greaterThanOrEqualTo('price', min);
-      if (max) productsQuery.lessThanOrEqualTo('price', max);
-    }
-    
-    if (filters.class && filters.class != 'all') {
-      var classQuery = new Parse.Query(Classification);
-      classQuery.equalTo('name', filters.class);
-      productsQuery.matchesQuery('classification', classQuery);
-    }
-*/
     
   }
   
   ordersQuery = getOrderSort(ordersQuery, currentSort);
   ordersQuery.limit(ORDERS_PER_PAGE);
   ordersQuery.include('orderProducts');
+  ordersQuery.include('orderProducts.variant');
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
   ordersQuery.count().then(function(count) {
@@ -106,14 +95,16 @@ Parse.Cloud.define("loadOrder", function(request, response) {
   var totalProductsAdded = 0;
   var orderAdded = false;
   
+  console.log('\nOrder ' + bcOrder.id + ' -------------------------------');
+  
   var orderQuery = new Parse.Query(Order);
   orderQuery.equalTo('orderId', parseInt(bcOrder.id));
   orderQuery.first().then(function(orderResult) {
     if (orderResult) {
-      console.log('Order ' + orderResult.get('orderId') + ' exists.');
+      console.log('Order exists.');
       return createOrderObject(bcOrder, orderResult).save(null, {useMasterKey: true});
     } else {
-      console.log('Order ' + bcOrder.id + ' is new.');
+      console.log('Order is new.');
       orderAdded = true;
       return createOrderObject(bcOrder).save(null, {useMasterKey: true});
     }
@@ -124,12 +115,10 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return bigCommerce.get(request);
     
   }).then(function(bcOrderProducts) {
-//     console.log(bcOrderProducts);
-    
     var promise = Parse.Promise.as();
 		_.each(bcOrderProducts, function(orderProduct) {
   		promise = promise.then(function() {
-    		console.log('process orderProduct id: ' + orderProduct.id);
+    		console.log('Process orderProduct id: ' + orderProduct.id);
         var orderProductQuery = new Parse.Query(OrderProduct);
         orderProductQuery.equalTo('orderProductId', parseInt(orderProduct.id));
     		return orderProductQuery.first()
@@ -137,13 +126,16 @@ Parse.Cloud.define("loadOrder", function(request, response) {
   		}).then(function(orderProductResult) {
         if (orderProductResult) {
           console.log('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.');
-          return createOrderProductObject(orderProduct, orderObj, orderProductResult).save(null, {useMasterKey: true});
+          return createOrderProductObject(orderProduct, orderObj, orderProductResult);
         } else {
           console.log('OrderProduct ' + orderProduct.id + ' is new.');
           totalProductsAdded++;
-          return createOrderProductObject(orderProduct, orderObj).save(null, {useMasterKey: true});
+          return createOrderProductObject(orderProduct, orderObj);
         }
     		
+  		}).then(function(orderProductObject) {
+    		orderProductObject.save(null, {useMasterKey: true});
+  		
   		}).then(function(orderProductObject) {
     		return orderProducts.push(orderProductObject);
   		});
@@ -151,7 +143,6 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return promise;
     
   }).then(function(result) {
-    console.log(orderObj);
     orderObj.set('orderProducts', orderProducts);
     orderObj.save(null, {useMasterKey: true});
     
@@ -213,25 +204,21 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
 
 Parse.Cloud.beforeSave("OrderProduct", function(request, response) {
   var orderProduct = request.object;
-  var productOptions =  orderProduct.get('product_options');
-  console.log('product has ' + productOptions.length + ' options');
   
   // Match the OrderProduct to a ProductVariant and save as a pointer
-/*
-  var variantQuery = new Parse.Query(ProductVariant);
-  variantQuery.equalTo('variantId', variantId);
-  variantQuery.first().then(function(variantResult) {
-    if (variantResult) {
-      console.log('Variant ' + variantResult.get('variantId') + ' exists.');
-      isNew = false;
-      return createProductVariantObject(product, variantId, null, variantResult).save(null, {useMasterKey: true});
+  var variantsQuery = new Parse.Query(ProductVariant);
+  variantsQuery.equalTo('productId', orderProduct.get('product_id'));
+  variantsQuery.find().then(function(results) {
+    if (results.length > 0) {
+      var variantMatch = getOrderProductVariantMatch(orderProduct, results);
+      if (variantMatch) orderProduct.set('variant', variantMatch);
+      response.success();
     } else {
-      console.log('Variant ' + variantId + ' is new.');
-      totalVariantsAdded++;
-      return createProductVariantObject(product, variantId, null).save(null, {useMasterKey: true});
+      var msg = 'Variant not found for product ' + orderProduct.get('product_id');
+      console.log(msg);
+      response.error(msg);
     }
-*/
-  response.success();
+  });
 });
 
 
@@ -318,8 +305,6 @@ var createOrderObject = function(orderData, currentOrder) {
 var createOrderProductObject = function(orderProductData, order, currentOrderProduct) {
   var orderProduct = (currentOrderProduct) ? currentOrderProduct : new OrderProduct();
   
-//   orderProduct.set('order', order);
-  
   if (orderProductData.id) orderProduct.set('orderProductId', parseInt(orderProductData.id));
   if (orderProductData.order_id) orderProduct.set('order_id', parseInt(orderProductData.order_id));
   if (orderProductData.product_id) orderProduct.set('product_id', parseInt(orderProductData.product_id));
@@ -367,7 +352,47 @@ var createOrderProductObject = function(orderProductData, order, currentOrderPro
   return orderProduct;
 }
 
+var getOrderProductVariantMatch = function(orderProduct, variants) {
+  console.log(variants.length + ' variants found for product ' + orderProduct.get('product_id'));
+  var productOptions = orderProduct.get('product_options');
+  var totalProductOptions = productOptions.length;
+  console.log('product has ' + totalProductOptions + ' options');
+  
+  if (variants.length == 1 && productOptions.length == 0) {
+    console.log('Matched ' + variants.length + ' variant');
+    return variants[0];
+    
+  } else {
+    var possibleVariants = variants;
+    var matchedVariant;
+    _.each(productOptions, function(productOption) {
+//       console.log('pid: ' + productOption.option_id);
+//       console.log('pv: ' + productOption.value);
+//       console.log('search ' + possibleVariants.length + ' variants');
+      var matchingVariants = [];
+      _.each(possibleVariants, function(variant) {
+        var variantOptions = variant.get('variantOptions');
+      
+        _.each(variantOptions, function(variantOption) {
+          if (productOption.option_id == variantOption.option_id && productOption.value == variantOption.option_value_id) {
+            matchingVariants.push(variant);
+          }
+        });
+      });
+      possibleVariants = matchingVariants;
+    });
+    if (possibleVariants.length == 1) {
+      matchedVariant = possibleVariants[0];
+      console.log('Matched variant ' + matchedVariant.get('variantId'));
+      return matchedVariant;
+    } else {
+      console.log('Matched ' + possibleVariants.length + ' variants');
+      return false;
+    }
+//     return matchedVariant;
+  }
 
+}
 
 
 
