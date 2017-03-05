@@ -41,7 +41,6 @@ Parse.Cloud.define("getProducts", function(request, response) {
   var productsQuery = new Parse.Query(Product);
   
   if (search) {
-    
     var addPlural = function(term) { return term + 's'; };
     var toLowerCase = function(w) { return w.toLowerCase(); };
     
@@ -55,7 +54,9 @@ Parse.Cloud.define("getProducts", function(request, response) {
     searchSkuQuery.matches('sku', regex);
     var searchNameQuery = new Parse.Query(Product);
     searchNameQuery.containedIn('search_terms', searchTerms);
-    productsQuery = Parse.Query.or(searchSkuQuery, searchNameQuery);
+    var searchProductIdQuery = new Parse.Query(Product);
+    searchProductIdQuery.equalTo('productId', parseFloat(search)); 
+    productsQuery = Parse.Query.or(searchSkuQuery, searchNameQuery, searchProductIdQuery);
     
   } else {
     
@@ -790,6 +791,8 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
 		variantObj.set('variantOptions', variantOptions);
 	}
 	variantObj.set('optionValueIds', optionValueIds);
+	
+	variantObj.set('designer', product.get('designer'));
   
   if (product.has('styleNumber')) variantObj.set('styleNumber', product.get('styleNumber'));
   
