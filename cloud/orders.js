@@ -126,16 +126,13 @@ Parse.Cloud.define("loadOrder", function(request, response) {
   		}).then(function(orderProductResult) {
         if (orderProductResult) {
           console.log('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.');
-          return createOrderProductObject(orderProduct, orderObj, orderProductResult);
+          return createOrderProductObject(orderProduct, orderObj, orderProductResult).save(null, {useMasterKey: true});
         } else {
           console.log('OrderProduct ' + orderProduct.id + ' is new.');
           totalProductsAdded++;
-          return createOrderProductObject(orderProduct, orderObj);
+          return createOrderProductObject(orderProduct, orderObj).save(null, {useMasterKey: true});
         }
     		
-  		}).then(function(orderProductObject) {
-    		orderProductObject.save(null, {useMasterKey: true});
-  		
   		}).then(function(orderProductObject) {
     		return orderProducts.push(orderProductObject);
   		});
