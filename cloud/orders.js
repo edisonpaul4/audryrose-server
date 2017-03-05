@@ -60,6 +60,13 @@ Parse.Cloud.define("getOrders", function(request, response) {
       case 'fulfilled':
         ordersQuery.equalTo('status', 'Shipped');
         break;
+      case 'awaiting-fulfillment':
+        var afQuery = new Parse.Query(Order);
+        afQuery.equalTo('status', 'Awaiting Fulfillment');
+        var psQuery = new Parse.Query(Order);
+        psQuery.equalTo('status', 'Partially Shipped');
+        ordersQuery = Parse.Query.or(afQuery, psQuery);
+        break;
       default:
         ordersQuery.notEqualTo('status', 'Incomplete');
         break;
@@ -71,6 +78,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
   ordersQuery.limit(ORDERS_PER_PAGE);
   ordersQuery.include('orderProducts');
   ordersQuery.include('orderProducts.variant');
+  ordersQuery.include('orderProducts.variant.designer');
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
   ordersQuery.count().then(function(count) {
