@@ -356,6 +356,47 @@ Parse.Cloud.beforeSave("OrderProduct", function(request, response) {
   });
 });
 
+Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
+  var orderShipment = request.object;
+  
+  // Match the OrderShipment's items to a ProductVariant and decrement the inventory_level by quantity shipped
+  if (!orderShipment.has('inventoryUpdated') || orderShipment.get('inventoryUpdated') == false) {
+    var totalItemsProcessed = 0;
+    _.each(orderShipment.items, function(item) {
+      var variantsToSave = [];
+      var orderProductQuery = new Parse.Query(OrderProduct);
+      orderProductQuery.equalTo('orderProductId', parseInt(item.order_product_id));
+      orderProductQuery.include('variant');
+      orderProductQuery.first().then(function(result) {
+        if (result && result.variant) {
+          var variant = result.variant;
+          var totalToSubtract = parseInt(item.quantity) * -1;
+          console.log()
+          if (variant.has('inventory_level')) variant.increment('inventory_level', totalToSubtract);
+          return variantsToSave.push(variant);
+        } else {
+          return true;
+        }
+      }).then(function() {
+        totalItemsProcessed++;
+        if (totalItemsProcessed == orderShipment.items.length) {
+          if (variantsToSave.length > 0) {
+            orderShipment.set('inventoryUpdated', true);
+            return Parse.Object.saveAll(variantsToSave, {useMasterKey: true});
+          } else {
+            return true;
+          }
+        }
+      }).then(function() {
+        response.success();
+      });
+    });
+  } else {
+    response.success();
+  }
+
+});
+
 
 /////////////////////////
 //  UTILITY FUNCTIONS  //
