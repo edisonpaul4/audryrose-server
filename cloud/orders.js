@@ -4,7 +4,7 @@ var BigCommerce = require('node-bigcommerce');
 
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
-var OrderProduct = Parse.Object.extend('OrderProduct');
+var OrderShipment = Parse.Object.extend('OrderShipment');
 var ProductVariant = Parse.Object.extend('ProductVariant');
 
 const ORDERS_PER_PAGE = 50;
@@ -80,6 +80,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
   ordersQuery.include('orderProducts');
   ordersQuery.include('orderProducts.variant');
   ordersQuery.include('orderProducts.variant.designer');
+  ordersQuery.include('orderShipments');
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
   Parse.Cloud.httpRequest({
@@ -167,10 +168,12 @@ Parse.Cloud.define("loadOrder", function(request, response) {
   var bcOrder = request.params.order;
   var orderObj;
   var orderProducts = [];
+  var orderShipments = [];
   var totalProductsAdded = 0;
+  var totalShipmentsAdded = 0;
   var orderAdded = false;
   
-  console.log('\nOrder ' + bcOrder.id + ' -------------------------------');
+  console.log('\nOrder ' + bcOrder.id + ' is ' + bcOrder.status + ' ------------------------');
   
   var orderQuery = new Parse.Query(Order);
   orderQuery.equalTo('orderId', parseInt(bcOrder.id));
@@ -186,6 +189,8 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }).then(function(result) {
     orderObj = result;
+    
+    // Load order products
     var request = '/orders/' + bcOrder.id + '/products?limit=' + BIGCOMMERCE_BATCH_SIZE;
     return bigCommerce.get(request);
     
@@ -216,6 +221,39 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }).then(function(result) {
     orderObj.set('orderProducts', orderProducts);
+    
+    // Load order shipments
+    var request = '/orders/' + bcOrder.id + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
+    return bigCommerce.get(request);
+    
+  }).then(function(bcOrderShipments) {
+    if (bcOrderShipments) console.log(bcOrderShipments.length + ' shipments found');
+    var promise = Parse.Promise.as();
+		_.each(bcOrderShipments, function(orderShipment) {
+  		promise = promise.then(function() {
+    		console.log('Process orderShipment id: ' + orderShipment.id);
+        var orderShipmentQuery = new Parse.Query(OrderShipment);
+        orderShipmentQuery.equalTo('orderShipmentId', parseInt(orderShipment.id));
+    		return orderShipmentQuery.first()
+    		
+  		}).then(function(orderShipmentResult) {
+        if (orderShipmentResult) {
+          console.log('OrderShipment ' + orderShipmentResult.get('orderShipmentId') + ' exists.');
+          return createOrderShipmentObject(orderShipment, orderObj, orderShipmentResult).save(null, {useMasterKey: true});
+        } else {
+          console.log('OrderShipment ' + orderShipment.id + ' is new.');
+          totalShipmentsAdded++;
+          return createOrderShipmentObject(orderShipment, orderObj).save(null, {useMasterKey: true});
+        }
+    		
+  		}).then(function(orderShipmentObject) {
+    		return orderShipments.push(orderShipmentObject);
+  		});
+    });
+    return promise;
+    
+  }).then(function(result) {
+    orderObj.set('orderShipments', orderShipments);
     orderObj.save(null, {useMasterKey: true});
     
   }).then(function(orderObj) {
@@ -223,6 +261,31 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }, function(error) {
     response.error("Error saving order: " + error.message);
+		
+	});
+});
+
+Parse.Cloud.define("loadOrderShipment", function(request, response) {
+  var shipment = request.params.shipment;
+  var added = false;
+  
+  var shipmentQuery = new Parse.Query(Shipment);
+  shipmentQuery.equalTo('shipmentId', parseInt(shipment.id));
+  shipmentQuery.first().then(function(shipmentResult) {
+    if (shipmentResult) {
+      console.log('shipment ' + shipmentResult.get('shipmentId') + ' exists.');
+      return createShipmentObject(shipment, shipmentResult).save(null, {useMasterKey: true});
+    } else {
+      console.log('shipment ' + shipment.id + ' is new.');
+      added = true;
+      return createShipmentObject(shipment).save(null, {useMasterKey: true});
+    }
+    
+  }).then(function(shipmentObject) {
+    response.success({added: added});
+    
+  }, function(error) {
+    response.error("Error saving shipment: " + error.message);
 		
 	});
 });
@@ -298,25 +361,25 @@ Parse.Cloud.beforeSave("OrderProduct", function(request, response) {
 //  UTILITY FUNCTIONS  //
 /////////////////////////
 
-var getOrderSort = function(productsQuery, currentSort) {
+var getOrderSort = function(ordersQuery, currentSort) {
   switch (currentSort) {
     case 'date-added-desc':
-      productsQuery.descending("date_created");
+      ordersQuery.descending("date_created");
       break;
     case 'date-added-asc':
-      productsQuery.ascending("date_created");
+      ordersQuery.ascending("date_created");
       break;
     case 'total-desc':
-      productsQuery.descending("total_inc_tax");
+      ordersQuery.descending("total_inc_tax");
       break;
     case 'total-asc':
-      productsQuery.ascending("total_inc_tax");
+      ordersQuery.ascending("total_inc_tax");
       break;
     default:
-      productsQuery.descending("date_created");
+      ordersQuery.descending("date_created");
       break;
   }
-  return productsQuery;
+  return ordersQuery;
 }
 
 var createOrderObject = function(orderData, currentOrder) {
@@ -464,6 +527,35 @@ var getOrderProductVariantMatch = function(orderProduct, variants) {
 //     return matchedVariant;
   }
 
+}
+
+var createOrderShipmentObject = function(shipmentData, order, currentShipment) {
+  var shipment = (currentShipment) ? currentShipment : new OrderShipment();
+  
+  shipment.set('shipmentId', parseInt(shipmentData.id));
+  shipment.set('order_id', parseInt(shipmentData.order_id));
+  shipment.set('customer_id', parseInt(shipmentData.customer_id));
+  shipment.set('order_address_id', parseInt(shipmentData.order_address_id));
+  shipment.set('date_created', moment.utc(shipmentData.date_created, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
+  shipment.set('tracking_number', shipmentData.tracking_number);
+  shipment.set('shipping_method', shipmentData.shipping_method);
+  shipment.set('shipping_provider', shipmentData.shipping_provider);
+  shipment.set('tracking_carrier', shipmentData.tracking_carrier);
+  shipment.set('comments', shipmentData.comments);
+  shipment.set('billing_address', shipmentData.billing_address);
+  shipment.set('shipping_address', shipmentData.shipping_address);
+  
+  var parseItemObject = function(item) {
+    var obj = {};
+    obj.order_product_id = parseInt(item.order_product_id);
+    obj.product_id = parseInt(item.product_id);
+    obj.quantity = parseInt(item.quantity);
+    return item;
+  };
+  var items = _.map(shipmentData.items, parseItemObject);
+  shipment.set('items', items);
+  
+  return shipment;
 }
 
 
