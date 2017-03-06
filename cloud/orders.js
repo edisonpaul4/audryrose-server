@@ -288,7 +288,7 @@ Parse.Cloud.beforeSave("OrderProduct", function(request, response) {
     } else {
       var msg = 'Variant not found for product ' + orderProduct.get('product_id');
       console.log(msg);
-      response.error(msg);
+      response.success(msg);
     }
   });
 });
