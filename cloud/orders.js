@@ -373,6 +373,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
         if (result && result.variant) {
           console.log('order product exists ' + item.order_product_id);
           var variant = result.variant;
+          console.log('matches variant ' + variant.get('variantId'));
           var totalToSubtract = parseInt(item.quantity) * -1;
           if (variant.has('inventoryLevel')) variant.increment('inventoryLevel', totalToSubtract);
           variantsToSave.push(variant);
@@ -399,6 +400,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
       });
     });
   } else {
+    console.log('order products do not need inventory updated');
     response.success();
   }
 
@@ -601,6 +603,7 @@ var createOrderShipmentObject = function(shipmentData, order, currentShipment) {
     return item;
   };
   var items = _.map(shipmentData.items, parseItemObject);
+  console.log('save ' + items.length + ' items');
   shipment.set('items', items);
   
   return shipment;
