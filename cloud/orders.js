@@ -361,27 +361,32 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
   
   // Match the OrderShipment's items to a ProductVariant and decrement the inventoryLevel by quantity shipped
   if (!orderShipment.has('inventoryUpdated') || orderShipment.get('inventoryUpdated') == false) {
-    console.log('order products need inventory updated');
+    var items = orderShipment.get('items');
+    console.log('order products need inventory updated for ' + items.length + ' items');
     var totalItemsProcessed = 0;
-    _.each(orderShipment.items, function(item) {
+    var variantsToSave = [];
+    _.each(items, function(item) {
       console.log('get product ' + item.order_product_id);
-      var variantsToSave = [];
       var orderProductQuery = new Parse.Query(OrderProduct);
       orderProductQuery.equalTo('orderProductId', parseInt(item.order_product_id));
       orderProductQuery.include('variant');
       orderProductQuery.first().then(function(result) {
-        if (result && result.variant) {
-          console.log('order product exists ' + item.order_product_id);
-          var variant = result.variant;
+        if (result) {
+          console.log('order product exists ' + result.get('orderProductId'));
+          var variant = result.get('variant');
           console.log('matches variant ' + variant.get('variantId'));
           var totalToSubtract = parseInt(item.quantity) * -1;
-          if (variant.has('inventoryLevel')) variant.increment('inventoryLevel', totalToSubtract);
-          variantsToSave.push(variant);
+          if (variant.has('inventoryLevel')) {
+            variant.increment('inventoryLevel', totalToSubtract);
+            variantsToSave.push(variant);
+          } else {
+            console.log('no inventory to update, exiting');
+          }
         } else {
           console.log('order product does not exist ' + item.order_product_id);
         }
         totalItemsProcessed++;
-        if (totalItemsProcessed == orderShipment.items.length) {
+        if (totalItemsProcessed == items.length) {
           console.log('all items processed');
           if (variantsToSave.length > 0) {
             console.log('save inventory for all variants');
@@ -396,7 +401,12 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
         }
         
       }).then(function() {
-        if (totalItemsProcessed == orderShipment.items.length) response.success();
+        if (totalItemsProcessed == items.length) {
+          console.log('inventory saved for all variants');
+          response.success();
+        } else {
+          return true;
+        }
       });
     });
   } else {
