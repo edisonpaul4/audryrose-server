@@ -228,6 +228,8 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }).then(function(bcOrderShipments) {
     if (bcOrderShipments) console.log(bcOrderShipments.length + ' shipments found');
+    if (!bcOrderShipments.length) return true;
+    
     var promise = Parse.Promise.as();
 		_.each(bcOrderShipments, function(orderShipment) {
   		promise = promise.then(function() {
@@ -253,16 +255,62 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return promise;
     
   }).then(function(result) {
-    orderObj.set('orderShipments', orderShipments);
+    if (orderShipments.length > 0) orderObj.set('orderShipments', orderShipments);
+    console.log('save order...');
     orderObj.save(null, {useMasterKey: true});
     
   }).then(function(orderObj) {
+    console.log('order saved');
     response.success({added: orderAdded});
     
   }, function(error) {
     response.error("Error saving order: " + error.message);
 		
 	});
+});
+
+Parse.Cloud.define("reloadOrder", function(request, response) {
+  var orderId = parseInt(request.params.orderId);
+  var order;
+  var bcOrder;
+  
+  console.log('reloadOrder ' + orderId);
+
+  var orderRequest = '/orders/' + orderId;
+  console.log(orderRequest);
+  bigCommerce.get(orderRequest).then(function(res) {
+    bcOrder = res;
+    
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/loadOrder',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      },
+      params: {
+        order: bcOrder
+      }
+    });
+    
+  }).then(function(response) {
+    console.log('get order data');
+    var ordersQuery = new Parse.Query(Order);
+    ordersQuery.equalTo("orderId", orderId);
+    ordersQuery.include('orderProducts');
+    ordersQuery.include('orderProducts.variant');
+    ordersQuery.include('orderProducts.variant.designer');
+    ordersQuery.include('orderShipments');
+    return ordersQuery.first();
+    
+  }).then(function(order) {
+    console.log('order successfully reloaded');
+	  response.success(order);
+	  
+  }, function(error) {
+	  response.error("Unable to reload order: " + error.message);
+	  
+  });
 });
 
 Parse.Cloud.define("loadOrderShipment", function(request, response) {
