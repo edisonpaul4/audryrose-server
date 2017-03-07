@@ -284,8 +284,8 @@ Parse.Cloud.job("updateAllOrders", function(request, status) {
     return totalOrders;
     
   }).then(function(count) {
-    //ordersToProcess = totalOrders > 2000 ? 2000 : totalOrders; // Uncomment this to process up to 2000 orders
-    ordersToProcess = totalOrders; // Uncomment this to process all orders
+    ordersToProcess = totalOrders > 2000 ? 2000 : totalOrders; // Uncomment this to process up to 2000 orders
+    //ordersToProcess = totalOrders; // Uncomment this to process all orders
     console.log('Total orders to process: ' + ordersToProcess);
     var numBatches = Math.ceil(ordersToProcess / BIGCOMMERCE_BATCH_SIZE);
     console.log('Number of batches: ' + numBatches);
@@ -296,7 +296,7 @@ Parse.Cloud.job("updateAllOrders", function(request, status) {
       page++;
       promise = promise.then(function() {
         return delay(10).then(function() {
-          var request = '/orders?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:desc';
+          var request = '/orders?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:asc';
           return bigCommerce.get(request);
         }).then(function(response) {
   				_.each(response, function(order) {

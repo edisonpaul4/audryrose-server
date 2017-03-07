@@ -420,13 +420,18 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
       orderProductQuery.include('variant');
       orderProductQuery.first().then(function(result) {
         if (result) {
-          console.log('order product exists ' + result.get('orderProductId'));
-          var variant = result.get('variant');
-          console.log('matches variant ' + variant.get('variantId'));
-          var totalToSubtract = parseInt(item.quantity) * -1;
-          if (variant.has('inventoryLevel')) variant.set('inventoryLevel', 0);
-          variant.increment('inventoryLevel', totalToSubtract);
-          variantsToSave.push(variant);
+          console.log('order product ' + result.get('orderProductId') + ' exists');
+          if (result.has('variant')) {
+            var variant = result.get('variant');
+            console.log('matches variant ' + variant.get('variantId'));
+            var totalToSubtract = parseInt(item.quantity) * -1;
+            if (variant.has('inventoryLevel')) variant.set('inventoryLevel', 0);
+            variant.increment('inventoryLevel', totalToSubtract);
+            variantsToSave.push(variant);
+          } else {
+            console.log('no variant for order product ' + result.get('orderProductId'));
+          }
+
         } else {
           console.log('order product does not exist ' + item.order_product_id);
         }
