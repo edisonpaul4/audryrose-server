@@ -550,12 +550,15 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
 Parse.Cloud.define("saveVariant", function(request, response) {
   var objectId = request.params.objectId;
   var inventory = parseInt(request.params.inventory);
+  var colorCode = request.params.colorCode;
+  console.log(request.params);
   
   var variantQuery = new Parse.Query(ProductVariant);
   variantQuery.equalTo('objectId', objectId);
   variantQuery.first().then(function(variant) {
     if (variant) {
-      variant.set('inventory_level', inventory);
+      if (inventory) variant.set('inventoryLevel', inventory);
+      if (colorCode) variant.set('colorCode', colorCode);
       return variant.save(null, {useMasterKey: true});
     } else {
       response.error("Error finding variant: " + error.message);
@@ -623,7 +626,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
     Parse.Object.fetchAll(variants).then(function(variantObjects) {
       var totalStock = 0;
       _.each(variantObjects, function(variant) {
-        var inventory = variant.get('inventory_level');
+        var inventory = variant.get('inventoryLevel');
         if (inventory) totalStock += inventory;
       });
       return totalStock;

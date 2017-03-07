@@ -359,7 +359,7 @@ Parse.Cloud.beforeSave("OrderProduct", function(request, response) {
 Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
   var orderShipment = request.object;
   
-  // Match the OrderShipment's items to a ProductVariant and decrement the inventory_level by quantity shipped
+  // Match the OrderShipment's items to a ProductVariant and decrement the inventoryLevel by quantity shipped
   if (!orderShipment.has('inventoryUpdated') || orderShipment.get('inventoryUpdated') == false) {
     var totalItemsProcessed = 0;
     _.each(orderShipment.items, function(item) {
@@ -372,7 +372,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
           var variant = result.variant;
           var totalToSubtract = parseInt(item.quantity) * -1;
           console.log()
-          if (variant.has('inventory_level')) variant.increment('inventory_level', totalToSubtract);
+          if (variant.has('inventoryLevel')) variant.increment('inventoryLevel', totalToSubtract);
           return variantsToSave.push(variant);
         } else {
           return true;
