@@ -268,7 +268,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
   });
 });
 
-Parse.Cloud.job("updateAllOrders", function(request, status) {
+Parse.Cloud.job("updateShippedOrders", function(request, status) {
   var totalOrders = 0;
   var ordersToProcess = 0;
   var totalOrdersAdded = 0;
@@ -296,7 +296,7 @@ Parse.Cloud.job("updateAllOrders", function(request, status) {
       page++;
       promise = promise.then(function() {
         return delay(10).then(function() {
-          var request = '/orders?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:asc';
+          var request = '/orders?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:desc&status_id=2&is_deleted=false';
           return bigCommerce.get(request);
         }).then(function(response) {
   				_.each(response, function(order) {
