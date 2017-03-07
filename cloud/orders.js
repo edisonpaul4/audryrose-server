@@ -376,12 +376,9 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
           var variant = result.get('variant');
           console.log('matches variant ' + variant.get('variantId'));
           var totalToSubtract = parseInt(item.quantity) * -1;
-          if (variant.has('inventoryLevel')) {
-            variant.increment('inventoryLevel', totalToSubtract);
-            variantsToSave.push(variant);
-          } else {
-            console.log('no inventory to update, exiting');
-          }
+          if (variant.has('inventoryLevel')) variant.set('inventoryLevel', 0);
+          variant.increment('inventoryLevel', totalToSubtract);
+          variantsToSave.push(variant);
         } else {
           console.log('order product does not exist ' + item.order_product_id);
         }
