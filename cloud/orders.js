@@ -233,14 +233,14 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     var promise = Parse.Promise.as();
 		_.each(bcOrderShipments, function(orderShipment) {
   		promise = promise.then(function() {
-    		console.log('Process orderShipment id: ' + orderShipment.id);
+    		console.log('Process shipment id: ' + orderShipment.id);
         var orderShipmentQuery = new Parse.Query(OrderShipment);
-        orderShipmentQuery.equalTo('orderShipmentId', parseInt(orderShipment.id));
+        orderShipmentQuery.equalTo('shipmentId', parseInt(orderShipment.id));
     		return orderShipmentQuery.first()
     		
   		}).then(function(orderShipmentResult) {
         if (orderShipmentResult) {
-          console.log('OrderShipment ' + orderShipmentResult.get('orderShipmentId') + ' exists.');
+          console.log('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
           return createOrderShipmentObject(orderShipment, orderObj, orderShipmentResult).save(null, {useMasterKey: true});
         } else {
           console.log('OrderShipment ' + orderShipment.id + ' is new.');

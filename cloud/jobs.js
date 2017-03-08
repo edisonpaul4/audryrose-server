@@ -284,8 +284,8 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     return totalOrders;
     
   }).then(function(count) {
-    ordersToProcess = totalOrders > 3000 ? 3000 : totalOrders; // Uncomment this to process up to 2000 orders
-    //ordersToProcess = totalOrders; // Uncomment this to process all orders
+    //ordersToProcess = totalOrders > 1000 ? 1000 : totalOrders; // Uncomment this to limit number of orders
+    ordersToProcess = totalOrders; // Uncomment this to process all orders
     console.log('Total orders to process: ' + ordersToProcess);
     var numBatches = Math.ceil(ordersToProcess / BIGCOMMERCE_BATCH_SIZE);
     console.log('Number of batches: ' + numBatches);
