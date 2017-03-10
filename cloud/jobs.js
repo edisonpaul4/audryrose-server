@@ -360,12 +360,12 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
   var totalOrderProductsAdded = 0;
   var orders = [];
   var orderStatuses = [
-    {name: 'Pending', id: '1'},
-    {name: 'Shipped', id: '2'},
-    {name: 'Partially Shipped', id: '3'},
     {name: 'Awaiting Pickup', id: '8'},
     {name: 'Awaiting Shipment', id: '9'},
-    {name: 'Awaiting Fulfillment', id: '11'}
+    {name: 'Awaiting Fulfillment', id: '11'},
+    {name: 'Partially Shipped', id: '3'},
+    {name: 'Pending', id: '1'},
+    {name: 'Shipped', id: '2'}
   ];
   
   var startTime = moment();
