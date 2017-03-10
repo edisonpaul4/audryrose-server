@@ -62,11 +62,23 @@ Parse.Cloud.define("getOrders", function(request, response) {
         ordersQuery.equalTo('status', 'Shipped');
         break;
       case 'awaiting-fulfillment':
-        var afQuery = new Parse.Query(Order);
-        afQuery.equalTo('status', 'Awaiting Fulfillment');
-        var psQuery = new Parse.Query(Order);
-        psQuery.equalTo('status', 'Partially Shipped');
-        ordersQuery = Parse.Query.or(afQuery, psQuery);
+        ordersQuery = getPendingOrderQuery();
+        break;
+      case 'resizable':
+        ordersQuery = getPendingOrderQuery();
+        ordersQuery.equalTo('resizable', true);
+        break;
+      case 'fully-shippable':
+        ordersQuery = getPendingOrderQuery();
+        ordersQuery.equalTo('fullyShippable', true);
+        break;
+      case 'partially-shippable':
+        ordersQuery = getPendingOrderQuery();
+        ordersQuery.equalTo('partiallyShippable', true);
+        break;
+      case 'cannot-ship':
+        ordersQuery = getPendingOrderQuery();
+        ordersQuery.equalTo('cannotShip', true);
         break;
       default:
         ordersQuery.notEqualTo('status', 'Incomplete');
@@ -490,6 +502,14 @@ var getOrderSort = function(ordersQuery, currentSort) {
       break;
   }
   return ordersQuery;
+}
+
+var getPendingOrderQuery = function() {
+  var afQuery = new Parse.Query(Order);
+  afQuery.equalTo('status', 'Awaiting Fulfillment');
+  var psQuery = new Parse.Query(Order);
+  psQuery.equalTo('status', 'Partially Shipped');
+  return Parse.Query.or(afQuery, psQuery);
 }
 
 var createOrderObject = function(orderData, currentOrder) {
