@@ -22,6 +22,8 @@ var bigCommerce = new BigCommerce({
 bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
+const CUSTOM_PRODUCT_OPTIONS = [28];
+const SIZE_PRODUCT_OPTIONS = [18,32,24];
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
@@ -677,15 +679,17 @@ var getOrderProductVariant = function(orderProduct) {
   var promise = Parse.Promise.as();
   
   // Match the OrderProduct to a ProductVariant and save as a pointer
-  var variantsQuery = new Parse.Query(ProductVariant);
-  variantsQuery.equalTo('productId', orderProduct.get('product_id'));
+  var productQuery = new Parse.Query(Product);
+  productQuery.equalTo('productId', orderProduct.get('product_id'));
+  productQuery.include('variants');
   
   promise = promise.then(function() {
-    return variantsQuery.find();
+    return productQuery.first();
     
-  }).then(function(results) {
-    if (results.length > 0) {
-      var variantMatch = getOrderProductVariantMatch(orderProduct, results);
+  }).then(function(result) {
+    var variants = result.get('variants')
+    if (variants.length > 0) {
+      var variantMatch = getOrderProductVariantMatch(orderProduct, variants);
       if (variantMatch) orderProduct.set('variant', variantMatch);
     } else {
       var msg = 'Variant not found for product ' + orderProduct.get('product_id');
@@ -708,33 +712,46 @@ var getOrderProductVariantMatch = function(orderProduct, variants) {
     return variants[0];
     
   } else {
-    var possibleVariants = variants;
-    var matchedVariant;
-    _.each(productOptions, function(productOption) {
-//       console.log('pid: ' + productOption.option_id);
-//       console.log('pv: ' + productOption.value);
-//       console.log('search ' + possibleVariants.length + ' variants');
-      var matchingVariants = [];
-      _.each(possibleVariants, function(variant) {
-        var variantOptions = variant.get('variantOptions');
+
+    var matchingVariants = [];
+    // Check if any variants are eligible for resize
+    _.each(variants, function(variant) {
+      var variantOptions = variant.has('variantOptions') ? variant.get('variantOptions') : [];
       
+      var matchesProductOptions = false;
+      var totalOptionsToCheck = productOptions.length;
+      var optionsChecked = 0;
+      var optionMatches = 0;
+      
+      _.each(productOptions, function(productOption) {
+        optionsChecked++;
         _.each(variantOptions, function(variantOption) {
           if (productOption.option_id == variantOption.option_id && productOption.value == variantOption.option_value_id) {
-            matchingVariants.push(variant);
+            optionMatches++;
           }
         });
+        if (CUSTOM_PRODUCT_OPTIONS.indexOf(productOption.option_id) >= 0) {
+          // Option is customizable, force it to match
+          optionMatches++;
+        } 
+        if (optionsChecked == totalOptionsToCheck && optionMatches == totalOptionsToCheck) {
+          // All options checked
+          matchesProductOptions = true;
+        }
       });
-      possibleVariants = matchingVariants;
+      
+      if (matchesProductOptions) matchingVariants.push(variant);
     });
-    if (possibleVariants.length == 1) {
-      matchedVariant = possibleVariants[0];
+    console.log(matchingVariants.length + ' variants match');
+
+    if (matchingVariants.length > 0) { // TODO: make this match only 1 variant, if multiple, figure which is correct
+      matchedVariant = matchingVariants[0];
       console.log('Matched variant ' + matchedVariant.get('variantId'));
       return matchedVariant;
     } else {
-      console.log('Matched ' + possibleVariants.length + ' variants');
-      return false;
+      console.log('Matched ' + matchingVariants.length + ' variants');
+      return null;
     }
-//     return matchedVariant;
   }
 
 }
@@ -745,30 +762,36 @@ var getOrderProductsStatus = function(orderProducts) {
   
   promise = promise.then(function() {
     
-    var promise2 = Parse.Promise.as();
   	_.each(orderProducts, function(orderProduct) {
     	
-    	var orderProductVariant = orderProduct.get('variant');
+    	if (orderProduct.has('quantity_shipped') && orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) {
+      	orderProduct.set('resizable', false);
+      	orderProduct.set('shippable', false);
+      	return true;
+    	}
+    	
+    	var orderProductVariant = orderProduct.has('variant') ? orderProduct.get('variant') : null;
       // Determine if product is in resizable class
-      var isResizeProductType = orderProductVariant.has('size_value');
+      var isResizeProductType = (orderProductVariant && orderProductVariant.has('size_value')) ? true : false;
     	
     	if (orderProductVariant.get('inventoryLevel') > 0) {
       	// Has inventory, save it and exit
       	console.log('OrderProduct ' + orderProduct.get('product_id') + ' is shippable');
       	orderProduct.unset('resizable');
       	orderProduct.set('shippable', true);
-      	promise2 = true;
+      	return true;
       	
     	} else if (!isResizeProductType) {
       	console.log('OrderProduct ' + orderProduct.get('product_id') + ' is not a resizable product');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
-      	promise2 = true;
+      	return true;
       	
     	} else {
       	// No inventory and OrderProduct has sizes, check if resizable
       	orderProduct.set('shippable', false);
       	
+      	var promise2 = Parse.Promise.as();
     		promise2 = promise2.then(function() {
       		var productQuery = new Parse.Query(Product);
       		productQuery.equalTo('productId', orderProduct.get('product_id'));
@@ -796,7 +819,7 @@ var getOrderProductsStatus = function(orderProducts) {
                 _.each(orderProductVariantOptions, function(orderProductVariantOption) {
                   optionsChecked++;
                   // Ignore the size options
-                  if (orderProductVariantOption.option_id != 18 && orderProductVariantOption.option_id != 32 && orderProductVariantOption.option_id != 24) {
+                  if (SIZE_PRODUCT_OPTIONS.indexOf(orderProductVariantOption.option_id) < 0) {
                     var variantOptions = variant.has('variantOptions') ? variant.get('variantOptions') : [];
                     _.each(variantOptions, function(variantOption) {
                       if (orderProductVariantOption.option_id == variantOption.option_id && orderProductVariantOption.option_value_id == variantOption.option_value_id) {
@@ -831,9 +854,9 @@ var getOrderProductsStatus = function(orderProducts) {
             return true;
           }
     		});
+    		return promise2;
   		}
   	});
-  	return promise2;
 	}).then(function() {
   	return Parse.Object.saveAll(orderProducts, {useMasterKey: true});
 	});
