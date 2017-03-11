@@ -5,6 +5,8 @@ var cheerio = require('cheerio');
 var BigCommerce = require('node-bigcommerce');
 
 var Product = Parse.Object.extend('Product');
+var ColorCode = Parse.Object.extend('ColorCode');
+var StoneCode = Parse.Object.extend('StoneCode');
 var Order = Parse.Object.extend('Order');
 
 // CONFIG
@@ -525,6 +527,126 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
   });
 });
 
+Parse.Cloud.job("updateOptions", function(request, status) {
+  var totalOptionsAdded = 0;
+  var colorIds = [31, 3, 36, 30, 23];
+  var stoneIds = [33];
+  var colorOptionValues = [];
+  var stoneOptionValues = [];
+  
+  var allIds = colorIds.concat(stoneIds);
+  var totalOptions = allIds.length;
+  
+  var startTime = moment();
+  
+  bigCommerce.get('/options/count', function(err, data, response){
+    return data.count;
+    
+  }).then(function(count) {
+    
+    console.log('Number of options: ' + totalOptions);
+    
+    var promise = Parse.Promise.as();
+    _.each(allIds, function(id) {
+      promise = promise.then(function() {
+        return delay(10).then(function() {
+          var request = '/options/' + id + '/values?limit=' + BIGCOMMERCE_BATCH_SIZE;
+          return bigCommerce.get(request);
+        }).then(function(response) {
+  				_.each(response, function(option) {
+    				if (colorIds.indexOf(id) >= 0) colorOptionValues.push(option);
+    				if (stoneIds.indexOf(id) >= 0) stoneOptionValues.push(option);
+          });
+          return true;
+        }, function(error) {
+          console.log(error.message);
+        });
+      });
+    });
+    return promise;
+    
+  }).then(function() {
+    console.log('Number of color options to search: ' + colorOptionValues.length);
+    
+    var promise = Parse.Promise.as();
+		_.each(colorOptionValues, function(colorOptionValue) {
+  		console.log('process color options id: ' + colorOptionValue.id);
+  		promise = promise.then(function() {
+    		return delay(10).then(function() {
+          var colorCodeQuery = new Parse.Query(ColorCode);
+          colorCodeQuery.equalTo('option_id', parseInt(colorOptionValue.option_id));
+          colorCodeQuery.equalTo('option_value_id', parseInt(colorOptionValue.id));
+          return colorCodeQuery.first();
+          
+        }).then(function(colorCodeResult) {
+          if (colorCodeResult) {
+            console.log('ColorCode exists.');
+            return createOptionObject(colorOptionValue, 'color', colorCodeResult).save(null, {useMasterKey: true});
+          } else {
+            console.log('ColorCode is new.');
+            totalOptionsAdded++;
+            return createOptionObject(colorOptionValue, 'color').save(null, {useMasterKey: true});
+          }
+      		
+    		}).then(function(response) {
+          return response;
+          
+        }, function(error) {
+      		return "Error creating ColorCode: " + error.message;
+    			
+    		});
+  		});
+    });			
+    return promise;
+    
+  }).then(function() {
+    console.log('Number of stone options to search: ' + stoneOptionValues.length);
+    
+    var promise = Parse.Promise.as();
+		_.each(stoneOptionValues, function(stoneOptionValue) {
+  		console.log('process stone options id: ' + stoneOptionValue.id);
+  		promise = promise.then(function() {
+    		return delay(10).then(function() {
+          var stoneCodeQuery = new Parse.Query(StoneCode);
+          stoneCodeQuery.equalTo('option_id', parseInt(stoneOptionValue.option_id));
+          stoneCodeQuery.equalTo('option_value_id', parseInt(stoneOptionValue.id));
+          return stoneCodeQuery.first();
+
+        }).then(function(stoneCodeResult) {
+          if (stoneCodeResult) {
+            console.log('StoneCode exists.');
+            return createOptionObject(stoneOptionValue, 'stone', stoneCodeResult).save(null, {useMasterKey: true});
+          } else {
+            console.log('StoneCode is new.');
+            totalOptionsAdded++;
+            return createOptionObject(stoneOptionValue, 'stone').save(null, {useMasterKey: true});
+          }
+      		
+    		}).then(function(response) {
+          return response;
+          
+        }, function(error) {
+      		return "Error creating StoneCode: " + error.message;
+    			
+    		});
+  		});
+    });			
+    return promise;
+    
+  }).then(function() {
+    var now = moment();
+    var jobTime = moment.duration(now.diff(startTime)).humanize();
+    message = totalOptionsAdded + ' options added. ';
+    message += 'Job time: ' + jobTime;
+    console.log(message);
+    status.success(message);
+    
+  }, function(error) {
+  	console.log(JSON.stringify(error));
+		status.error(error.message);
+  });
+});
+
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
@@ -553,4 +675,52 @@ var delay = function(t) {
   return new Promise(function(resolve) { 
     setTimeout(resolve, t)
   });
+}
+
+var createOptionObject = function(optionData, type, currentOption) {
+  var option;
+  if (currentOption) {
+    option = currentOption;
+  } else {
+    switch (type) {
+      case 'color':
+        option = new ColorCode();
+        break;
+      case 'stone':
+        option = new StoneCode();
+        break;
+      default:
+        return false;
+    }
+  }
+  
+  option.set('option_id', parseInt(optionData.option_id));
+  option.set('option_value_id', parseInt(optionData.id));
+  option.set('label', optionData.label);
+  option.set('value', optionData.value);
+  
+  if (!option.has('code')) option.set('code', getOptionCode(type, optionData.label));
+  
+  return option;
+}
+
+var getOptionCode = function(type, label) {
+  var cleanedLabel = label.toLowerCase();
+  cleanedLabel = cleanedLabel.replace(/-/g, ' ');
+  cleanedLabel = cleanedLabel.replace(/\//g, ' ');
+  cleanedLabel = cleanedLabel.replace(/\./g, ' ');
+  var letters = cleanedLabel.match(/\b(\w)/g);
+  if (!isNaN(letters[0])) letters[0] = cleanedLabel.slice(0, cleanedLabel.indexOf(' '));
+  var code = letters.length > 1 ? letters.join('') : cleanedLabel;
+    
+  switch (type) {
+    case 'color':
+      return code;
+      break;
+    case 'stone':
+      return code;
+      break;
+    default:
+      return '[ERROR]';
+  }
 }
