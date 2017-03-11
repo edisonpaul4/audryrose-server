@@ -623,16 +623,23 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
   
   if (product.has('variants')) {
     var variants = product.get('variants');
+    var totalStock = 0;
+    var variantsOutOfStock = 0;
     Parse.Object.fetchAll(variants).then(function(variantObjects) {
-      var totalStock = 0;
       _.each(variantObjects, function(variant) {
         var inventory = variant.get('inventoryLevel');
-        if (inventory) totalStock += inventory;
+        if (inventory) {
+          if (inventory > 0) totalStock += inventory;
+          if (inventory <= 0) variantsOutOfStock++;
+        } else {
+          variantsOutOfStock++;
+        }
       });
-      return totalStock;
-    }).then(function(totalStock) {
+      return true;
+    }).then(function() {
       console.log('total stock: ' + totalStock);
       product.set('total_stock', totalStock);
+      product.set('variantsOutOfStock', variantsOutOfStock);
       response.success();
     });
   } else {
