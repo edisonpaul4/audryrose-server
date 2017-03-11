@@ -81,7 +81,8 @@ Parse.Cloud.define("getOrders", function(request, response) {
         break;
       case 'cannot-ship':
         ordersQuery = getPendingOrderQuery();
-        ordersQuery.equalTo('cannotShip', true);
+        ordersQuery.equalTo('fullyShippable', false);
+        ordersQuery.equalTo('partiallyShippable', false);
         break;
       default:
         ordersQuery.notEqualTo('status', 'Incomplete');
@@ -128,23 +129,20 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
   
   var tabs = {};
   
-  var afQuery = new Parse.Query(Order);
-  afQuery.equalTo('status', 'Awaiting Fulfillment');
-  var psQuery = new Parse.Query(Order);
-  psQuery.equalTo('status', 'Partially Shipped');
-  var awaitingFulfillmentQuery = Parse.Query.or(afQuery, psQuery);
+  var awaitingFulfillmentQuery = getPendingOrderQuery();
   
-  var resizableQuery = new Parse.Query(Order);
+  var resizableQuery = getPendingOrderQuery();
   resizableQuery.equalTo('resizable', true); 
   
-  var fullyShippableQuery = new Parse.Query(Order);
+  var fullyShippableQuery = getPendingOrderQuery();
   fullyShippableQuery.equalTo('fullyShippable', true);  
   
-  var partiallyShippableQuery = new Parse.Query(Order);
+  var partiallyShippableQuery = getPendingOrderQuery();
   partiallyShippableQuery.equalTo('partiallyShippable', true);  
   
-  var cannotShipQuery = new Parse.Query(Order);
-  cannotShipQuery.equalTo('cannotShip', true);  
+  var cannotShipQuery = getPendingOrderQuery();
+  cannotShipQuery.equalTo('fullyShippable', false);
+  cannotShipQuery.equalTo('partiallyShippable', false); 
   
   var fulfilledQuery = new Parse.Query(Order);
   fulfilledQuery.equalTo('status', 'Shipped');
