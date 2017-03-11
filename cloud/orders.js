@@ -687,13 +687,21 @@ var getOrderProductVariant = function(orderProduct) {
     return productQuery.first();
     
   }).then(function(result) {
-    var variants = result.get('variants')
-    if (variants.length > 0) {
-      var variantMatch = getOrderProductVariantMatch(orderProduct, variants);
-      if (variantMatch) orderProduct.set('variant', variantMatch);
+    if (result && result.has('variants')) {
+      var variants = result.get('variants')
+      if (variants.length > 0) {
+        var variantMatch = getOrderProductVariantMatch(orderProduct, variants);
+        if (variantMatch) orderProduct.set('variant', variantMatch);
+      } else {
+        var msg = 'Variant not found for product ' + orderProduct.get('product_id');
+        console.log(msg);
+      }
+    } else if (result) {
+      console.log('product ordered has no variants');
+      return false;
     } else {
-      var msg = 'Variant not found for product ' + orderProduct.get('product_id');
-      console.log(msg);
+      console.log('custom product ordered without variants');
+      orderProduct.set('isCustom', true);
     }
     return orderProduct;
   });
@@ -768,13 +776,21 @@ var getOrderProductsStatus = function(orderProducts) {
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
       	return true;
+    	} else if (orderProduct.has('isCustom') && orderProduct.get('isCustom') == true) {
+      	
     	}
     	
     	var orderProductVariant = orderProduct.has('variant') ? orderProduct.get('variant') : null;
       // Determine if product is in resizable class
       var isResizeProductType = (orderProductVariant && orderProductVariant.has('size_value')) ? true : false;
     	
-    	if (orderProductVariant.get('inventoryLevel') > 0) {
+    	if (!orderProductVariant) {
+      	console.log('OrderProduct ' + orderProduct.get('product_id') + ' does not have any variants');
+      	orderProduct.set('resizable', false);
+      	orderProduct.set('shippable', false);
+      	return true;
+      	
+    	} else if (orderProductVariant.get('inventoryLevel') > 0) {
       	// Has inventory, save it and exit
       	console.log('OrderProduct ' + orderProduct.get('product_id') + ' is shippable');
       	orderProduct.unset('resizable');
