@@ -9,6 +9,8 @@ var Classification = Parse.Object.extend('Classification');
 var Department = Parse.Object.extend('Department');
 var Designer = Parse.Object.extend('Designer');
 var StyleNumber = Parse.Object.extend('StyleNumber');
+var ColorCode = Parse.Object.extend('ColorCode');
+var StoneCode = Parse.Object.extend('StoneCode');
 
 // CONFIG
 // Set up Bigcommerce API
@@ -301,8 +303,6 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   
   }).then(function(res) {
     bcProductRules = res;
-    console.log('option_set: ' + JSON.stringify(bcProduct.option_set));
-    console.log('options: ' + JSON.stringify(bcProduct.options));
     if (!bcProduct.option_set) return null;
     var optionSetsRequest = '/optionsets/' + bcProduct.option_set_id + '/options';
     return bigCommerce.get(optionSetsRequest);
@@ -550,7 +550,7 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
 Parse.Cloud.define("saveVariant", function(request, response) {
   var objectId = request.params.objectId;
   var inventory = parseInt(request.params.inventory);
-  var colorCode = request.params.colorCode;
+//   var colorCode = request.params.colorCode;
   console.log(request.params);
   
   var variantQuery = new Parse.Query(ProductVariant);
@@ -558,7 +558,7 @@ Parse.Cloud.define("saveVariant", function(request, response) {
   variantQuery.first().then(function(variant) {
     if (variant) {
       if (inventory) variant.set('inventoryLevel', inventory);
-      if (colorCode) variant.set('colorCode', colorCode);
+//       if (colorCode) variant.set('colorCode', colorCode);
       return variant.save(null, {useMasterKey: true});
     } else {
       response.error("Error finding variant: " + error.message);
@@ -766,8 +766,6 @@ var createProductObject = function(productData, classes, departments, designers,
     }
   });
   
-  
-  
   var designer = productObj.get('designer');
   var department = productObj.get('department');
   var classification = productObj.get('classification');
@@ -890,7 +888,46 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
 	if (product.has('alwaysResize')) variantObj.set('alwaysResize', product.get('alwaysResize'));
   if (product.has('styleNumber')) variantObj.set('styleNumber', product.get('styleNumber'));
   
-  return variantObj;
+  // Create the color code for variant
+  if (variantOptions) {
+    console.log('Load color and stone codes');
+    var colorCodes = [];
+    var stoneCodes = [];
+    var promise = Parse.Promise.as();
+    _.each(variantOptions, function(variantOption) {
+      promise = promise.then(function() {
+        var colorCodeQuery = new Parse.Query(ColorCode);
+        colorCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
+        colorCodeQuery.equalTo('option_value_id', parseInt(variantOption.option_value_id));
+    		return colorCodeQuery.first();
+    		
+  		}).then(function(colorCodeResult) {	
+        if (colorCodeResult) {
+          console.log('ColorCode matched: ' + colorCodeResult.get('label'));
+          colorCodes.push(colorCodeResult);
+        }
+        var stoneCodeQuery = new Parse.Query(StoneCode);
+        stoneCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
+        stoneCodeQuery.equalTo('option_value_id', parseInt(variantOption.option_value_id));
+        return stoneCodeQuery.first();
+
+      }).then(function(stoneCodeResult) {
+        if (stoneCodeResult) {
+          console.log('StoneCode matched: ' + stoneCodeResult.get('label'));
+          stoneCodes.push(stoneCodeResult);
+        }
+        if (colorCodes.length > 0) variantObj.set('colorCodes', colorCodes);
+        if (stoneCodes.length > 0) variantObj.set('stoneCodes', stoneCodes);
+        return variantObj;
+        
+      });
+    });
+    return promise;
+  
+  } else {
+    console.log('No variant options');
+    return variantObj;
+  }
   
 }
 
