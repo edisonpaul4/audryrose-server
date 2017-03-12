@@ -912,13 +912,23 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
         }
         if (colorCodes.length > 1) {
           variantObj.set('colorCodes', colorCodes);
+          variantObj.unset('colorCode');
         } else if (colorCodes.length == 1) {
           variantObj.set('colorCode', colorCodes[0]);
+          variantObj.unset('colorCodes');
+        } else {
+          variantObj.unset('colorCode');
+          variantObj.unset('colorCodes');
         }
         if (stoneCodes.length > 1) {
           variantObj.set('stoneCodes', stoneCodes);
+          variantObj.unset('stoneCodes');
         } else if (stoneCodes.length == 1) {
           variantObj.set('stoneCode', stoneCodes[0]);
+          variantObj.unset('stoneCode');
+        } else {
+          variantObj.unset('stoneCodes');
+          variantObj.unset('stoneCode');
         }
         return variantObj;
         
