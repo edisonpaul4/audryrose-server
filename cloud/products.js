@@ -89,6 +89,8 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include("department");
   productsQuery.include("classification");
   productsQuery.include("designer");
+  productsQuery.include("colorCode");
+  productsQuery.include("stoneCode");
   productsQuery.limit(PRODUCTS_PER_PAGE);
   
   switch (subpage) {
@@ -890,8 +892,8 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
     var colorCodes = [];
     var stoneCodes = [];
     var promise = Parse.Promise.as();
+    console.log('totalOptions: ' + totalOptions);
     _.each(variantOptions, function(variantOption) {
-      optionsChecked++;
       promise = promise.then(function() {
         var colorCodeQuery = new Parse.Query(ColorCode);
         colorCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
@@ -913,7 +915,10 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
           console.log('StoneCode matched: ' + stoneCodeResult.get('label'));
           stoneCodes.push(stoneCodeResult);
         }
+        optionsChecked++;
         if (optionsChecked == totalOptions) {
+          console.log('total color codes: ' + colorCodes.length);
+          console.log('total stone codes: ' + stoneCodes.length);
           if (colorCodes.length > 1) {
             variantObj.set('colorCodes', colorCodes);
             variantObj.unset('colorCode');
@@ -934,6 +939,11 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
             variantObj.unset('stoneCodes');
             variantObj.unset('stoneCode');
           }
+          var allCodeObjects = colorCodes.concat(stoneCodes);
+          var allCodes = _.map(allCodeObjects, function(code) { return code.get('code'); } );
+          var codeString = allCodes.join('-');
+          console.log('code: ' + codeString);
+          variantObj.set('code', codeString);
         }
         return variantObj;
         
