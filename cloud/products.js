@@ -645,6 +645,81 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
   }
 });
 
+Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
+  var productVariant = request.object;
+  var variantOptions = productVariant.has('variantOptions') ? productVariant.get('variantOptions') : null;
+
+  // Create the color code for variant
+  if (variantOptions) {
+    console.log('Load color and stone codes');
+    var totalOptions = variantOptions.length;
+    var optionsChecked = 0;
+    var colorCodes = [];
+    var stoneCodes = [];
+    console.log('totalOptions: ' + totalOptions);
+    _.each(variantOptions, function(variantOption) {
+      var colorCodeQuery = new Parse.Query(ColorCode);
+      colorCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
+      colorCodeQuery.equalTo('option_value_id', parseInt(variantOption.option_value_id));
+  		colorCodeQuery.first().then(function(colorCodeResult) {
+        if (colorCodeResult) {
+          console.log('ColorCode matched: ' + colorCodeResult.get('label'));
+          colorCodes.push(colorCodeResult);
+        }
+        var stoneCodeQuery = new Parse.Query(StoneCode);
+        stoneCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
+        stoneCodeQuery.equalTo('option_value_id', parseInt(variantOption.option_value_id));
+        return stoneCodeQuery.first();
+
+      }).then(function(stoneCodeResult) {
+        if (stoneCodeResult) {
+          console.log('StoneCode matched: ' + stoneCodeResult.get('label'));
+          stoneCodes.push(stoneCodeResult);
+        }
+        optionsChecked++;
+        if (optionsChecked == totalOptions) {
+          console.log('total color codes: ' + colorCodes.length);
+          console.log('total stone codes: ' + stoneCodes.length);
+          if (colorCodes.length > 1) {
+            productVariant.set('colorCodes', colorCodes);
+            productVariant.unset('colorCode');
+          } else if (colorCodes.length == 1) {
+            productVariant.set('colorCode', colorCodes[0]);
+            productVariant.unset('colorCodes');
+          } else {
+            productVariant.unset('colorCode');
+            productVariant.unset('colorCodes');
+          }
+          if (stoneCodes.length > 1) {
+            productVariant.set('stoneCodes', stoneCodes);
+            productVariant.unset('stoneCodes');
+          } else if (stoneCodes.length == 1) {
+            productVariant.set('stoneCode', stoneCodes[0]);
+            productVariant.unset('stoneCode');
+          } else {
+            productVariant.unset('stoneCodes');
+            productVariant.unset('stoneCode');
+          }
+          var allCodeObjects = colorCodes.concat(stoneCodes);
+          var allCodes = _.map(allCodeObjects, function(codeObj) { 
+            return codeObj.has('manualCode') ? codeObj.get('manualCode') : codeObj.get('generatedCode'); 
+          });
+          var codeString = allCodes.join('-');
+          console.log('code: ' + codeString);
+          productVariant.set('code', codeString);
+          
+          response.success();
+        }
+      });
+    });
+  
+  } else {
+    console.log('No variant options');
+    response.success();
+  }
+
+});
+
 
 /////////////////////////
 //  UTILITY FUNCTIONS  //
@@ -884,78 +959,7 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
 	if (product.has('designer')) variantObj.set('designer', product.get('designer'));
   if (product.has('styleNumber')) variantObj.set('styleNumber', product.get('styleNumber'));
   
-  // Create the color code for variant
-  if (variantOptions) {
-    console.log('Load color and stone codes');
-    var totalOptions = variantOptions.length;
-    var optionsChecked = 0;
-    var colorCodes = [];
-    var stoneCodes = [];
-    var promise = Parse.Promise.as();
-    console.log('totalOptions: ' + totalOptions);
-    _.each(variantOptions, function(variantOption) {
-      promise = promise.then(function() {
-        var colorCodeQuery = new Parse.Query(ColorCode);
-        colorCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
-        colorCodeQuery.equalTo('option_value_id', parseInt(variantOption.option_value_id));
-    		return colorCodeQuery.first();
-    		
-  		}).then(function(colorCodeResult) {	
-        if (colorCodeResult) {
-          console.log('ColorCode matched: ' + colorCodeResult.get('label'));
-          colorCodes.push(colorCodeResult);
-        }
-        var stoneCodeQuery = new Parse.Query(StoneCode);
-        stoneCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
-        stoneCodeQuery.equalTo('option_value_id', parseInt(variantOption.option_value_id));
-        return stoneCodeQuery.first();
-
-      }).then(function(stoneCodeResult) {
-        if (stoneCodeResult) {
-          console.log('StoneCode matched: ' + stoneCodeResult.get('label'));
-          stoneCodes.push(stoneCodeResult);
-        }
-        optionsChecked++;
-        if (optionsChecked == totalOptions) {
-          console.log('total color codes: ' + colorCodes.length);
-          console.log('total stone codes: ' + stoneCodes.length);
-          if (colorCodes.length > 1) {
-            variantObj.set('colorCodes', colorCodes);
-            variantObj.unset('colorCode');
-          } else if (colorCodes.length == 1) {
-            variantObj.set('colorCode', colorCodes[0]);
-            variantObj.unset('colorCodes');
-          } else {
-            variantObj.unset('colorCode');
-            variantObj.unset('colorCodes');
-          }
-          if (stoneCodes.length > 1) {
-            variantObj.set('stoneCodes', stoneCodes);
-            variantObj.unset('stoneCodes');
-          } else if (stoneCodes.length == 1) {
-            variantObj.set('stoneCode', stoneCodes[0]);
-            variantObj.unset('stoneCode');
-          } else {
-            variantObj.unset('stoneCodes');
-            variantObj.unset('stoneCode');
-          }
-          var allCodeObjects = colorCodes.concat(stoneCodes);
-          var allCodes = _.map(allCodeObjects, function(code) { return code.get('code'); } );
-          var codeString = allCodes.join('-');
-          console.log('code: ' + codeString);
-          variantObj.set('code', codeString);
-        }
-        return variantObj;
-        
-      });
-    });
-    return promise;
-  
-  } else {
-    console.log('No variant options');
-    return variantObj;
-  }
-  
+  return variantObj;  
 }
 
 var getProductSort = function(productsQuery, currentSort) {
