@@ -616,11 +616,6 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
   console.log(searchTerms);
   product.set("search_terms", searchTerms);
   
-  // Set whether to always resize (only if in Antiques "39" category)
-  var categories = product.get('categories');
-  var alwaysResize = categories.indexOf('39') >= 0;
-  product.set("alwaysResize", alwaysResize);
-  
   if (product.has('variants')) {
     var variants = product.get('variants');
     var totalStock = 0;
@@ -885,7 +880,6 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
 	
 	// Duplicate some properties from parent product
 	if (product.has('designer')) variantObj.set('designer', product.get('designer'));
-	if (product.has('alwaysResize')) variantObj.set('alwaysResize', product.get('alwaysResize'));
   if (product.has('styleNumber')) variantObj.set('styleNumber', product.get('styleNumber'));
   
   // Create the color code for variant
