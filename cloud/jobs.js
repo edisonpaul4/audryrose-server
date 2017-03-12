@@ -699,7 +699,7 @@ var createOptionObject = function(optionData, type, currentOption) {
   option.set('label', optionData.label);
   option.set('value', optionData.value);
   
-  if (!option.has('code')) option.set('code', getOptionCode(type, optionData.label));
+  option.set('generatedCode', getOptionCode(type, optionData.label));
   
   return option;
 }
@@ -709,16 +709,19 @@ var getOptionCode = function(type, label) {
   cleanedLabel = cleanedLabel.replace(/-/g, ' ');
   cleanedLabel = cleanedLabel.replace(/\//g, ' ');
   cleanedLabel = cleanedLabel.replace(/\./g, ' ');
-  var letters = cleanedLabel.match(/\b(\w)/g);
-  if (!isNaN(letters[0])) letters[0] = cleanedLabel.slice(0, cleanedLabel.indexOf(' '));
-  var code = letters.length > 1 ? letters.join('') : cleanedLabel;
+  var firstLetters = cleanedLabel.match(/\b(\w)/g);
+  var firstTwoLetters = cleanedLabel.match(/\b(\S\w)/g);
+  if (!isNaN(firstLetters[0])) firstLetters[0] = cleanedLabel.slice(0, cleanedLabel.indexOf(' '));
+  if (!isNaN(firstTwoLetters[0])) firstTwoLetters[0] = cleanedLabel.slice(0, cleanedLabel.indexOf(' '));
     
   switch (type) {
     case 'color':
-      return code;
+      // Return first 1 letter of each word
+      return firstLetters.length > 1 ? firstLetters.join('') : cleanedLabel;
       break;
     case 'stone':
-      return code;
+      // Return first 2 letters of first word, and first 1 letter of 2nd
+      return firstTwoLetters.length > 1 ? firstTwoLetters[0] + firstLetters[1] : cleanedLabel;
       break;
     default:
       return '[ERROR]';
