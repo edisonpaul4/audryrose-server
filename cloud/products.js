@@ -910,8 +910,16 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
           console.log('StoneCode matched: ' + stoneCodeResult.get('label'));
           stoneCodes.push(stoneCodeResult);
         }
-        if (colorCodes.length > 0) variantObj.set('colorCodes', colorCodes);
-        if (stoneCodes.length > 0) variantObj.set('stoneCodes', stoneCodes);
+        if (colorCodes.length > 1) {
+          variantObj.set('colorCodes', colorCodes);
+        } else if (colorCodes.length == 1) {
+          variantObj.set('colorCode', colorCodes[0]);
+        }
+        if (stoneCodes.length > 1) {
+          variantObj.set('stoneCodes', stoneCodes);
+        } else if (stoneCodes.length == 1) {
+          variantObj.set('stoneCode', stoneCodes[0]);
+        }
         return variantObj;
         
       });
