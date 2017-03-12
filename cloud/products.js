@@ -885,10 +885,13 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
   // Create the color code for variant
   if (variantOptions) {
     console.log('Load color and stone codes');
+    var totalOptions = variantOptions.length;
+    var optionsChecked = 0;
     var colorCodes = [];
     var stoneCodes = [];
     var promise = Parse.Promise.as();
     _.each(variantOptions, function(variantOption) {
+      optionsChecked++;
       promise = promise.then(function() {
         var colorCodeQuery = new Parse.Query(ColorCode);
         colorCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
@@ -910,25 +913,27 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
           console.log('StoneCode matched: ' + stoneCodeResult.get('label'));
           stoneCodes.push(stoneCodeResult);
         }
-        if (colorCodes.length > 1) {
-          variantObj.set('colorCodes', colorCodes);
-          variantObj.unset('colorCode');
-        } else if (colorCodes.length == 1) {
-          variantObj.set('colorCode', colorCodes[0]);
-          variantObj.unset('colorCodes');
-        } else {
-          variantObj.unset('colorCode');
-          variantObj.unset('colorCodes');
-        }
-        if (stoneCodes.length > 1) {
-          variantObj.set('stoneCodes', stoneCodes);
-          variantObj.unset('stoneCodes');
-        } else if (stoneCodes.length == 1) {
-          variantObj.set('stoneCode', stoneCodes[0]);
-          variantObj.unset('stoneCode');
-        } else {
-          variantObj.unset('stoneCodes');
-          variantObj.unset('stoneCode');
+        if (optionsChecked == totalOptions) {
+          if (colorCodes.length > 1) {
+            variantObj.set('colorCodes', colorCodes);
+            variantObj.unset('colorCode');
+          } else if (colorCodes.length == 1) {
+            variantObj.set('colorCode', colorCodes[0]);
+            variantObj.unset('colorCodes');
+          } else {
+            variantObj.unset('colorCode');
+            variantObj.unset('colorCodes');
+          }
+          if (stoneCodes.length > 1) {
+            variantObj.set('stoneCodes', stoneCodes);
+            variantObj.unset('stoneCodes');
+          } else if (stoneCodes.length == 1) {
+            variantObj.set('stoneCode', stoneCodes[0]);
+            variantObj.unset('stoneCode');
+          } else {
+            variantObj.unset('stoneCodes');
+            variantObj.unset('stoneCode');
+          }
         }
         return variantObj;
         
