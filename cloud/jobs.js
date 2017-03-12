@@ -22,6 +22,8 @@ bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
 const NUM_DAYS_TO_EXPIRE = 1;
+const COLORS_IDS = [31, 3, 36, 30, 23];
+const STONE_IDS = [33];
 
 /////////////////////////
 //  BACKGROUND JOBS    //
@@ -529,12 +531,10 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
 
 Parse.Cloud.job("updateOptions", function(request, status) {
   var totalOptionsAdded = 0;
-  var colorIds = [31, 3, 36, 30, 23];
-  var stoneIds = [33];
   var colorOptionValues = [];
   var stoneOptionValues = [];
   
-  var allIds = colorIds.concat(stoneIds);
+  var allIds = COLORS_IDS.concat(STONE_IDS);
   var totalOptions = allIds.length;
   
   var startTime = moment();
@@ -554,8 +554,8 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           return bigCommerce.get(request);
         }).then(function(response) {
   				_.each(response, function(option) {
-    				if (colorIds.indexOf(id) >= 0) colorOptionValues.push(option);
-    				if (stoneIds.indexOf(id) >= 0) stoneOptionValues.push(option);
+    				if (COLORS_IDS.indexOf(id) >= 0) colorOptionValues.push(option);
+    				if (STONE_IDS.indexOf(id) >= 0) stoneOptionValues.push(option);
           });
           return true;
         }, function(error) {
