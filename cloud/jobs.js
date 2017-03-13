@@ -533,6 +533,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
   var totalOptionsAdded = 0;
   var colorOptionValues = [];
   var stoneOptionValues = [];
+  var bcOptions = [];
   
   var allIds = COLORS_IDS.concat(STONE_IDS);
   var totalOptions = allIds.length;
@@ -540,11 +541,14 @@ Parse.Cloud.job("updateOptions", function(request, status) {
   var startTime = moment();
   
   bigCommerce.get('/options/count', function(err, data, response){
+    console.log('Number of options: ' + totalOptions);
     return data.count;
     
   }).then(function(count) {
+    return bigCommerce.get('/options?limit=' + BIGCOMMERCE_BATCH_SIZE);
     
-    console.log('Number of options: ' + totalOptions);
+  }).then(function(optionResults) {
+    bcOptions = optionResults;
     
     var promise = Parse.Promise.as();
     _.each(allIds, function(id) {
@@ -581,11 +585,11 @@ Parse.Cloud.job("updateOptions", function(request, status) {
         }).then(function(colorCodeResult) {
           if (colorCodeResult) {
             console.log('ColorCode exists.');
-            return createOptionObject(colorOptionValue, 'color', colorCodeResult).save(null, {useMasterKey: true});
+            return createOptionObject(bcOptions, colorOptionValue, 'color', colorCodeResult).save(null, {useMasterKey: true});
           } else {
             console.log('ColorCode is new.');
             totalOptionsAdded++;
-            return createOptionObject(colorOptionValue, 'color').save(null, {useMasterKey: true});
+            return createOptionObject(bcOptions, colorOptionValue, 'color').save(null, {useMasterKey: true});
           }
       		
     		}).then(function(response) {
@@ -615,11 +619,11 @@ Parse.Cloud.job("updateOptions", function(request, status) {
         }).then(function(stoneCodeResult) {
           if (stoneCodeResult) {
             console.log('StoneCode exists.');
-            return createOptionObject(stoneOptionValue, 'stone', stoneCodeResult).save(null, {useMasterKey: true});
+            return createOptionObject(bcOptions, stoneOptionValue, 'stone', stoneCodeResult).save(null, {useMasterKey: true});
           } else {
             console.log('StoneCode is new.');
             totalOptionsAdded++;
-            return createOptionObject(stoneOptionValue, 'stone').save(null, {useMasterKey: true});
+            return createOptionObject(bcOptions, stoneOptionValue, 'stone').save(null, {useMasterKey: true});
           }
       		
     		}).then(function(response) {
@@ -677,7 +681,7 @@ var delay = function(t) {
   });
 }
 
-var createOptionObject = function(optionData, type, currentOption) {
+var createOptionObject = function(bcOptions, optionData, type, currentOption) {
   var option;
   if (currentOption) {
     option = currentOption;
@@ -693,7 +697,17 @@ var createOptionObject = function(optionData, type, currentOption) {
         return false;
     }
   }
-  
+  var displayName;
+  var name;
+  _.map(bcOptions, function(bcOption) {
+    if (parseInt(bcOption.id) == parseInt(optionData.option_id)) {
+      displayName = bcOption.display_name;
+      name = bcOption.name;
+    }
+    return true;
+  });
+  option.set('display_name', displayName);
+  option.set('option_name', name);
   option.set('option_id', parseInt(optionData.option_id));
   option.set('option_value_id', parseInt(optionData.id));
   option.set('label', optionData.label);
