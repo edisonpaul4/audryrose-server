@@ -695,16 +695,16 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
             productVariant.unset('stoneCodes');
           } else if (stoneCodes.length == 1) {
             productVariant.set('stoneCode', stoneCodes[0]);
-            productVariant.unset('stoneCode');
-          } else {
             productVariant.unset('stoneCodes');
+          } else {
             productVariant.unset('stoneCode');
+            productVariant.unset('stoneCodes');
           }
           var allCodeObjects = colorCodes.concat(stoneCodes);
           var allCodes = _.map(allCodeObjects, function(codeObj) { 
             return codeObj.has('manualCode') ? codeObj.get('manualCode') : codeObj.get('generatedCode'); 
           });
-          var codeString = allCodes.join('-');
+          var codeString = allCodes.join('');
           console.log('code: ' + codeString);
           productVariant.set('code', codeString);
           
