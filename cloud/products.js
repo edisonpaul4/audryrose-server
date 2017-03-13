@@ -86,11 +86,11 @@ Parse.Cloud.define("getProducts", function(request, response) {
   }
   productsQuery = getProductSort(productsQuery, currentSort);
   productsQuery.include('variants');
+  productsQuery.include('variants.colorCode');
+  productsQuery.include('variants.stoneCode');
   productsQuery.include("department");
   productsQuery.include("classification");
   productsQuery.include("designer");
-  productsQuery.include("colorCode");
-  productsQuery.include("stoneCode");
   productsQuery.limit(PRODUCTS_PER_PAGE);
   
   switch (subpage) {

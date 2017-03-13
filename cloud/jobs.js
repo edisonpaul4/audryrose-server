@@ -138,7 +138,8 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
 	var expiredProducts = new Parse.Query(Product);
 	expiredProducts.lessThan("variantsUpdatedAt", expireDate.toDate());
 	var productsQuery = Parse.Query.or(neverUpdated, expiredProducts);
-  productsQuery.limit(50); // 50
+	productsQuery.ascending('variantsUpdatedAt');
+  productsQuery.limit(500); // 500
   
   productsQuery.count().then(function(count) {
     totalProducts = count;
