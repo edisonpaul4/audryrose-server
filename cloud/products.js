@@ -552,15 +552,12 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
 Parse.Cloud.define("saveVariant", function(request, response) {
   var objectId = request.params.objectId;
   var inventory = parseInt(request.params.inventory);
-//   var colorCode = request.params.colorCode;
-  console.log(request.params);
   
   var variantQuery = new Parse.Query(ProductVariant);
   variantQuery.equalTo('objectId', objectId);
   variantQuery.first().then(function(variant) {
     if (variant) {
-      if (inventory) variant.set('inventoryLevel', inventory);
-//       if (colorCode) variant.set('colorCode', colorCode);
+      variant.set('inventoryLevel', inventory);
       return variant.save(null, {useMasterKey: true});
     } else {
       response.error("Error finding variant: " + error.message);
@@ -572,6 +569,41 @@ Parse.Cloud.define("saveVariant", function(request, response) {
   }, function(error) {
 		response.error("Error saving variant: " + error.message);
 		
+	});
+  
+});
+
+Parse.Cloud.define("saveVariants", function(request, response) {
+  var variants = request.params.variants;  
+  var totalVariants = variants.length;
+  var totatVariantsSaved = 0;
+  if (totalVariants == 0) response.success();
+  var savedVariants = [];
+  
+  _.each(variants, function(variant) {
+    var objectId = variant.objectId;
+    var inventory = parseInt(variant.inventory);
+    
+    var variantQuery = new Parse.Query(ProductVariant);
+    variantQuery.equalTo('objectId', objectId);
+    variantQuery.first().then(function(variant) {
+      if (variant) {
+        variant.set('inventoryLevel', inventory);
+        return variant.save(null, {useMasterKey: true});
+      } else {
+        response.error("Error finding variant: " + error.message);
+      }
+      
+    }).then(function(variantObject) {
+      savedVariants.push(variantObject);
+      totatVariantsSaved++;
+  	  if (totatVariantsSaved == totalVariants) response.success(savedVariants);
+      
+    }, function(error) {
+  		response.error("Error saving variant: " + error.message);
+  		
+  	});
+  	
 	});
   
 });
