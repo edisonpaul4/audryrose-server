@@ -230,6 +230,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		return getOrderProductVariant(orderProductObject);
     		
   		}).then(function(orderProductObject) {
+    		return getOrderProductShippingAddress(orderProductObject);
+    		
+  		}).then(function(orderProductObject) {
     		return orderProductObject.save(null, {useMasterKey: true});
     		
   		}).then(function(orderProductObject) {
@@ -703,6 +706,25 @@ var getOrderProductVariant = function(orderProduct) {
     }
     return orderProduct;
   });
+  
+  return promise;
+}
+
+var getOrderProductShippingAddress = function(orderProduct) {
+  
+  var promise = Parse.Promise.as();
+  
+  // Get the OrderProduct's shipping address from Bigcommerce   
+  promise = promise.then(function() {
+    var request = '/orders/' + orderProduct.get('order_id') + '/shipping_addresses/' + orderProduct.get('order_address_id');
+    return bigCommerce.get(request);
+    
+  }).then(function(address) {
+    console.log('adding OrderProduct shipping address: ' + address.id);
+    var shippingAddress = address;
+    orderProduct.set('shippingAddress', shippingAddress);
+    return orderProduct;
+  }); // TODO: ADD ERROR HANDLING
   
   return promise;
 }
