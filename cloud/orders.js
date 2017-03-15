@@ -24,6 +24,7 @@ bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
 const CUSTOM_PRODUCT_OPTIONS = [28];
 const SIZE_PRODUCT_OPTIONS = [18,32,24];
+const US_SHIPPING_ZONES = [1];
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
@@ -306,11 +307,11 @@ Parse.Cloud.define("loadOrder", function(request, response) {
   		}).then(function(orderShipmentResult) {
         if (orderShipmentResult) {
           console.log('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
-          return createOrderShipmentObject(orderShipment, orderObj, orderShipmentResult).save(null, {useMasterKey: true});
+          return createOrderShipmentObject(orderShipment, null, orderShipmentResult).save(null, {useMasterKey: true});
         } else {
           console.log('OrderShipment ' + orderShipment.id + ' is new.');
           totalShipmentsAdded++;
-          return createOrderShipmentObject(orderShipment, orderObj).save(null, {useMasterKey: true});
+          return createOrderShipmentObject(orderShipment, null).save(null, {useMasterKey: true});
         }
     		
   		}).then(function(orderShipmentObject) {
@@ -366,7 +367,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
     ordersQuery.include('orderProducts.variant');
     ordersQuery.include('orderProducts.variant.designer');
     ordersQuery.include('orderShipments');
-    return ordersQuery.first();
+    return ordersQuery.find();
     
   }).then(function(order) {
     console.log('order successfully reloaded');
@@ -378,29 +379,254 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
   });
 });
 
-Parse.Cloud.define("loadOrderShipment", function(request, response) {
-  var shipment = request.params.shipment;
-  var added = false;
-  
-  var shipmentQuery = new Parse.Query(Shipment);
-  shipmentQuery.equalTo('shipmentId', parseInt(shipment.id));
-  shipmentQuery.first().then(function(shipmentResult) {
-    if (shipmentResult) {
-      console.log('shipment ' + shipmentResult.get('shipmentId') + ' exists.');
-      return createShipmentObject(shipment, shipmentResult).save(null, {useMasterKey: true});
-    } else {
-      console.log('shipment ' + shipment.id + ' is new.');
-      added = true;
-      return createShipmentObject(shipment).save(null, {useMasterKey: true});
+Parse.Cloud.define("createShipments", function(request, response) {
+  var shipmentGroups = request.params.shipmentGroups;
+  var carrier;
+  var totalShipmentsAdded = 0;
+  var updatedOrders = [];
+  var newShipments = [];
+  var newOrderShipment = [];
+    
+  Parse.Cloud.httpRequest({
+    method: 'get',
+    url: 'https://api.goshippo.com/carrier_accounts/',
+    headers: {
+      'Authorization': 'ShippoToken ' + process.env.SHIPPO_API_TOKEN
+    },
+    params: {
+      carrier: 'usps'
     }
-    
-  }).then(function(shipmentObject) {
-    response.success({added: added});
-    
   }, function(error) {
-    response.error("Error saving shipment: " + error.message);
-		
-	});
+    console.log(JSON.stringify(error));
+    
+  }).then(function(httpResponse) {
+    carrier = httpResponse.data.results[0]; // Only using USPS for now, so array length should be zero
+    console.log('carrier ' + carrier.object_id);
+    
+    var promise = Parse.Promise.as();
+    _.each(shipmentGroups, function(shipmentGroup) {
+      
+      var orderId = shipmentGroup.orderId;
+      var orderAddressId = shipmentGroup.orderAddressId;
+      var shippingAddress = shipmentGroup.orderProducts[0].shippingAddress;
+      var bcShipment;
+      var shippoLabel;
+      
+      console.log('Process order address: ' + orderAddressId);
+      
+      promise = promise.then(function() {
+
+        // Load order shipments
+        var request = '/orders/' + orderId + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
+        console.log(request);
+        return bigCommerce.get(request);
+        
+      }).then(function(bcOrderShipments) {
+        
+        if (bcOrderShipments.length > 0) {
+          console.log('There are ' + bcOrderShipments.length + ' bigcommerce shipments for order id ' + orderId);
+        } else {
+          console.log('There are no bigcommerce shipments for order id ' + orderId);
+        }
+
+        var addressFrom  = {
+          object_purpose: "PURCHASE",
+          name: "Audry Rose",
+          company: "",
+          street1: "1112 Montana Ave.",
+          street2: "#106",
+          city: "Santa Monica",
+          state: "CA",
+          zip: "90403-3820",
+          country: "US",
+          phone: "+1 424 387 8000",
+          email: "hello@loveaudryrose.com"
+        };
+        
+        var name = shippingAddress.first_name + ' ' + shippingAddress.last_name; 
+        var addressTo = {
+          object_purpose: "PURCHASE",
+          name: name,
+          company: shippingAddress.company,
+          street1: shippingAddress.street_1,
+          street2: shippingAddress.street_2,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+          zip: shippingAddress.zip,
+          country: shippingAddress.country_iso2,
+          phone: shippingAddress.phone,
+          email: shippingAddress.email
+        };
+        var totalWeight = 0;
+        _.map(shipmentGroup.orderProducts, function(p){ 
+          return totalWeight += (p.weight * p.quantity); 
+        });
+        totalWeight.toString();
+        var parcel = {
+          length: "8.69",
+          width: "5.44",
+          height: "1.75",
+          distance_unit: "in",
+          weight: totalWeight,
+          mass_unit: "oz",
+          template: "USPS_SmallFlatRateBox"
+        }
+        var shipment = {
+          address_from: addressFrom,
+          address_to: addressTo,
+          parcel: parcel,
+          object_purpose: "PURCHASE"
+        };
+        
+        var serviceLevel = US_SHIPPING_ZONES.indexOf(shippingAddress.shipping_zone_id) >= 0 ? 'usps_priority' : 'usps_first_class_package_international_service';
+        console.log('do the shippo');
+        
+        return Parse.Cloud.httpRequest({
+          method: 'post',
+          url: 'https://api.goshippo.com/transactions/',
+          headers: {
+            'Authorization': 'ShippoToken ' + process.env.SHIPPO_API_TOKEN,
+            'Content-Type': 'application/json;charset=utf-8'
+          },
+          body: {
+            shipment: shipment,
+            carrier_account: carrier.object_id,
+            servicelevel_token: serviceLevel,
+            label_file_type: 'PDF_4x6'
+          }
+        });
+          
+      }, function(error) {
+        console.log(JSON.stringify(error));
+    
+      }).then(function(httpResponse) {
+        console.log(JSON.stringify(httpResponse.data));
+        if (httpResponse.data.object_status != 'SUCCESS') response.fail('Label could not be generated for order ' + orderId);
+        shippoLabel = httpResponse.data;
+        console.log('Shippo label status: ' + shippoLabel.object_status)
+        
+        // Create the Bigcommerce shipment
+        var request = '/orders/' + orderId + '/shipments';
+        var items = [];
+        _.each(shipmentGroup.orderProducts, function(orderProduct) { 
+          console.log('Adding order product ' + orderProduct.orderProductId + ' to shipment');
+          items.push({order_product_id: orderProduct.orderProductId, quantity: orderProduct.quantity});
+        });
+        var bcShipmentData = {
+          tracking_number: shippoLabel.tracking_number,
+          comments: "",
+          order_address_id: orderAddressId,
+          shipping_provider: "",
+          items: items
+        }
+        return bigCommerce.post(request, bcShipmentData);
+        
+      }, function(error) {
+        console.log(JSON.stringify(error));
+    
+      }).then(function(bcShipmentResult) {
+        //if (!isNew) return true; // Skip if Bigcommerce shipment exists
+        if (!bcShipmentResult) response.fail('Bigcommerce shipment could not be created for order ' + orderId);
+        bcShipment = bcShipmentResult;
+        
+        console.log('Bigcommerce shipment ' + bcShipment.id + ' created');
+        
+        var orderShipmentQuery = new Parse.Query(OrderShipment);
+        orderShipmentQuery.equalTo('shipmentId', parseInt(bcShipment.id));
+    		return orderShipmentQuery.first();
+    		
+  		}, function(error) {
+        console.log(JSON.stringify(error));
+    
+      }).then(function(orderShipmentResult) {
+        if (orderShipmentResult) {
+          console.log('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
+          return createOrderShipmentObject(bcShipment, shippoLabel, orderShipmentResult).save(null, {useMasterKey: true});
+        } else {
+          console.log('OrderShipment ' + bcShipment.id + ' is new.');
+          totalShipmentsAdded++;
+          return createOrderShipmentObject(bcShipment, shippoLabel).save(null, {useMasterKey: true});
+        }
+        
+  		}, function(error) {
+        console.log(JSON.stringify(error));
+    
+      }).then(function(orderShipmentObject) {
+        newOrderShipment = orderShipmentObject;
+    		newShipments.push(newOrderShipment);
+    		
+        var orderQuery = new Parse.Query(Order);
+        orderQuery.equalTo('orderId', parseInt(orderId));
+        orderQuery.include('orderShipments');
+    		return orderQuery.first();
+    		
+  		}).then(function(orderResult) {
+    		orderResult.addUnique('orderShipments', newOrderShipment);
+    		return orderResult.save(null, {useMasterKey: true});
+    		
+  		}).then(function(orderResult) {
+    		console.log('Order shipment saved to order');
+    		return true;
+    		
+      }, function(error) {
+        console.log('Error creating shipment for order ' + orderId);
+      });
+    });
+    return promise;
+    
+  }).then(function() {
+    
+    // Create a list of all unique updated order ids
+    var allOrderIds = [];
+    _.each(newShipments, function(s) { 
+      var index = allOrderIds.indexOf(s.get('order_id'));
+      if (index < 0) allOrderIds.push(s.get('order_id'));
+    });
+    console.log('orderIds to save: ' + allOrderIds.join(','));
+    
+    // Load each order into updatedOrders with pointers
+    var promise = Parse.Promise.as();
+    _.each(allOrderIds, function(orderId) {
+      promise = promise.then(function() {
+        var orderRequest = '/orders/' + orderId;
+        console.log(orderRequest);
+        return bigCommerce.get(orderRequest);
+        
+      }).then(function(bcOrder) {
+        return Parse.Cloud.httpRequest({
+          method: 'post',
+          url: process.env.SERVER_URL + '/functions/loadOrder',
+          headers: {
+            'X-Parse-Application-Id': process.env.APP_ID,
+            'X-Parse-Master-Key': process.env.MASTER_KEY
+          },
+          params: {
+            order: bcOrder
+          }
+        });
+          
+      }).then(function(response) {
+        console.log('get order data');
+        var ordersQuery = new Parse.Query(Order);
+        ordersQuery.equalTo("orderId", orderId);
+        ordersQuery.include('orderProducts');
+        ordersQuery.include('orderProducts.variant');
+        ordersQuery.include('orderProducts.variant.designer');
+        ordersQuery.include('orderShipments');
+        return ordersQuery.first();
+      
+      }).then(function(orderResult) {
+        updatedOrders.push(orderResult);
+      });
+    });
+    return promise;
+    
+  }).then(function() {
+    console.log('Successfully created ' + newShipments.length + ' shipments');
+    response.success(updatedOrders);
+  });
+
+  
 });
 
 /////////////////////////
@@ -452,27 +678,6 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
   }
   
 });
-
-/*
-Parse.Cloud.beforeSave("OrderProduct", function(request, response) {
-  var orderProduct = request.object;
-  
-  // Match the OrderProduct to a ProductVariant and save as a pointer
-  var variantsQuery = new Parse.Query(ProductVariant);
-  variantsQuery.equalTo('productId', orderProduct.get('product_id'));
-  variantsQuery.find().then(function(results) {
-    if (results.length > 0) {
-      var variantMatch = getOrderProductVariantMatch(orderProduct, results);
-      if (variantMatch) orderProduct.set('variant', variantMatch);
-      response.success();
-    } else {
-      var msg = 'Variant not found for product ' + orderProduct.get('product_id');
-      console.log(msg);
-      response.success(msg);
-    }
-  });
-});
-*/
 
 Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
   var orderShipment = request.object;
@@ -810,7 +1015,7 @@ var getOrderProductsStatus = function(orderProducts) {
       	orderProduct.set('shippable', false);
       	return true;
       	
-    	} else if (orderProductVariant.get('inventoryLevel') > 0) {
+    	} else if (orderProductVariant.get('inventoryLevel') >= orderProduct.get('quantity')) {
       	// Has inventory, save it and exit
       	console.log('OrderProduct ' + orderProduct.get('product_id') + ' is shippable');
       	orderProduct.unset('resizable');
@@ -899,7 +1104,7 @@ var getOrderProductsStatus = function(orderProducts) {
   return promise;
 }
 
-var createOrderShipmentObject = function(shipmentData, order, currentShipment) {
+var createOrderShipmentObject = function(shipmentData, shippoLabel, currentShipment) {
   var shipment = (currentShipment) ? currentShipment : new OrderShipment();
   
   shipment.set('shipmentId', parseInt(shipmentData.id));
@@ -926,8 +1131,31 @@ var createOrderShipmentObject = function(shipmentData, order, currentShipment) {
   console.log('save ' + items.length + ' items');
   shipment.set('items', items);
   
+  if (shippoLabel) {
+    shipment.set('shippo_object_state', shippoLabel.object_state);
+    shipment.set('shippo_object_status', shippoLabel.object_status);
+    shipment.set('shippo_object_created', moment.utc(shippoLabel.object_created, moment.ISO_8601).toDate());
+    shipment.set('shippo_object_updated', moment.utc(shippoLabel.object_updated, moment.ISO_8601).toDate());
+    shipment.set('shippo_object_id', shippoLabel.object_id);
+    shipment.set('shippo_test', shippoLabel.test);
+    shipment.set('shippo_rate', shippoLabel.rate);
+    shipment.set('shippo_pickup_date', shippoLabel.pickup_date);
+    shipment.set('shippo_notification_email_from', shippoLabel.notification_email_from);
+    shipment.set('shippo_notification_email_to', shippoLabel.notification_email_to);
+    shipment.set('shippo_notification_email_other', shippoLabel.notification_email_other);
+    shipment.set('shippo_tracking_number', shippoLabel.tracking_number);
+    shipment.set('shippo_tracking_status', shippoLabel.tracking_status);
+    shipment.set('shippo_tracking_history', shippoLabel.tracking_history);
+    shipment.set('shippo_tracking_url_provider', shippoLabel.tracking_url_provider);
+    shipment.set('shippo_label_url', shippoLabel.label_url);
+    shipment.set('shippo_commercial_invoice_url', shippoLabel.commercial_invoice_url);
+    shipment.set('shippo_messages', shippoLabel.messages);
+    shipment.set('shippo_customs_note', shippoLabel.customs_note);
+    shipment.set('shippo_submission_note', shippoLabel.submission_note);
+    shipment.set('shippo_order', shippoLabel.order);
+    shipment.set('shippo_metadata', shippoLabel.metadata);
+    shipment.set('shippo_parcel', shippoLabel.parcel);
+  }
+  
   return shipment;
 }
-
-
-
