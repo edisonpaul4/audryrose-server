@@ -455,7 +455,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
 
 Parse.Cloud.define("reloadProduct", function(request, response) {
   var productId = parseInt(request.params.productId);
-  var product;
+  var updatedProduct;
   var bcProduct;
 
   var productQuery = new Parse.Query(Product);
@@ -505,8 +505,20 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
     productsQuery.include("designer");
     return productsQuery.first();
     
-  }).then(function(product) {
-	  response.success(product);
+  }).then(function(result) {
+    updatedProduct = result;
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/getProductTabCounts',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      }
+    });
+    
+  }).then(function(httpResponse) {
+    tabCounts = httpResponse.data.result;
+	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
 	  
   }, function(error) {
 	  response.error("Unable to reload product: " + error.message);
@@ -552,6 +564,9 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
 Parse.Cloud.define("saveVariant", function(request, response) {
   var objectId = request.params.objectId;
   var inventory = parseInt(request.params.inventory);
+  var updatedVariant;
+  var updatedProduct;
+  var tabCounts;
   
   var variantQuery = new Parse.Query(ProductVariant);
   variantQuery.equalTo('objectId', objectId);
@@ -564,7 +579,33 @@ Parse.Cloud.define("saveVariant", function(request, response) {
     }
     
   }).then(function(variantObject) {
-	  response.success(variantObject);
+    updatedVariant = variantObject;
+    
+    var productsQuery = new Parse.Query(Product);
+    productsQuery.equalTo("productId", updatedVariant.get('productId'));
+    productsQuery.include("variants");
+    productsQuery.include("department");
+    productsQuery.include("classification");
+    productsQuery.include("designer");
+    return productsQuery.first();
+    
+  }).then(function(result) {
+    result.save(null, {useMasterKey: true});
+    
+  }).then(function(result) {
+    updatedProduct = result;
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/getProductTabCounts',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      }
+    });
+    
+  }).then(function(httpResponse) {
+    tabCounts = httpResponse.data.result;
+	  response.success({updatedProduct: updatedProduct, updatedVariant: updatedVariant, tabCounts: tabCounts});
     
   }, function(error) {
 		response.error("Error saving variant: " + error.message);
@@ -575,35 +616,110 @@ Parse.Cloud.define("saveVariant", function(request, response) {
 
 Parse.Cloud.define("saveVariants", function(request, response) {
   var variants = request.params.variants;  
-  var totalVariants = variants.length;
-  var totatVariantsSaved = 0;
-  if (totalVariants == 0) response.success();
-  var savedVariants = [];
+  if (variants.length == 0) response.success();
+  var updatedVariants = [];
+  var updatedProducts = [];
+  var productIds = [];
+  var tabCounts;
   
-  _.each(variants, function(variant) {
-    var objectId = variant.objectId;
-    var inventory = parseInt(variant.inventory);
+  var productsQuery = new Parse.Query(Product);
+  productsQuery.count().then(function(count) {
     
-    var variantQuery = new Parse.Query(ProductVariant);
-    variantQuery.equalTo('objectId', objectId);
-    variantQuery.first().then(function(variant) {
-      if (variant) {
-        variant.set('inventoryLevel', inventory);
-        return variant.save(null, {useMasterKey: true});
-      } else {
-        response.error("Error finding variant: " + error.message);
-      }
+    console.log(variants.length + ' variants ids to save');
+    
+    var promise = Parse.Promise.as();
+    
+    _.each(variants, function(variant) {
+      var objectId = variant.objectId;
+      var inventory = parseInt(variant.inventory);
+      promise = promise.then(function() {
+        console.log('saving variant: ' + objectId);
+        
+        var variantQuery = new Parse.Query(ProductVariant);
+        variantQuery.equalTo('objectId', objectId);
+        return variantQuery.first();
+        
+      }).then(function(variant) {
+        if (variant) {
+          console.log('variant found');
+          if (inventory) {
+            variant.set('inventoryLevel', inventory);
+          } else {
+            variant.unset('inventoryLevel');
+          }
+          return variant.save(null, {useMasterKey: true});
+        } else {
+          console.log('no variant found');
+          response.error("Error finding variant: " + error.message);
+        }
+        
+      }).then(function(variantObject) {
+        console.log('saved: ' + variantObject.get('variantId'));
+        updatedVariants.push(variantObject);
+        if (productIds.indexOf(variantObject.get('productId')) < 0) productIds.push(variantObject.get('productId'));
+        return true;
+        
+      }, function(error) {
+    		response.error("Error saving variant: " + error.message);
+    		
+    	});
+    	
+  	});
+  	return promise;
+  	
+	}).then(function() {
+  	
+  	console.log(productIds.length + ' product ids to save');
+  	
+    var promise = Parse.Promise.as();
+    
+    _.each(productIds, function(productId) {
+      console.log('save product id: ' + productId);
       
-    }).then(function(variantObject) {
-      savedVariants.push(variantObject);
-      totatVariantsSaved++;
-  	  if (totatVariantsSaved == totalVariants) response.success(savedVariants);
+      promise = promise.then(function() {
+        
+        var productQuery = new Parse.Query(Product);
+        productQuery.equalTo('productId', productId);
+        productQuery.include('variants');
+        productQuery.include('variants.colorCode');
+        productQuery.include('variants.stoneCode');
+        productQuery.include("department");
+        productQuery.include("classification");
+        productQuery.include("designer");
+        return productQuery.first();
       
-    }, function(error) {
-  		response.error("Error saving variant: " + error.message);
-  		
+      }).then(function(product) {
+        return product.save(null, {useMasterKey: true});
+        
+      }).then(function(productObject) {
+        console.log(productId + ' saved');
+        updatedProducts.push(productObject);
+        return true;
+        
+      }, function(error) {
+    		response.error("Error saving product: " + error.message);
+    		
+    	});
   	});
   	
+  	return promise;
+  	
+  }).then(function(result) {
+    console.log('get product tab counts');
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/getProductTabCounts',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      }
+    });
+    
+  }).then(function(httpResponse) {
+    console.log('success');
+    tabCounts = httpResponse.data.result;
+	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, tabCounts: tabCounts});
+    
 	});
   
 });

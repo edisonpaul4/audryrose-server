@@ -337,8 +337,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
 
 Parse.Cloud.define("reloadOrder", function(request, response) {
   var orderId = parseInt(request.params.orderId);
-  var order;
+  var updatedOrder;
   var bcOrder;
+  var tabCounts;
   
   console.log('reloadOrder ' + orderId);
 
@@ -367,11 +368,25 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
     ordersQuery.include('orderProducts.variant');
     ordersQuery.include('orderProducts.variant.designer');
     ordersQuery.include('orderShipments');
-    return ordersQuery.find();
+    return ordersQuery.first();
     
-  }).then(function(order) {
+  }).then(function(result) {
+    updatedOrder = result;
+    
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/getOrderTabCounts',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      }
+    });
+    
+  }).then(function(httpResponse) {
+    tabCounts = httpResponse.data.result;
+    
     console.log('order successfully reloaded');
-	  response.success(order);
+	  response.success({updatedOrders: [updatedOrder], tabCounts: tabCounts});
 	  
   }, function(error) {
 	  response.error("Unable to reload order: " + error.message);
