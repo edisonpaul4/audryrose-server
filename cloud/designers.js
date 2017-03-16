@@ -44,6 +44,7 @@ Parse.Cloud.define("getDesigners", function(request, response) {
 	  response.success({designers: designers, totalPages: totalPages});
 	  
   }, function(error) {
+	  console.error("Unable to get designers: " + error.message);
 	  response.error("Unable to get designers: " + error.message);
 	  
   });
@@ -69,6 +70,7 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
     response.success({added: added});
     
   }, function(error) {
+    console.error("Error saving designer: " + error.message);
     response.error("Error saving designer: " + error.message);
 		
 	});

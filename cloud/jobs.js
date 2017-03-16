@@ -36,7 +36,7 @@ Parse.Cloud.job("test", function(request, status) {
     console.log(message);
     status.success(message);
   }, function(error) {
-  	console.log(JSON.stringify(error));
+  	console.error(JSON.stringify(error));
 		status.error(error.message);
   });
 	
@@ -72,7 +72,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
           });
           return true;
         }, function(error) {
-          console.log(error.message);
+          console.error(error.message);
         });
       });
     });
@@ -102,6 +102,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
         return response;
         
       }, function(error) {
+        console.error("Error creating product: " + error.message);
     		return "Error creating product: " + error.message;
   			
   		});
@@ -119,7 +120,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     console.log(message);
     status.success(message);
   }, function(error) {
-  	console.log(JSON.stringify(error));
+  	console.error(JSON.stringify(error));
 		status.error(error.message);
   });
 });
@@ -170,6 +171,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
         return totalVariantsAdded;
         
       }, function(error) {
+        console.error("Error creating variants: " + error.message);
     		return "Error creating variants: " + error.message;
   			
   		});
@@ -187,6 +189,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     status.success(message);
     
   }, function(error) {
+    console.error(error.message);
 	  status.error(error.message);
   });
   
@@ -222,6 +225,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
           });
           return true;
         }, function(error) {
+          console.error(error.message);
           console.log(error.message);
         });
       });
@@ -251,6 +255,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
         return response;
         
       }, function(error) {
+    		console.error("Error creating categories: " + error.message);
     		return "Error creating categories: " + error.message;
   			
   		});
@@ -268,7 +273,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     console.log(message);
     status.success(message);
   }, function(error) {
-  	console.log(JSON.stringify(error));
+  	console.error(JSON.stringify(error));
 		status.error(error.message);
   });
 });
@@ -309,6 +314,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
           });
           return true;
         }, function(error) {
+          console.error(error.message);
           console.log(error.message);
         });
       });
@@ -339,6 +345,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
         return response;
         
       }, function(error) {
+    		console.error("Error creating order: " + error.message);
     		return "Error creating order: " + error.message;
   			
   		});
@@ -355,7 +362,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     console.log(message);
     status.success(message);
   }, function(error) {
-  	console.log(JSON.stringify(error));
+  	console.error(JSON.stringify(error));
 		status.error(error.message);
   });
 });
@@ -397,6 +404,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
           });
           return true;
         }, function(error) {
+          console.error(error.message);
           console.log(error.message);
         });
       });
@@ -428,6 +436,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
         return response;
         
       }, function(error) {
+    		console.error("Error creating order: " + error.message);
     		return "Error creating order: " + error.message;
   			
   		});
@@ -444,7 +453,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     console.log(message);
     status.success(message);
   }, function(error) {
-  	console.log(JSON.stringify(error));
+  	console.error(JSON.stringify(error));
 		status.error(error.message);
   });
 });
@@ -479,7 +488,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
           });
           return true;
         }, function(error) {
-          console.log(error.message);
+          console.error(error.message);
         });
       });
     });
@@ -509,6 +518,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
         return response;
         
       }, function(error) {
+    		console.error("Error creating designer: " + error.message);
     		return "Error creating designer: " + error.message;
   			
   		});
@@ -525,7 +535,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
     console.log(message);
     status.success(message);
   }, function(error) {
-  	console.log(JSON.stringify(error));
+  	console.error(JSON.stringify(error));
 		status.error(error.message);
   });
 });
@@ -564,6 +574,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           });
           return true;
         }, function(error) {
+          console.error(error.message);
           console.log(error.message);
         });
       });
@@ -597,6 +608,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           return response;
           
         }, function(error) {
+      		console.error("Error creating ColorCode: " + error.message);
       		return "Error creating ColorCode: " + error.message;
     			
     		});
@@ -631,6 +643,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           return response;
           
         }, function(error) {
+          console.error("Error creating StoneCode: " + error.message);
       		return "Error creating StoneCode: " + error.message;
     			
     		});
@@ -647,7 +660,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
     status.success(message);
     
   }, function(error) {
-  	console.log(JSON.stringify(error));
+  	console.error(JSON.stringify(error));
 		status.error(error.message);
   });
 });
@@ -667,6 +680,7 @@ Parse.Cloud.define("getRecentJobs", function(request, response) {
 	  response.success(jobs);
 	  
   }, function(error) {
+	  console.error("Unable to save the model: " + error.message);
 	  response.error("Unable to save the model: " + error.message);
 	  
   });
@@ -739,6 +753,7 @@ var getOptionCode = function(type, label) {
       return firstTwoLetters.length > 1 ? firstTwoLetters[0] + firstLetters[1] : cleanedLabel;
       break;
     default:
+      console.error("Error with getOptionCode: Option type was not provided.");
       return '[ERROR]';
   }
 }

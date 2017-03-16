@@ -49,6 +49,7 @@ Parse.Cloud.define("getOptions", function(request, response) {
 	  response.success({options: options});
 	  
   }, function(error) {
+	  console.error("Unable to get options: " + error.message);
 	  response.error("Unable to get options: " + error.message);
 	  
   });
@@ -82,6 +83,7 @@ Parse.Cloud.define("saveOption", function(request, response) {
 	  response.success(optionObject);
     
   }, function(error) {
+		console.error("Error saving option: " + error.message);
 		response.error("Error saving option: " + error.message);
 		
 	});
