@@ -570,61 +570,6 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
   
 });
 
-Parse.Cloud.define("saveVariant", function(request, response) {
-  var objectId = request.params.objectId;
-  var inventory = parseInt(request.params.inventory);
-  var updatedVariant;
-  var updatedProduct;
-  var tabCounts;
-  
-  var variantQuery = new Parse.Query(ProductVariant);
-  variantQuery.equalTo('objectId', objectId);
-  variantQuery.first().then(function(variant) {
-    if (variant) {
-      variant.set('inventoryLevel', inventory);
-      return variant.save(null, {useMasterKey: true});
-    } else {
-      console.error("Error finding variant: " + error.message);
-      response.error("Error finding variant: " + error.message);
-    }
-    
-  }).then(function(variantObject) {
-    updatedVariant = variantObject;
-    
-    var productsQuery = new Parse.Query(Product);
-    productsQuery.equalTo("productId", updatedVariant.get('productId'));
-    productsQuery.include("variants");
-    productsQuery.include("department");
-    productsQuery.include("classification");
-    productsQuery.include("designer");
-    return productsQuery.first();
-    
-  }).then(function(result) {
-    result.save(null, {useMasterKey: true});
-    
-  }).then(function(result) {
-    updatedProduct = result;
-    return Parse.Cloud.httpRequest({
-      method: 'post',
-      url: process.env.SERVER_URL + '/functions/getProductTabCounts',
-      headers: {
-        'X-Parse-Application-Id': process.env.APP_ID,
-        'X-Parse-Master-Key': process.env.MASTER_KEY
-      }
-    });
-    
-  }).then(function(httpResponse) {
-    tabCounts = httpResponse.data.result;
-	  response.success({updatedProduct: updatedProduct, updatedVariant: updatedVariant, tabCounts: tabCounts});
-    
-  }, function(error) {
-		console.error("Error saving variant: " + error.message);
-		response.error("Error saving variant: " + error.message);
-		
-	});
-  
-});
-
 Parse.Cloud.define("saveVariants", function(request, response) {
   var variants = request.params.variants;  
   if (variants.length == 0) response.success();
@@ -642,7 +587,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
     
     _.each(variants, function(variant) {
       var objectId = variant.objectId;
-      var inventory = parseInt(variant.inventory);
+      var inventory = variant.inventory;
       promise = promise.then(function() {
         console.log('saving variant: ' + objectId);
         
@@ -654,9 +599,9 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         if (variant) {
           console.log('variant found');
           if (inventory) {
-            variant.set('inventoryLevel', inventory);
+            variant.set('inventoryLevel', parseInt(inventory));
           } else {
-            variant.unset('inventoryLevel');
+            variant.set('inventoryLevel', 0);
           }
           return variant.save(null, {useMasterKey: true});
         } else {
