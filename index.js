@@ -20,13 +20,7 @@ var api = new ParseServer({
   appId: process.env.APP_ID || 'app',
   masterKey: process.env.MASTER_KEY || '',
   serverURL: process.env.SERVER_URL || 'http://localhost:1337/parse',
-  verbose: false,
-  loggerAdapter: {
-    module: "parse-server/lib/Adapters/Logger/WinstonLoggerAdapter",
-    options: {
-      logLevel: 'error'
-    }
-  }
+  logLevel: 'INFO'
 });
 
 
@@ -42,8 +36,8 @@ var dashboard = new ParseDashboard({
   ],
   "users": [
     {
-      "user":"jeremy",
-      "pass":"asdfasdf"
+      "user":process.env.DASHBOARD_USER,
+      "pass":process.env.DASHBOARD_PASSWORD
     }
   ],
   "useEncryptedPasswords": false
