@@ -512,8 +512,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
           body: {
             shipment: shipment,
             carrier_account: carrier.object_id,
-            servicelevel_token: serviceLevel,
-            label_file_type: 'PDF_4x6'
+            servicelevel_token: serviceLevel
           }
         });
           
