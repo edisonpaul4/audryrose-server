@@ -134,6 +134,7 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
   var awaitingFulfillmentQuery = getPendingOrderQuery();
   
   var resizableQuery = getPendingOrderQuery();
+  resizableQuery.equalTo('fullyShippable', false);
   resizableQuery.equalTo('resizable', true); 
   
   var fullyShippableQuery = getPendingOrderQuery();
@@ -277,7 +278,8 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     }
     
     // Set order resizable status
-    if (orderObj.get('fullyShippable') != true && numResizable > 0) {
+    if (numResizable > 0) {
+      console.log('set as resizable');
       orderObj.set('resizable', true);
     } else {
       orderObj.set('resizable', false);
