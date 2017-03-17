@@ -13,7 +13,7 @@ const ORDERS_PER_PAGE = 50;
 // CONFIG
 // Set up Bigcommerce API
 var bigCommerce = new BigCommerce({
-  logLevel: 'error',
+  logLevel: 'errors',
   clientId: process.env.BC_CLIENT_ID,
   secret: process.env.BC_CLIENT_SECRET,
   callback: 'https://audryrose.herokuapp.com/auth',

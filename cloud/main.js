@@ -8,6 +8,7 @@ require('./products.js');
 require('./designers.js');
 require('./options.js');
 require('./shipments.js');
+require('./webhooks.js');
 
 
 ///////////////////////
