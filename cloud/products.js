@@ -98,7 +98,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
       productsQuery.greaterThan('total_stock', 0);
       break;
     case 'need-to-order':
-      productsQuery.greaterThan('variantsOutOfStock', 0);
+      productsQuery.lessThan('total_stock', 1);
       break;
     case 'waiting-to-receive':
       productsQuery.equalTo('hasVendorBuy', true);
@@ -150,7 +150,7 @@ Parse.Cloud.define("getProductTabCounts", function(request, response) {
   inStockQuery.greaterThan('total_stock', 0);
   
   var needToOrderQuery = new Parse.Query(Product);
-  needToOrderQuery.greaterThan('variantsOutOfStock', 0);
+  needToOrderQuery.lessThan('total_stock', 1);
   
   var waitingToReceiveQuery = new Parse.Query(Product);
   waitingToReceiveQuery.equalTo('hasVendorBuy', true);
@@ -536,6 +536,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
 Parse.Cloud.define("saveProductStatus", function(request, response) {
   var productId = parseInt(request.params.productId);
   var status = request.params.status;
+  var updatedProduct;
   
   var isActive = (status == 'active') ? true : false;
   
@@ -551,16 +552,28 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
     }
     
   }).then(function(productObject) {
-    var productsQuery = new Parse.Query(Product);
-    productsQuery.equalTo("productId", productId);
-    productsQuery.include("variants");
-    productsQuery.include("department");
-    productsQuery.include("classification");
-    productsQuery.include("designer");
-    return productsQuery.first();
+    var productQuery = new Parse.Query(Product);
+    productQuery.equalTo("productId", productId);
+    productQuery.include("variants");
+    productQuery.include("department");
+    productQuery.include("classification");
+    productQuery.include("designer");
+    return productQuery.first();
     
-  }).then(function(product) {
-	  response.success(product);
+  }).then(function(result) {
+    updatedProduct = result;
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/getProductTabCounts',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      }
+    });
+    
+  }).then(function(httpResponse) {
+    tabCounts = httpResponse.data.result;
+	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
     
   }, function(error) {
 		console.error("Error saving product: " + error.message);
