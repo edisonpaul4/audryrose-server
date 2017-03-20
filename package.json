@@ -10,6 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "body-parser": "^1.15.2",
+    "bugsnag": "^1.9.1",
     "bugsnag-js": "^3.0.7",
     "cheerio": "^0.22.0",
     "cookie-parser": "^1.4.3",

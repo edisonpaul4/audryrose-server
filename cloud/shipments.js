@@ -1,12 +1,14 @@
 var _ = require('underscore');
 var moment = require('moment');
 var BigCommerce = require('node-bigcommerce');
+var bugsnag = require("bugsnag");
 
 var Product = Parse.Object.extend('Product');
 var Order = Parse.Object.extend('Order');
 var OrderShipment = Parse.Object.extend('OrderShipment');
 
 // CONFIG
+bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 // Set up Bigcommerce API
 var bigCommerce = new BigCommerce({
   logLevel: 'errors',
@@ -46,6 +48,7 @@ Parse.Cloud.define("getShipments", function(request, response) {
 	  
   }, function(error) {
 	  console.error("Unable to get shipments: " + error.message);
+    bugsnag.notify(error);
 	  response.error("Unable to get shipments: " + error.message);
 	  
   });

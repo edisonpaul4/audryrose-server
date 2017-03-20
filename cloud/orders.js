@@ -1,6 +1,7 @@
 var _ = require('underscore');
 var moment = require('moment');
 var BigCommerce = require('node-bigcommerce');
+var bugsnag = require("bugsnag");
 
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
@@ -11,6 +12,7 @@ var ProductVariant = Parse.Object.extend('ProductVariant');
 const ORDERS_PER_PAGE = 50;
 
 // CONFIG
+bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 // Set up Bigcommerce API
 var bigCommerce = new BigCommerce({
   logLevel: 'errors',
@@ -122,6 +124,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
 	  
   }, function(error) {
 	  console.error("Unable to get orders: " + error.message);
+	  bugsnag.notify(error);
 	  response.error("Unable to get orders: " + error.message);
 	  
   });
@@ -176,6 +179,7 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 	  
   }, function(error) {
 	  console.error("Unable to get order counts: " + error.message);
+	  bugsnag.notify(error);
 	  response.error("Unable to get order counts: " + error.message);
 	  
   });
@@ -335,6 +339,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }, function(error) {
     console.error("Error saving order: " + error.message);
+    bugsnag.notify(error);
     response.error("Error saving order: " + error.message);
 		
 	});
@@ -395,6 +400,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 	  
   }, function(error) {
 	  console.error("Unable to reload order: " + error.message);
+	  bugsnag.notify(error);
 	  response.error("Unable to reload order: " + error.message);
 	  
   });
@@ -419,6 +425,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     }
   }, function(error) {
     console.error(JSON.stringify(error));
+    bugsnag.notify(error);
     
   }).then(function(httpResponse) {
     carrier = httpResponse.data.results[0]; // Only using USPS for now, so array length should be zero
@@ -518,6 +525,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
           
       }, function(error) {
         console.error(JSON.stringify(error));
+        bugsnag.notify(error);
     
       }).then(function(httpResponse) {
         console.log(JSON.stringify(httpResponse.data));
@@ -543,6 +551,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         
       }, function(error) {
         console.error(JSON.stringify(error));
+        bugsnag.notify(error);
     
       }).then(function(bcShipmentResult) {
         //if (!isNew) return true; // Skip if Bigcommerce shipment exists
@@ -557,6 +566,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     		
   		}, function(error) {
         console.error(JSON.stringify(error));
+        bugsnag.notify(error);
     
       }).then(function(orderShipmentResult) {
         if (orderShipmentResult) {
@@ -570,6 +580,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         
   		}, function(error) {
         console.error(JSON.stringify(error));
+        bugsnag.notify(error);
     
       }).then(function(orderShipmentObject) {
         newOrderShipment = orderShipmentObject;
@@ -590,6 +601,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     		
       }, function(error) {
         console.error('Error creating shipment for order ' + orderId);
+        bugsnag.notify(error);
       });
     });
     return promise;
@@ -951,6 +963,7 @@ var getOrderProductShippingAddress = function(orderProduct) {
     return orderProduct;
   }, function(error) {
     console.error('Error with getOrderProductShippingAddress: ' + JSON.stringify(error));
+    bugsnag.notify(error);
   });
   
   return promise;

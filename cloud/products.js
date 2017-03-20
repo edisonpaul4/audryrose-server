@@ -1,6 +1,7 @@
 var _ = require('underscore');
 var moment = require('moment');
 var BigCommerce = require('node-bigcommerce');
+var bugsnag = require("bugsnag");
 
 var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');
@@ -13,6 +14,7 @@ var ColorCode = Parse.Object.extend('ColorCode');
 var StoneCode = Parse.Object.extend('StoneCode');
 
 // CONFIG
+bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 // Set up Bigcommerce API
 var bigCommerce = new BigCommerce({
   logLevel: 'errors',
@@ -137,6 +139,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
 	  
   }, function(error) {
     console.error("Unable to get products: " + error.message);
+    bugsnag.notify(error);
 	  response.error("Unable to get products: " + error.message);
 	  
   });
@@ -182,6 +185,7 @@ Parse.Cloud.define("getProductTabCounts", function(request, response) {
 	  
   }, function(error) {
 	  console.error("Unable to get product counts: " + error.message);
+	  bugsnag.notify(error);
 	  response.error("Unable to get product counts: " + error.message);
 	  
   });
@@ -209,6 +213,7 @@ Parse.Cloud.define("getProductFilters", function(request, response) {
 	  
   }, function(error) {
 	  console.error("Unable to get designers: " + error.message);
+	  bugsnag.notify(error);
 	  response.error("Unable to get designers: " + error.message);
 	  
   });
@@ -277,6 +282,7 @@ Parse.Cloud.define("loadProduct", function(request, response) {
     
   }, function(error) {
 		console.error("Error saving product: " + error.message);
+		bugsnag.notify(error);
 		response.error("Error saving product: " + error.message);
 		
 	});
@@ -348,6 +354,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         
       }, function(error) {
     		console.error("Error saving variant: " + error.message);
+    		bugsnag.notify(error);
     		return "Error saving variant: " + error.message;
   			
   		});
@@ -436,6 +443,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
           
         }, function(error) {
       		console.error("Error saving variant: " + error.message);
+      		bugsnag.notify(error);
       		return "Error saving variant: " + error.message;
     			
     		});
@@ -455,6 +463,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     
   }, function(error) {
   	console.error(JSON.stringify(error));
+  	bugsnag.notify(error);
 		response.error(error.message);
   });
 });
@@ -528,6 +537,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
 	  
   }, function(error) {
 	  console.error("Unable to reload product: " + error.message);
+	  bugsnag.notify(error);
 	  response.error("Unable to reload product: " + error.message);
 	  
   });
@@ -548,6 +558,7 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
       return productResult.save(null, {useMasterKey: true});
     } else {
       console.error("Error finding product: " + error.message);
+      bugsnag.notify(error);
       response.error("Error finding product: " + error.message);
     }
     
@@ -577,6 +588,7 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
     
   }, function(error) {
 		console.error("Error saving product: " + error.message);
+		bugsnag.notify(error);
 		response.error("Error saving product: " + error.message);
 		
 	});
@@ -619,6 +631,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
           return variant.save(null, {useMasterKey: true});
         } else {
           console.error('no variant found');
+          bugsnag.notify(error);
           response.error("Error finding variant: " + error.message);
         }
         
@@ -630,6 +643,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         
       }, function(error) {
     		console.error("Error saving variant: " + error.message);
+    		bugsnag.notify(error);
     		response.error("Error saving variant: " + error.message);
     		
     	});
@@ -668,6 +682,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         
       }, function(error) {
     		console.error("Error saving product: " + error.message);
+    		bugsnag.notify(error);
     		response.error("Error saving product: " + error.message);
     		
     	});
@@ -716,6 +731,7 @@ Parse.Cloud.define("loadCategory", function(request, response) {
     
   }, function(error) {
 		console.error("Error saving category: " + error.message);
+		bugsnag.notify(error);
 		response.error("Error saving category: " + error.message);
 		
 	});

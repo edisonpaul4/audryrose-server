@@ -1,10 +1,12 @@
 var _ = require('underscore');
 var moment = require('moment');
 var BigCommerce = require('node-bigcommerce');
+var bugsnag = require("bugsnag");
 
 var StoreWebhook = Parse.Object.extend('StoreWebhook');
 
 // CONFIG
+bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 // Set up Bigcommerce API
 var bigCommerce = new BigCommerce({
   logLevel: 'errors',
@@ -66,6 +68,7 @@ Parse.Cloud.define("getWebhooks", function(request, response) {
 	  
   }, function(error) {
 	  console.error("Unable to get webhooks: " + error.message);
+	  bugsnag.notify(error);
 	  response.error("Unable to get webhooks: " + error.message);
 	  
   });
@@ -101,6 +104,7 @@ Parse.Cloud.define("saveOption", function(request, response) {
     
   }, function(error) {
 		console.error("Error saving option: " + error.message);
+		bugsnag.notify(error);
 		response.error("Error saving option: " + error.message);
 		
 	});

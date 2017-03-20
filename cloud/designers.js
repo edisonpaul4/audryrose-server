@@ -1,11 +1,13 @@
 var _ = require('underscore');
 var moment = require('moment');
 var BigCommerce = require('node-bigcommerce');
+var bugsnag = require("bugsnag");
 
 var Product = Parse.Object.extend('Product');
 var Designer = Parse.Object.extend('Designer');
 
 // CONFIG
+bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 // Set up Bigcommerce API
 var bigCommerce = new BigCommerce({
   logLevel: 'errors',
@@ -45,6 +47,7 @@ Parse.Cloud.define("getDesigners", function(request, response) {
 	  
   }, function(error) {
 	  console.error("Unable to get designers: " + error.message);
+	  bugsnag.notify(error);
 	  response.error("Unable to get designers: " + error.message);
 	  
   });
@@ -71,6 +74,7 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
     
   }, function(error) {
     console.error("Error saving designer: " + error.message);
+    bugsnag.notify(error);
     response.error("Error saving designer: " + error.message);
 		
 	});
