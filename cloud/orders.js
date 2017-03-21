@@ -523,7 +523,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
       }).then(function(httpResponse) {
         logInfo(JSON.stringify(httpResponse.data));
-        if (httpResponse.data.object_status != 'SUCCESS') response.fail('Label could not be generated for order ' + orderId);
+        if (httpResponse.data.object_status != 'SUCCESS') response.error('Label could not be generated for order ' + orderId);
         shippoLabel = httpResponse.data;
         logInfo('Shippo label status: ' + shippoLabel.object_status)
         
@@ -548,7 +548,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
       }).then(function(bcShipmentResult) {
         //if (!isNew) return true; // Skip if Bigcommerce shipment exists
-        if (!bcShipmentResult) response.fail('Bigcommerce shipment could not be created for order ' + orderId);
+        if (!bcShipmentResult) response.error('Bigcommerce shipment could not be created for order ' + orderId);
         bcShipment = bcShipmentResult;
         
         logInfo('Bigcommerce shipment ' + bcShipment.id + ' created');
@@ -565,7 +565,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
           logInfo('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
           return createOrderShipmentObject(bcShipment, shippoLabel, orderShipmentResult).save(null, {useMasterKey: true});
         } else {
-          logInfo('OrderShipment ' + bcShipment.id + ' is new.');
+          logInfo('OrderShipment is new.');
           totalShipmentsAdded++;
           return createOrderShipmentObject(bcShipment, shippoLabel).save(null, {useMasterKey: true});
         }
