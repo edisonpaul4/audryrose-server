@@ -1,6 +1,6 @@
 {
   "name": "audryrose-server",
-  "version": "0.1.60",
+  "version": "0.1.61",
   "description": "Parse server for Audry Rose",
   "main": "index.js",
   "repository": {
