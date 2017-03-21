@@ -39,7 +39,7 @@ Parse.Cloud.job("test", function(request, status) {
     request.log.info(message);
     status.success(message);
   }, function(error) {
-  	logError(error, request);
+  	logError(error);
 		status.error(error);
   });
 	
@@ -75,7 +75,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
           });
           return true;
         }, function(error) {
-          logError(error, request);
+          logError(error);
         });
       });
     });
@@ -105,7 +105,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
         return response;
         
       }, function(error) {
-        logError(error, request);
+        logError(error);
     		return error;
   			
   		});
@@ -123,7 +123,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     request.log.info(message);
     status.success(message);
   }, function(error) {
-  	logError(error, request);
+  	logError(error);
 		status.error(error);
   });
 });
@@ -174,7 +174,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
         return totalVariantsAdded;
         
       }, function(error) {
-        logError(error, request);
+        logError(error);
     		return error;
   			
   		});
@@ -192,7 +192,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     status.success(message);
     
   }, function(error) {
-    logError(error, request);
+    logError(error);
 	  status.error(error);
   });
   
@@ -228,7 +228,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
           });
           return true;
         }, function(error) {
-          logError(error, request);
+          logError(error);
         });
       });
     });
@@ -257,7 +257,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
         return response;
         
       }, function(error) {
-    		logError(error, request);
+    		logError(error);
     		return error;
   			
   		});
@@ -275,7 +275,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     request.log.info(message);
     status.success(message);
   }, function(error) {
-  	logError(error, request);
+  	logError(error);
 		status.error(error);
   });
 });
@@ -316,7 +316,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
           });
           return true;
         }, function(error) {
-          logError(error, request);
+          logError(error);
         });
       });
     });
@@ -346,7 +346,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
         return response;
         
       }, function(error) {
-    		logError(error, request);
+    		logError(error);
     		return error;
   			
   		});
@@ -363,7 +363,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     request.log.info(message);
     status.success(message);
   }, function(error) {
-  	logError(error, request);
+  	logError(error);
 		status.error(error);
   });
 });
@@ -405,7 +405,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
           });
           return true;
         }, function(error) {
-          logError(error, request);
+          logError(error);
         });
       });
     });
@@ -436,7 +436,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
         return response;
         
       }, function(error) {
-    		logError(error, request);
+    		logError(error);
     		return error;
   			
   		});
@@ -453,7 +453,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     request.log.info(message);
     status.success(message);
   }, function(error) {
-  	logError(error, request);
+  	logError(error);
 		status.error(error);
   });
 });
@@ -488,7 +488,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
           });
           return true;
         }, function(error) {
-          logError(error, request);
+          logError(error);
         });
       });
     });
@@ -518,7 +518,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
         return response;
         
       }, function(error) {
-    		logError(error, request);
+    		logError(error);
     		return error;
   			
   		});
@@ -535,7 +535,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
     request.log.info(message);
     status.success(message);
   }, function(error) {
-  	logError(error, request);
+  	logError(error);
 		status.error(error);
   });
 });
@@ -574,7 +574,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           });
           return true;
         }, function(error) {
-          logError(error, request);
+          logError(error);
         });
       });
     });
@@ -607,7 +607,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           return response;
           
         }, function(error) {
-      		logError(error, request);
+      		logError(error);
       		return error;
     			
     		});
@@ -642,7 +642,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           return response;
           
         }, function(error) {
-          logError(error, request);
+          logError(error);
       		return error;
     			
     		});
@@ -659,7 +659,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
     status.success(message);
     
   }, function(error) {
-  	logError(error, request);
+  	logError(error);
 		status.error(error);
   });
 });
@@ -679,7 +679,7 @@ Parse.Cloud.define("getRecentJobs", function(request, response) {
 	  response.success(jobs);
 	  
   }, function(error) {
-	  logError(error, request);
+	  logError(error);
 	  response.error(error);	  
   });
 });
@@ -756,7 +756,11 @@ var getOptionCode = function(type, label) {
   }
 }
 
-var logError = function(e, r) {
-  if (r) r.log.error(e);
+var logInfo = function(i) {
+  console.info(i);
+}
+
+var logError = function(e) {
+  console.error(e);
 	bugsnag.notify(e);
 }

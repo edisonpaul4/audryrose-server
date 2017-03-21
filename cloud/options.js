@@ -97,7 +97,11 @@ Parse.Cloud.define("saveOption", function(request, response) {
 //  UTILITY FUNCTIONS  //
 /////////////////////////
 
-var logError = function(e, r) {
-  if (r) r.log.error(e);
+var logInfo = function(i) {
+  console.info(i);
+}
+
+var logError = function(e) {
+  console.error(e);
 	bugsnag.notify(e);
 }

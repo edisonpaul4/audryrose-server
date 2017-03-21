@@ -6,9 +6,12 @@ var exphbs = require('express-handlebars');
 var helpers = require('handlebars-helpers')();
 var bodyParser = require('body-parser');
 var dotenv = require('dotenv').config({silent: true});
+var bugsnag = require("bugsnag");
 
 var databaseUri = process.env.DATABASE_URI || process.env.MONGODB_URI;
 var allowInsecureHTTP = true; // Change to false in production
+
+bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 
 if (!databaseUri) {
   console.log('DATABASE_URI not specified, falling back to localhost.');
@@ -20,7 +23,8 @@ var api = new ParseServer({
   appId: process.env.APP_ID || 'app',
   masterKey: process.env.MASTER_KEY || '',
   serverURL: process.env.SERVER_URL || 'http://localhost:1337/parse',
-  verbose: false
+  logLevel: 'info',
+  verbose: true
 });
 
 
@@ -53,6 +57,8 @@ app.use(bodyParser.json());
 var mountPath = process.env.PARSE_MOUNT || '/parse';
 app.use(mountPath, api);
 app.use('/dashboard', dashboard);
+app.use(bugsnag.requestHandler);
+app.use(bugsnag.errorHandler);
 
 // Routes
 app.get('/', function (req, res) {

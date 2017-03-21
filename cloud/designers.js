@@ -60,10 +60,10 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
   designerQuery.equalTo('designerId', parseInt(designer.id));
   designerQuery.first().then(function(designerResult) {
     if (designerResult) {
-      request.log.info('designer ' + designerResult.get('designerId') + ' exists.');
+      logInfo('designer ' + designerResult.get('designerId') + ' exists.');
       return createDesignerObject(designer, designerResult).save(null, {useMasterKey: true});
     } else {
-      request.log.info('designer ' + designer.id + ' is new.');
+      logInfo('designer ' + designer.id + ' is new.');
       added = true;
       return createDesignerObject(designer).save(null, {useMasterKey: true});
     }
@@ -118,7 +118,11 @@ var getDesignerSort = function(designersQuery, currentSort) {
   return designersQuery;
 }
 
-var logError = function(e, r) {
-  if (r) r.log.error(e);
+var logInfo = function(i) {
+  console.info(i);
+}
+
+var logError = function(e) {
+  console.error(e);
 	bugsnag.notify(e);
 }
