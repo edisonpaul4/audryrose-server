@@ -923,7 +923,7 @@ var createProductObject = function(productData, classes, departments, designers,
   productObj.set('retail_price', parseFloat(productData.retail_price));
   productObj.set('sale_price', parseFloat(productData.sale_price));
   productObj.set('calculated_price', parseFloat(productData.calculated_price));
-  productObj.set('is_visible', productData.is_visible == 'true');
+  productObj.set('is_visible', productData.is_visible == true);
   productObj.set('inventory_tracking', productData.inventory_tracking);
   productObj.set('total_sold', parseInt(productData.total_sold));
   productObj.set('date_created', moment.utc(productData.date_created, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
