@@ -60,10 +60,10 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
   designerQuery.equalTo('designerId', parseInt(designer.id));
   designerQuery.first().then(function(designerResult) {
     if (designerResult) {
-      console.log('designer ' + designerResult.get('designerId') + ' exists.');
+      request.log.info('designer ' + designerResult.get('designerId') + ' exists.');
       return createDesignerObject(designer, designerResult).save(null, {useMasterKey: true});
     } else {
-      console.log('designer ' + designer.id + ' is new.');
+      request.log.info('designer ' + designer.id + ' is new.');
       added = true;
       return createDesignerObject(designer).save(null, {useMasterKey: true});
     }

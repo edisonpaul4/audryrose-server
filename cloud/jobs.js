@@ -40,7 +40,7 @@ Parse.Cloud.job("test", function(request, status) {
     status.success(message);
   }, function(error) {
   	logError(error, request);
-		status.error(error.message);
+		status.error(error);
   });
 	
 });
@@ -106,7 +106,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
         
       }, function(error) {
         logError(error, request);
-    		return "Error creating product: " + error.message;
+    		return error;
   			
   		});
     });		
@@ -124,7 +124,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     status.success(message);
   }, function(error) {
   	logError(error, request);
-		status.error(error.message);
+		status.error(error);
   });
 });
 
@@ -175,7 +175,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
         
       }, function(error) {
         logError(error, request);
-    		return "Error creating variants: " + error.message;
+    		return error;
   			
   		});
     });		
@@ -193,7 +193,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     
   }, function(error) {
     logError(error, request);
-	  status.error(error.message);
+	  status.error(error);
   });
   
 });
@@ -258,7 +258,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
         
       }, function(error) {
     		logError(error, request);
-    		return "Error creating categories: " + error.message;
+    		return error;
   			
   		});
     });		
@@ -276,7 +276,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     status.success(message);
   }, function(error) {
   	logError(error, request);
-		status.error(error.message);
+		status.error(error);
   });
 });
 
@@ -347,7 +347,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
         
       }, function(error) {
     		logError(error, request);
-    		return "Error creating order: " + error.message;
+    		return error;
   			
   		});
     });			
@@ -364,7 +364,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     status.success(message);
   }, function(error) {
   	logError(error, request);
-		status.error(error.message);
+		status.error(error);
   });
 });
 
@@ -437,7 +437,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
         
       }, function(error) {
     		logError(error, request);
-    		return "Error creating order: " + error.message;
+    		return error;
   			
   		});
     });			
@@ -454,7 +454,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     status.success(message);
   }, function(error) {
   	logError(error, request);
-		status.error(error.message);
+		status.error(error);
   });
 });
 
@@ -519,7 +519,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
         
       }, function(error) {
     		logError(error, request);
-    		return "Error creating designer: " + error.message;
+    		return error;
   			
   		});
     });			
@@ -536,7 +536,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
     status.success(message);
   }, function(error) {
   	logError(error, request);
-		status.error(error.message);
+		status.error(error);
   });
 });
 
@@ -608,7 +608,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           
         }, function(error) {
       		logError(error, request);
-      		return "Error creating ColorCode: " + error.message;
+      		return error;
     			
     		});
   		});
@@ -643,7 +643,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           
         }, function(error) {
           logError(error, request);
-      		return "Error creating StoneCode: " + error.message;
+      		return error;
     			
     		});
   		});
@@ -660,7 +660,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
     
   }, function(error) {
   	logError(error, request);
-		status.error(error.message);
+		status.error(error);
   });
 });
 
@@ -680,7 +680,7 @@ Parse.Cloud.define("getRecentJobs", function(request, response) {
 	  
   }, function(error) {
 	  logError(error, request);
-	  response.error("Unable to save the model: " + error.message);	  
+	  response.error(error);	  
   });
 });
 
