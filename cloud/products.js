@@ -217,7 +217,8 @@ Parse.Cloud.define("getProductFilters", function(request, response) {
 });
 
 Parse.Cloud.define("loadProduct", function(request, response) {
-  var product = request.params.product;
+  var productId = request.params.productId;
+  var product;
   var added = false;
   
   var classes = [];
@@ -244,8 +245,15 @@ Parse.Cloud.define("loadProduct", function(request, response) {
   }).then(function(result) {
     designers = result;
     
+    var request = '/products/' + productId;
+    logInfo(request)
+    return bigCommerce.get(request);
+    
+  }).then(function(result) {
+    product = result;
+    
     var productQuery = new Parse.Query(Product);
-    productQuery.equalTo('productId', parseFloat(product.id));
+    productQuery.equalTo('productId', parseFloat(productId));
     productQuery.include('department');
     productQuery.include('designer');
     productQuery.include('classification');
@@ -256,7 +264,7 @@ Parse.Cloud.define("loadProduct", function(request, response) {
       logInfo('Product ' + productResult.get('productId') + ' exists.');
       return createProductObject(product, classes, departments, designers, productResult);
     } else {
-      logInfo('Product ' + product.id + ' is new.');
+      logInfo('Product ' + productId + ' is new.');
       added = true;
       return createProductObject(product, classes, departments, designers);
     }
