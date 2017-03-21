@@ -32,14 +32,14 @@ const STONE_IDS = [33];
 /////////////////////////
 
 Parse.Cloud.job("test", function(request, status) {
+  request.log.info('TEST INFO LOG');
+  logError('TEST ERROR LOG', request);
   bigCommerce.get('/store', function(err, data, response){
-    console.log(JSON.stringify(data));
     var message = "Successfully connected to " + data.name + ". The store id is " + data.id + ".";
-    console.log(message);
+    request.log.info(message);
     status.success(message);
   }, function(error) {
-  	console.error(JSON.stringify(error));
-  	bugsnag.notify(error);
+  	logError(error, request);
 		status.error(error.message);
   });
 	
@@ -59,7 +59,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
   }).then(function(count) {
     
     var numBatches = Math.ceil(totalProducts / BIGCOMMERCE_BATCH_SIZE);
-    console.log('Number of batches: ' + numBatches);
+    request.log.info('Number of batches: ' + numBatches);
     
     var promise = Parse.Promise.as();
     var pages = Array.apply(null, {length: numBatches}).map(Number.call, Number);
@@ -75,19 +75,18 @@ Parse.Cloud.job("updateProducts", function(request, status) {
           });
           return true;
         }, function(error) {
-          console.error(error.message);
-          bugsnag.notify(error);
+          logError(error, request);
         });
       });
     });
     return promise;
     
   }).then(function() {
-    console.log('Number of products to search: ' + products.length);
+    request.log.info('Number of products to search: ' + products.length);
     var promise = Parse.Promise.as();
     //products = products.slice(0,25);// REMOVE
 		_.each(products, function(product) {
-  		console.log('process product id: ' + product.id);
+  		request.log.info('process product id: ' + product.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -106,8 +105,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
         return response;
         
       }, function(error) {
-        console.error("Error creating product: " + error.message);
-        bugsnag.notify(error);
+        logError(error, request);
     		return "Error creating product: " + error.message;
   			
   		});
@@ -122,11 +120,10 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     message += products.length + ' products loaded. ';
     message += totalProductsAdded + ' products added. ';
     message += 'Job time: ' + jobTime;
-    console.log(message);
+    request.log.info(message);
     status.success(message);
   }, function(error) {
-  	console.error(JSON.stringify(error));
-  	bugsnag.notify(error);
+  	logError(error, request);
 		status.error(error.message);
   });
 });
@@ -150,14 +147,14 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
   
   productsQuery.count().then(function(count) {
     totalProducts = count;
-    console.log("Total products need variants updated: " + totalProducts);
+    request.log.info("Total products need variants updated: " + totalProducts);
     return productsQuery.find({useMasterKey:true});
     
   }).then(function(products) {
-    console.log('Number of products to get variants: ' + products.length);
+    request.log.info('Number of products to get variants: ' + products.length);
     var promise = Parse.Promise.as();
 		_.each(products, function(product) {
-  		console.log('process product id: ' + product.get('productId'));
+  		request.log.info('process product id: ' + product.get('productId'));
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -177,8 +174,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
         return totalVariantsAdded;
         
       }, function(error) {
-        console.error("Error creating variants: " + error.message);
-        bugsnag.notify(error);
+        logError(error, request);
     		return "Error creating variants: " + error.message;
   			
   		});
@@ -192,12 +188,11 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     message += totalProductsProcessed + ' products processed. ';
     message += totalVariantsAdded + ' variants added. ';
     message += 'Job time: ' + jobTime;
-    console.log(message);
+    request.log.info(message);
     status.success(message);
     
   }, function(error) {
-    console.error(error.message);
-    bugsnag.notify(error);
+    logError(error, request);
 	  status.error(error.message);
   });
   
@@ -217,7 +212,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
   }).then(function(count) {
     
     var numBatches = Math.ceil(totalCategories / BIGCOMMERCE_BATCH_SIZE);
-    console.log('Number of batches: ' + numBatches);
+    request.log.info('Number of batches: ' + numBatches);
     
     var promise = Parse.Promise.as();
     var pages = Array.apply(null, {length: numBatches}).map(Number.call, Number);
@@ -233,18 +228,17 @@ Parse.Cloud.job("updateCategories", function(request, status) {
           });
           return true;
         }, function(error) {
-          console.error(error.message);
-          bugsnag.notify(error);
+          logError(error, request);
         });
       });
     });
     return promise;
     
   }).then(function() {
-    console.log('Number of categories to search: ' + categories.length);
+    request.log.info('Number of categories to search: ' + categories.length);
     var promise = Parse.Promise.as();
 		_.each(categories, function(category) {
-  		console.log('process category id: ' + category.id);
+  		request.log.info('process category id: ' + category.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -263,8 +257,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
         return response;
         
       }, function(error) {
-    		console.error("Error creating categories: " + error.message);
-    		bugsnag.notify(error);
+    		logError(error, request);
     		return "Error creating categories: " + error.message;
   			
   		});
@@ -279,10 +272,10 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     message += categories.length + ' categories loaded. ';
     message += totalCategoriesAdded + ' categories added. ';
     message += 'Job time: ' + jobTime;
-    console.log(message);
+    request.log.info(message);
     status.success(message);
   }, function(error) {
-  	console.error(JSON.stringify(error));
+  	logError(error, request);
 		status.error(error.message);
   });
 });
@@ -299,15 +292,15 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
   
   bigCommerce.get('/orders/count', function(err, data, response){
     totalOrders = data.count;
-    console.log(totalOrders);
+    request.log.info(totalOrders);
     return totalOrders;
     
   }).then(function(count) {
     //ordersToProcess = totalOrders > 1000 ? 1000 : totalOrders; // Uncomment this to limit number of orders
     ordersToProcess = totalOrders; // Uncomment this to process all orders
-    console.log('Total orders to process: ' + ordersToProcess);
+    request.log.info('Total orders to process: ' + ordersToProcess);
     var numBatches = Math.ceil(ordersToProcess / BIGCOMMERCE_BATCH_SIZE);
-    console.log('Number of batches: ' + numBatches);
+    request.log.info('Number of batches: ' + numBatches);
     
     var promise = Parse.Promise.as();
     var pages = Array.apply(null, {length: numBatches}).map(Number.call, Number);
@@ -323,8 +316,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
           });
           return true;
         }, function(error) {
-          console.error(error.message);
-          console.log(error.message);
+          logError(error, request);
         });
       });
     });
@@ -332,10 +324,10 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     
   }).then(function() {
     //orders = orders.slice(0,5); // REMOVE THIS ONLY FOR TESTING
-    console.log('Number of orders to search: ' + orders.length);
+    request.log.info('Number of orders to search: ' + orders.length);
     var promise = Parse.Promise.as();
 		_.each(orders, function(order) {
-  		console.log('process orders id: ' + order.id);
+  		request.log.info('process orders id: ' + order.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -354,7 +346,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
         return response;
         
       }, function(error) {
-    		console.error("Error creating order: " + error.message);
+    		logError(error, request);
     		return "Error creating order: " + error.message;
   			
   		});
@@ -368,10 +360,10 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     message += orders.length + ' orders loaded. ';
     message += totalOrdersAdded + ' orders added. ';
     message += 'Job time: ' + jobTime;
-    console.log(message);
+    request.log.info(message);
     status.success(message);
   }, function(error) {
-  	console.error(JSON.stringify(error));
+  	logError(error, request);
 		status.error(error.message);
   });
 });
@@ -398,7 +390,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     return totalOrders;
     
   }).then(function(count) {
-    console.log('Number of requests: ' + orderStatuses.length);
+    request.log.info('Number of requests: ' + orderStatuses.length);
     
     var promise = Parse.Promise.as();
     _.each(orderStatuses, function(orderStatusRequest) {
@@ -407,26 +399,25 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
           var request = '/orders?limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:desc' + '&status_id=' + orderStatusRequest.id;
           return bigCommerce.get(request);
         }).then(function(response) {
-          console.log(response.length + ' orders for status ' + orderStatusRequest.name);
+          request.log.info(response.length + ' orders for status ' + orderStatusRequest.name);
   				_.each(response, function(order) {
     				orders.push(order);
           });
           return true;
         }, function(error) {
-          console.error(error.message);
-          bugsnag.notify(error);
+          logError(error, request);
         });
       });
     });
     return promise;
     
   }).then(function() {
-    console.log('Number of orders to search: ' + orders.length);
+    request.log.info('Number of orders to search: ' + orders.length);
     //orders = orders.slice(0,5); // REMOVE THIS, ONLY FOR TESTING
 //     return true;
     var promise = Parse.Promise.as();
 		_.each(orders, function(order) {
-  		console.log('process orders id: ' + order.id);
+  		request.log.info('process orders id: ' + order.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -445,8 +436,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
         return response;
         
       }, function(error) {
-    		console.error("Error creating order: " + error.message);
-    		bugsnag.notify(error);
+    		logError(error, request);
     		return "Error creating order: " + error.message;
   			
   		});
@@ -460,11 +450,10 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     message += orders.length + ' orders loaded. ';
     message += totalOrderProductsAdded + ' orders added. ';
     message += 'Job time: ' + jobTime;
-    console.log(message);
+    request.log.info(message);
     status.success(message);
   }, function(error) {
-  	console.error(JSON.stringify(error));
-  	bugsnag.notify(error);
+  	logError(error, request);
 		status.error(error.message);
   });
 });
@@ -483,7 +472,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
   }).then(function(count) {
     
     var numBatches = Math.ceil(totalDesigners / BIGCOMMERCE_BATCH_SIZE);
-    console.log('Number of batches: ' + numBatches);
+    request.log.info('Number of batches: ' + numBatches);
     
     var promise = Parse.Promise.as();
     var pages = Array.apply(null, {length: numBatches}).map(Number.call, Number);
@@ -499,18 +488,17 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
           });
           return true;
         }, function(error) {
-          console.error(error.message);
-          bugsnag.notify(error);
+          logError(error, request);
         });
       });
     });
     return promise;
     
   }).then(function() {
-    console.log('Number of designers to search: ' + designers.length);
+    request.log.info('Number of designers to search: ' + designers.length);
     var promise = Parse.Promise.as();
 		_.each(designers, function(designer) {
-  		console.log('process designers id: ' + designer.id);
+  		request.log.info('process designers id: ' + designer.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -525,13 +513,12 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
         });
     		
   		}).then(function(response) {
-    		console.log(JSON.stringify(response));
+    		request.log.info(JSON.stringify(response));
     		if (response.data.result.added) totalDesignersAdded++;
         return response;
         
       }, function(error) {
-    		console.error("Error creating designer: " + error.message);
-    		bugsnag.notify(error);
+    		logError(error, request);
     		return "Error creating designer: " + error.message;
   			
   		});
@@ -545,11 +532,10 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
     message += designers.length + ' designers loaded. ';
     message += totalDesignersAdded + ' designers added. ';
     message += 'Job time: ' + jobTime;
-    console.log(message);
+    request.log.info(message);
     status.success(message);
   }, function(error) {
-  	console.error(JSON.stringify(error));
-  	bugsnag.notify(error);
+  	logError(error, request);
 		status.error(error.message);
   });
 });
@@ -566,7 +552,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
   var startTime = moment();
   
   bigCommerce.get('/options/count', function(err, data, response){
-    console.log('Number of options: ' + totalOptions);
+    request.log.info('Number of options: ' + totalOptions);
     return data.count;
     
   }).then(function(count) {
@@ -588,19 +574,18 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           });
           return true;
         }, function(error) {
-          console.error(error.message);
-          bugsnag.notify(error);
+          logError(error, request);
         });
       });
     });
     return promise;
     
   }).then(function() {
-    console.log('Number of color options to search: ' + colorOptionValues.length);
+    request.log.info('Number of color options to search: ' + colorOptionValues.length);
     
     var promise = Parse.Promise.as();
 		_.each(colorOptionValues, function(colorOptionValue) {
-  		console.log('process color options id: ' + colorOptionValue.id);
+  		request.log.info('process color options id: ' + colorOptionValue.id);
   		promise = promise.then(function() {
     		return delay(10).then(function() {
           var colorCodeQuery = new Parse.Query(ColorCode);
@@ -610,10 +595,10 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           
         }).then(function(colorCodeResult) {
           if (colorCodeResult) {
-            console.log('ColorCode exists.');
+            request.log.info('ColorCode exists.');
             return createOptionObject(bcOptions, colorOptionValue, 'color', colorCodeResult).save(null, {useMasterKey: true});
           } else {
-            console.log('ColorCode is new.');
+            request.log.info('ColorCode is new.');
             totalOptionsAdded++;
             return createOptionObject(bcOptions, colorOptionValue, 'color').save(null, {useMasterKey: true});
           }
@@ -622,8 +607,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           return response;
           
         }, function(error) {
-      		console.error("Error creating ColorCode: " + error.message);
-      		bugsnag.notify(error);
+      		logError(error, request);
       		return "Error creating ColorCode: " + error.message;
     			
     		});
@@ -632,11 +616,11 @@ Parse.Cloud.job("updateOptions", function(request, status) {
     return promise;
     
   }).then(function() {
-    console.log('Number of stone options to search: ' + stoneOptionValues.length);
+    request.log.info('Number of stone options to search: ' + stoneOptionValues.length);
     
     var promise = Parse.Promise.as();
 		_.each(stoneOptionValues, function(stoneOptionValue) {
-  		console.log('process stone options id: ' + stoneOptionValue.id);
+  		request.log.info('process stone options id: ' + stoneOptionValue.id);
   		promise = promise.then(function() {
     		return delay(10).then(function() {
           var stoneCodeQuery = new Parse.Query(StoneCode);
@@ -646,10 +630,10 @@ Parse.Cloud.job("updateOptions", function(request, status) {
 
         }).then(function(stoneCodeResult) {
           if (stoneCodeResult) {
-            console.log('StoneCode exists.');
+            request.log.info('StoneCode exists.');
             return createOptionObject(bcOptions, stoneOptionValue, 'stone', stoneCodeResult).save(null, {useMasterKey: true});
           } else {
-            console.log('StoneCode is new.');
+            request.log.info('StoneCode is new.');
             totalOptionsAdded++;
             return createOptionObject(bcOptions, stoneOptionValue, 'stone').save(null, {useMasterKey: true});
           }
@@ -658,8 +642,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           return response;
           
         }, function(error) {
-          console.error("Error creating StoneCode: " + error.message);
-          bugsnag.notify(error);
+          logError(error, request);
       		return "Error creating StoneCode: " + error.message;
     			
     		});
@@ -672,12 +655,11 @@ Parse.Cloud.job("updateOptions", function(request, status) {
     var jobTime = moment.duration(now.diff(startTime)).humanize();
     message = totalOptionsAdded + ' options added. ';
     message += 'Job time: ' + jobTime;
-    console.log(message);
+    request.log.info(message);
     status.success(message);
     
   }, function(error) {
-  	console.error(JSON.stringify(error));
-  	bugsnag.notify(error);
+  	logError(error, request);
 		status.error(error.message);
   });
 });
@@ -697,8 +679,7 @@ Parse.Cloud.define("getRecentJobs", function(request, response) {
 	  response.success(jobs);
 	  
   }, function(error) {
-	  console.error("Unable to save the model: " + error.message);
-	  bugsnag.notify(error);
+	  logError(error, request);
 	  response.error("Unable to save the model: " + error.message);	  
   });
 });
@@ -770,8 +751,12 @@ var getOptionCode = function(type, label) {
       return firstTwoLetters.length > 1 ? firstTwoLetters[0] + firstLetters[1] : cleanedLabel;
       break;
     default:
-      console.error("Error with getOptionCode: Option type was not provided.");
-      bugsnag.notify(error);
+      logError("Error with getOptionCode: Option type was not provided.", request);
       return '[ERROR]';
   }
+}
+
+var logError = function(e, r) {
+  if (r) r.log.error(e);
+	bugsnag.notify(e);
 }

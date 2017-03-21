@@ -46,9 +46,8 @@ Parse.Cloud.define("getDesigners", function(request, response) {
 	  response.success({designers: designers, totalPages: totalPages});
 	  
   }, function(error) {
-	  console.error("Unable to get designers: " + error.message);
-	  bugsnag.notify(error);
-	  response.error("Unable to get designers: " + error.message);
+	  logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -73,9 +72,8 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
     response.success({added: added});
     
   }, function(error) {
-    console.error("Error saving designer: " + error.message);
-    bugsnag.notify(error);
-    response.error("Error saving designer: " + error.message);
+    logError(error);
+    response.error(error);
 		
 	});
 });
@@ -118,4 +116,9 @@ var getDesignerSort = function(designersQuery, currentSort) {
       break;
   }
   return designersQuery;
+}
+
+var logError = function(e, r) {
+  if (r) r.log.error(e);
+	bugsnag.notify(e);
 }

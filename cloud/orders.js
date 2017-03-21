@@ -123,9 +123,8 @@ Parse.Cloud.define("getOrders", function(request, response) {
 	  response.success({orders: orders, totalPages: totalPages, totalOrders: totalOrders, tabCounts: tabCounts});
 	  
   }, function(error) {
-	  console.error("Unable to get orders: " + error.message);
-	  bugsnag.notify(error);
-	  response.error("Unable to get orders: " + error.message);
+	  logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -178,9 +177,8 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 	  response.success(tabs);
 	  
   }, function(error) {
-	  console.error("Unable to get order counts: " + error.message);
-	  bugsnag.notify(error);
-	  response.error("Unable to get order counts: " + error.message);
+	  logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -338,9 +336,8 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     response.success({added: orderAdded});
     
   }, function(error) {
-    console.error("Error saving order: " + error.message);
-    bugsnag.notify(error);
-    response.error("Error saving order: " + error.message);
+    logError(error);
+    response.error(error);
 		
 	});
 });
@@ -399,9 +396,8 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 	  response.success({updatedOrders: [updatedOrder], tabCounts: tabCounts});
 	  
   }, function(error) {
-	  console.error("Unable to reload order: " + error.message);
-	  bugsnag.notify(error);
-	  response.error("Unable to reload order: " + error.message);
+	  logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -424,8 +420,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       carrier: 'usps'
     }
   }, function(error) {
-    console.error(JSON.stringify(error));
-    bugsnag.notify(error);
+    logError(error);
     
   }).then(function(httpResponse) {
     carrier = httpResponse.data.results[0]; // Only using USPS for now, so array length should be zero
@@ -524,8 +519,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         });
           
       }, function(error) {
-        console.error(JSON.stringify(error));
-        bugsnag.notify(error);
+        logError(error);
     
       }).then(function(httpResponse) {
         console.log(JSON.stringify(httpResponse.data));
@@ -550,8 +544,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         return bigCommerce.post(request, bcShipmentData);
         
       }, function(error) {
-        console.error(JSON.stringify(error));
-        bugsnag.notify(error);
+        logError(error);
     
       }).then(function(bcShipmentResult) {
         //if (!isNew) return true; // Skip if Bigcommerce shipment exists
@@ -565,8 +558,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     		return orderShipmentQuery.first();
     		
   		}, function(error) {
-        console.error(JSON.stringify(error));
-        bugsnag.notify(error);
+        logError(error);
     
       }).then(function(orderShipmentResult) {
         if (orderShipmentResult) {
@@ -579,8 +571,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         }
         
   		}, function(error) {
-        console.error(JSON.stringify(error));
-        bugsnag.notify(error);
+        logError(error);
     
       }).then(function(orderShipmentObject) {
         newOrderShipment = orderShipmentObject;
@@ -600,8 +591,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     		return true;
     		
       }, function(error) {
-        console.error('Error creating shipment for order ' + orderId);
-        bugsnag.notify(error);
+        logError(error);
       });
     });
     return promise;
@@ -962,8 +952,7 @@ var getOrderProductShippingAddress = function(orderProduct) {
     orderProduct.set('shippingAddress', shippingAddress);
     return orderProduct;
   }, function(error) {
-    console.error('Error with getOrderProductShippingAddress: ' + JSON.stringify(error));
-    bugsnag.notify(error);
+    logError(error);
   });
   
   return promise;
@@ -1193,4 +1182,9 @@ var createOrderShipmentObject = function(shipmentData, shippoLabel, currentShipm
   }
   
   return shipment;
+}
+
+var logError = function(e, r) {
+  if (r) r.log.error(e);
+	bugsnag.notify(e);
 }

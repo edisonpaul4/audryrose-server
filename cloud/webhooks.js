@@ -67,9 +67,8 @@ Parse.Cloud.define("getWebhooks", function(request, response) {
 	  response.success({webhooks: webhooks, webhookEndpoints: webhookEndpoints});
 	  
   }, function(error) {
-	  console.error("Unable to get webhooks: " + error.message);
-	  bugsnag.notify(error);
-	  response.error("Unable to get webhooks: " + error.message);
+	  logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -116,3 +115,8 @@ Parse.Cloud.define("saveOption", function(request, response) {
 /////////////////////////
 //  UTILITY FUNCTIONS  //
 /////////////////////////
+
+var logError = function(e, r) {
+  if (r) r.log.error(e);
+	bugsnag.notify(e);
+}

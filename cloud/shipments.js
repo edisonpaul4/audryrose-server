@@ -47,9 +47,8 @@ Parse.Cloud.define("getShipments", function(request, response) {
 	  response.success({shipments: shipments, totalPages: totalPages});
 	  
   }, function(error) {
-	  console.error("Unable to get shipments: " + error.message);
-    bugsnag.notify(error);
-	  response.error("Unable to get shipments: " + error.message);
+    logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -72,4 +71,9 @@ var getShipmentSort = function(shipmentsQuery, currentSort) {
       break;
   }
   return shipmentsQuery;
+}
+
+var logError = function(e, r) {
+  if (r) r.log.error(e);
+	bugsnag.notify(e);
 }

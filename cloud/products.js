@@ -138,9 +138,8 @@ Parse.Cloud.define("getProducts", function(request, response) {
 	  response.success({products: products, totalPages: totalPages, totalProducts: totalProducts, tabCounts: tabCounts});
 	  
   }, function(error) {
-    console.error("Unable to get products: " + error.message);
-    bugsnag.notify(error);
-	  response.error("Unable to get products: " + error.message);
+    logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -184,9 +183,8 @@ Parse.Cloud.define("getProductTabCounts", function(request, response) {
 	  response.success(tabs);
 	  
   }, function(error) {
-	  console.error("Unable to get product counts: " + error.message);
-	  bugsnag.notify(error);
-	  response.error("Unable to get product counts: " + error.message);
+	  logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -212,9 +210,8 @@ Parse.Cloud.define("getProductFilters", function(request, response) {
 	  response.success({designers: designers, classes: classes});
 	  
   }, function(error) {
-	  console.error("Unable to get designers: " + error.message);
-	  bugsnag.notify(error);
-	  response.error("Unable to get designers: " + error.message);
+	  logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -281,9 +278,8 @@ Parse.Cloud.define("loadProduct", function(request, response) {
     response.success({added: added});
     
   }, function(error) {
-		console.error("Error saving product: " + error.message);
-		bugsnag.notify(error);
-		response.error("Error saving product: " + error.message);
+		logError(error);
+		response.error(error);
 		
 	});
 });
@@ -353,9 +349,8 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         return variantObject;
         
       }, function(error) {
-    		console.error("Error saving variant: " + error.message);
-    		bugsnag.notify(error);
-    		return "Error saving variant: " + error.message;
+    		logError(error);
+    		return error;
   			
   		});
       return promise;
@@ -442,9 +437,8 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
           return variantObject;
           
         }, function(error) {
-      		console.error("Error saving variant: " + error.message);
-      		bugsnag.notify(error);
-      		return "Error saving variant: " + error.message;
+      		logError(error);
+      		return error;
     			
     		});
       });
@@ -462,9 +456,8 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     response.success(totalVariantsAdded);
     
   }, function(error) {
-  	console.error(JSON.stringify(error));
-  	bugsnag.notify(error);
-		response.error(error.message);
+  	logError(error);
+		response.error(error);
   });
 });
 
@@ -536,9 +529,8 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
 	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
 	  
   }, function(error) {
-	  console.error("Unable to reload product: " + error.message);
-	  bugsnag.notify(error);
-	  response.error("Unable to reload product: " + error.message);
+	  logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -557,9 +549,8 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
       productResult.set('is_active', isActive);
       return productResult.save(null, {useMasterKey: true});
     } else {
-      console.error("Error finding product: " + error.message);
-      bugsnag.notify(error);
-      response.error("Error finding product: " + error.message);
+      logError(error);
+      response.error(error);
     }
     
   }).then(function(productObject) {
@@ -587,9 +578,8 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
 	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
     
   }, function(error) {
-		console.error("Error saving product: " + error.message);
-		bugsnag.notify(error);
-		response.error("Error saving product: " + error.message);
+		logError(error);
+		response.error(error);
 		
 	});
   
@@ -630,9 +620,8 @@ Parse.Cloud.define("saveVariants", function(request, response) {
           }
           return variant.save(null, {useMasterKey: true});
         } else {
-          console.error('no variant found');
-          bugsnag.notify(error);
-          response.error("Error finding variant: " + error.message);
+          logError(error);
+          response.error(error);
         }
         
       }).then(function(variantObject) {
@@ -642,9 +631,8 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         return true;
         
       }, function(error) {
-    		console.error("Error saving variant: " + error.message);
-    		bugsnag.notify(error);
-    		response.error("Error saving variant: " + error.message);
+    		logError(error);
+    		response.error(error);
     		
     	});
     	
@@ -681,9 +669,8 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         return true;
         
       }, function(error) {
-    		console.error("Error saving product: " + error.message);
-    		bugsnag.notify(error);
-    		response.error("Error saving product: " + error.message);
+    		logError(error);
+    		response.error(error);
     		
     	});
   	});
@@ -730,9 +717,8 @@ Parse.Cloud.define("loadCategory", function(request, response) {
     response.success({added: added});
     
   }, function(error) {
-		console.error("Error saving category: " + error.message);
-		bugsnag.notify(error);
-		response.error("Error saving category: " + error.message);
+		logError(error);
+		response.error(error);
 		
 	});
 });
@@ -1133,4 +1119,9 @@ var createCategoryObject = function(categoryData, currentCategory) {
   categoryObj.set('name', categoryData.name);
   categoryObj.set('parent_category_list', categoryData.parent_category_list);
   return categoryObj;
+}
+
+var logError = function(e, r) {
+  if (r) r.log.error(e);
+	bugsnag.notify(e);
 }

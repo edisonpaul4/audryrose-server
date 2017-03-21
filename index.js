@@ -20,7 +20,7 @@ var api = new ParseServer({
   appId: process.env.APP_ID || 'app',
   masterKey: process.env.MASTER_KEY || '',
   serverURL: process.env.SERVER_URL || 'http://localhost:1337/parse',
-  logLevel: 'INFO'
+  verbose: false
 });
 
 

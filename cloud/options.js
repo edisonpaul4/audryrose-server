@@ -51,9 +51,8 @@ Parse.Cloud.define("getOptions", function(request, response) {
 	  response.success({options: options});
 	  
   }, function(error) {
-	  console.error("Unable to get options: " + error.message);
-	  bugsnag.notify(error);
-	  response.error("Unable to get options: " + error.message);
+	  logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -86,9 +85,8 @@ Parse.Cloud.define("saveOption", function(request, response) {
 	  response.success(optionObject);
     
   }, function(error) {
-		console.error("Error saving option: " + error.message);
-		bugsnag.notify(error);
-		response.error("Error saving option: " + error.message);
+		logError(error);
+		response.error(error);
 		
 	});
   
@@ -98,3 +96,8 @@ Parse.Cloud.define("saveOption", function(request, response) {
 /////////////////////////
 //  UTILITY FUNCTIONS  //
 /////////////////////////
+
+var logError = function(e, r) {
+  if (r) r.log.error(e);
+	bugsnag.notify(e);
+}
