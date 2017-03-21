@@ -751,7 +751,7 @@ var getOptionCode = function(type, label) {
       return firstTwoLetters.length > 1 ? firstTwoLetters[0] + firstLetters[1] : cleanedLabel;
       break;
     default:
-      logError("Error with getOptionCode: Option type was not provided.", request);
+      console.error("Error with getOptionCode: Option type was not provided.");
       return '[ERROR]';
   }
 }

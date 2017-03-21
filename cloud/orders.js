@@ -922,13 +922,13 @@ var getOrderProductVariant = function(orderProduct) {
         if (variantMatch) orderProduct.set('variant', variantMatch);
       } else {
         var msg = 'Variant not found for product ' + orderProduct.get('product_id');
-        request.log.info(msg);
+        console.info(msg);
       }
     } else if (result) {
-      request.log.info('product ordered has no variants');
+      console.info('product ordered has no variants');
       return false;
     } else {
-      request.log.info('custom product ordered without variants');
+      console.info('custom product ordered without variants');
       orderProduct.set('isCustom', true);
     }
     return orderProduct;
@@ -947,7 +947,7 @@ var getOrderProductShippingAddress = function(orderProduct) {
     return bigCommerce.get(request);
     
   }).then(function(address) {
-    request.log.info('adding OrderProduct shipping address: ' + address.id);
+    console.info('adding OrderProduct shipping address: ' + address.id);
     var shippingAddress = address;
     orderProduct.set('shippingAddress', shippingAddress);
     return orderProduct;
@@ -959,13 +959,13 @@ var getOrderProductShippingAddress = function(orderProduct) {
 }
 
 var getOrderProductVariantMatch = function(orderProduct, variants) {
-  request.log.info(variants.length + ' variants found for product ' + orderProduct.get('product_id'));
+  console.info(variants.length + ' variants found for product ' + orderProduct.get('product_id'));
   var productOptions = orderProduct.get('product_options');
   var totalProductOptions = productOptions.length;
-  request.log.info('product has ' + totalProductOptions + ' options');
+  console.info('product has ' + totalProductOptions + ' options');
   
   if (variants.length == 1 && productOptions.length == 0) {
-    request.log.info('Matched ' + variants.length + ' variant');
+    console.info('Matched ' + variants.length + ' variant');
     return variants[0];
     
   } else {
@@ -999,14 +999,14 @@ var getOrderProductVariantMatch = function(orderProduct, variants) {
       
       if (matchesProductOptions) matchingVariants.push(variant);
     });
-    request.log.info(matchingVariants.length + ' variants match');
+    console.info(matchingVariants.length + ' variants match');
 
     if (matchingVariants.length > 0) { // TODO: make this match only 1 variant, if multiple, figure which is correct
       matchedVariant = matchingVariants[0];
-      request.log.info('Matched variant ' + matchedVariant.get('variantId'));
+      console.info('Matched variant ' + matchedVariant.get('variantId'));
       return matchedVariant;
     } else {
-      request.log.info('Matched ' + matchingVariants.length + ' variants');
+      console.info('Matched ' + matchingVariants.length + ' variants');
       return null;
     }
   }
@@ -1034,20 +1034,20 @@ var getOrderProductsStatus = function(orderProducts) {
       var isResizeProductType = (orderProductVariant && orderProductVariant.has('size_value')) ? true : false;
     	
     	if (!orderProductVariant) {
-      	request.log.info('OrderProduct ' + orderProduct.get('product_id') + ' does not have any variants');
+      	console.info('OrderProduct ' + orderProduct.get('product_id') + ' does not have any variants');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
       	return true;
       	
     	} else if (orderProductVariant.get('inventoryLevel') >= orderProduct.get('quantity')) {
       	// Has inventory, save it and exit
-      	request.log.info('OrderProduct ' + orderProduct.get('product_id') + ' is shippable');
+      	console.info('OrderProduct ' + orderProduct.get('product_id') + ' is shippable');
       	orderProduct.unset('resizable');
       	orderProduct.set('shippable', true);
       	return true;
       	
     	} else if (!isResizeProductType) {
-      	request.log.info('OrderProduct ' + orderProduct.get('product_id') + ' is not a resizable product');
+      	console.info('OrderProduct ' + orderProduct.get('product_id') + ' is not a resizable product');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
       	return true;
@@ -1065,7 +1065,7 @@ var getOrderProductsStatus = function(orderProducts) {
       		
     		}).then(function(result) {
           if (result) {
-            request.log.info('Set product status for OrderProduct ' + orderProduct.get('product_id'));
+            console.info('Set product status for OrderProduct ' + orderProduct.get('product_id'));
             var orderVariantSize = parseFloat(orderProductVariant.get('size_value'));
             var orderProductVariantOptions = orderProductVariant.has('variantOptions') ? orderProductVariant.get('variantOptions') : [];
             var variants = result.get('variants');
@@ -1088,9 +1088,9 @@ var getOrderProductsStatus = function(orderProducts) {
                     var variantOptions = variant.has('variantOptions') ? variant.get('variantOptions') : [];
                     _.each(variantOptions, function(variantOption) {
                       if (orderProductVariantOption.option_id == variantOption.option_id && orderProductVariantOption.option_value_id == variantOption.option_value_id) {
-                        request.log.info('\nVariant size difference: ' + sizeDifference);
-                        request.log.info('Variant inventory: ' + variant.get('inventoryLevel')); 
-                        request.log.info(orderProductVariantOption.display_name + ': ' + orderProductVariantOption.value + ' ' + variantOption.value);
+                        console.info('\nVariant size difference: ' + sizeDifference);
+                        console.info('Variant inventory: ' + variant.get('inventoryLevel')); 
+                        console.info(orderProductVariantOption.display_name + ': ' + orderProductVariantOption.value + ' ' + variantOption.value);
                         optionMatches++;
                       }
                     });
@@ -1105,7 +1105,7 @@ var getOrderProductsStatus = function(orderProducts) {
                 if (matchesProductOptions) eligibleVariants.push(variant);
               }
             });
-            request.log.info(eligibleVariants.length + ' variants could be resized');
+            console.info(eligibleVariants.length + ' variants could be resized');
             if (eligibleVariants.length > 0) {
               orderProduct.set('resizable', true);
             } else {
@@ -1114,7 +1114,7 @@ var getOrderProductsStatus = function(orderProducts) {
             return true;
           } else {
             var msg = 'Cannot determine product resizable for OrderProduct ' + orderProduct.get('product_id');
-            request.log.info(msg);
+            console.info(msg);
             orderProduct.set('resizable', false);
             return true;
           }
@@ -1152,7 +1152,7 @@ var createOrderShipmentObject = function(shipmentData, shippoLabel, currentShipm
     return item;
   };
   var items = _.map(shipmentData.items, parseItemObject);
-  request.log.info('save ' + items.length + ' items');
+  console.info('save ' + items.length + ' items');
   shipment.set('items', items);
   
   if (shippoLabel) {

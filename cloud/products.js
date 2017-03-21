@@ -852,9 +852,7 @@ var optionIsPurchasingEnabled = function(option_id, option_value_id, rules) {
   _.each(rules, function(rule) {
     if (rule.is_enabled && rule.is_purchasing_disabled) {
       _.each(rule.conditions, function(condition) {
-//         request.log.info('check option match: ' + condition.product_option_id + '=' + option_id + ', and value match ' + condition.option_value_id + '=' + option_value_id);
         if (condition.option_value_id == option_value_id) {
-          request.log.info('disable ' + option_value_id);
           isEnabled = false;
         }
       });
@@ -868,9 +866,8 @@ var optionPriceAdjustment = function(option_id, option_value_id, rules) {
   _.each(rules, function(rule) {
     if (rule.is_enabled && rule.price_adjuster) {
       _.each(rule.conditions, function(condition) {
-//         request.log.info('check value match ' + condition.option_value_id + '=' + option_value_id);
         if (condition.option_value_id == option_value_id) {
-          request.log.info('adjust price ' + rule.price_adjuster.adjuster_value);
+          console.info('adjust price ' + rule.price_adjuster.adjuster_value);
           adjustment = { "adjuster": rule.price_adjuster.adjuster, "adjuster_value": rule.price_adjuster.adjuster_value };
         }
       });
@@ -977,13 +974,13 @@ var createProductObject = function(productData, classes, departments, designers,
   var departmentLetter = department ? department.get('letter') : '[DEPARTMENT]';
   styleNumber += departmentLetter;
   var classStartId = classification ? classification.get('start_id') : 0;
-  request.log.info('classStartId: ' + classStartId);
+  console.info('classStartId: ' + classStartId);
   var classificationNumber;
   
   var promise = Parse.Promise.as();
   promise = promise.then(function() {
     
-    request.log.info('search for style number: ' + styleNumber);
+    console.info('search for style number: ' + styleNumber);
     var styleNumbersQuery = new Parse.Query(StyleNumber);
     styleNumbersQuery.limit(10000);
     styleNumbersQuery.equalTo('designerAbbreviation', designerAbbreviation);
@@ -997,7 +994,7 @@ var createProductObject = function(productData, classes, departments, designers,
     var styleNumberObj;
     
     if (result) {
-      request.log.info('style number exists');
+      console.info('style number exists');
       styleNumberObj = result;
       if (!productObj.has('classificationNumber')) {
         styleNumberObj.increment('classificationCounter');
@@ -1006,7 +1003,7 @@ var createProductObject = function(productData, classes, departments, designers,
         classificationNumber = productObj.get('classificationNumber');
       }
     } else {
-      request.log.info('style number is new');
+      console.info('style number is new');
       styleNumberObj = new StyleNumber();
       styleNumberObj.set('designerAbbreviation', designerAbbreviation);
       styleNumberObj.set('yearLetter', yearLetter);
@@ -1017,7 +1014,7 @@ var createProductObject = function(productData, classes, departments, designers,
       classificationNumber = classStartId;
     }
     styleNumber += classificationNumber;
-    request.log.info('save: ' + styleNumber);
+    console.info('save: ' + styleNumber);
     return styleNumberObj.save(null, {useMasterKey: true});
     
   }).then(function(result) {
