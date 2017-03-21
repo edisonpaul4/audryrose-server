@@ -23,11 +23,14 @@ var api = new ParseServer({
   appId: process.env.APP_ID || 'app',
   masterKey: process.env.MASTER_KEY || '',
   serverURL: process.env.SERVER_URL || 'http://localhost:1337/parse',
-  logLevel: 'info',
-  verbose: true
+  verbose: false,
+  loggerAdapter: {
+    module: "parse-server/lib/Adapters/Logger/WinstonLoggerAdapter",
+    options: {
+      logLevel: 'error'
+    }
+  }
 });
-
-
 
 var dashboard = new ParseDashboard({
   "apps": [
