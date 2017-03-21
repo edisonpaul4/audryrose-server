@@ -478,13 +478,6 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   productQuery.equalTo('productId', productId);
   productQuery.first().then(function(result) {
     product = result;
-    var productRequest = '/products/' + productId;
-    logInfo(productRequest);
-    return bigCommerce.get(productRequest);
-    
-  }).then(function(res) {
-    bcProduct = res;
-    
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/loadProduct',
@@ -493,7 +486,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
         'X-Parse-Master-Key': process.env.MASTER_KEY
       },
       params: {
-        product: bcProduct
+        productId: productId
       }
     });
     
