@@ -32,11 +32,11 @@ const STONE_IDS = [33];
 /////////////////////////
 
 Parse.Cloud.job("test", function(request, status) {
-  request.log.info('TEST INFO LOG');
+  logInfo('TEST INFO LOG');
   logError('TEST ERROR LOG', request);
   bigCommerce.get('/store', function(err, data, response){
     var message = "Successfully connected to " + data.name + ". The store id is " + data.id + ".";
-    request.log.info(message);
+    logInfo(message);
     status.success(message);
   }, function(error) {
   	logError(error);
@@ -59,7 +59,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
   }).then(function(count) {
     
     var numBatches = Math.ceil(totalProducts / BIGCOMMERCE_BATCH_SIZE);
-    request.log.info('Number of batches: ' + numBatches);
+    logInfo('Number of batches: ' + numBatches);
     
     var promise = Parse.Promise.as();
     var pages = Array.apply(null, {length: numBatches}).map(Number.call, Number);
@@ -71,7 +71,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
           return bigCommerce.get(request);
         }).then(function(response) {
   				_.each(response, function(product) {
-    				products.push(product);
+    				products.push(product.id);
           });
           return true;
         }, function(error) {
@@ -82,11 +82,10 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     return promise;
     
   }).then(function() {
-    request.log.info('Number of products to search: ' + products.length);
+    logInfo('Number of products to search: ' + products.length);
     var promise = Parse.Promise.as();
     //products = products.slice(0,25);// REMOVE
-		_.each(products, function(product) {
-  		request.log.info('process product id: ' + product.id);
+		_.each(products, function(productId) {
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -96,7 +95,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
             'X-Parse-Master-Key': process.env.MASTER_KEY
           },
           params: {
-            product: product
+            productId: productId
           }
         });
     		
@@ -120,7 +119,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     message += products.length + ' products loaded. ';
     message += totalProductsAdded + ' products added. ';
     message += 'Job time: ' + jobTime;
-    request.log.info(message);
+    logInfo(message);
     status.success(message);
   }, function(error) {
   	logError(error);
@@ -147,14 +146,14 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
   
   productsQuery.count().then(function(count) {
     totalProducts = count;
-    request.log.info("Total products need variants updated: " + totalProducts);
+    logInfo("Total products need variants updated: " + totalProducts);
     return productsQuery.find({useMasterKey:true});
     
   }).then(function(products) {
-    request.log.info('Number of products to get variants: ' + products.length);
+    logInfo('Number of products to get variants: ' + products.length);
     var promise = Parse.Promise.as();
 		_.each(products, function(product) {
-  		request.log.info('process product id: ' + product.get('productId'));
+  		logInfo('process product id: ' + product.get('productId'));
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -188,7 +187,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     message += totalProductsProcessed + ' products processed. ';
     message += totalVariantsAdded + ' variants added. ';
     message += 'Job time: ' + jobTime;
-    request.log.info(message);
+    logInfo(message);
     status.success(message);
     
   }, function(error) {
@@ -212,7 +211,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
   }).then(function(count) {
     
     var numBatches = Math.ceil(totalCategories / BIGCOMMERCE_BATCH_SIZE);
-    request.log.info('Number of batches: ' + numBatches);
+    logInfo('Number of batches: ' + numBatches);
     
     var promise = Parse.Promise.as();
     var pages = Array.apply(null, {length: numBatches}).map(Number.call, Number);
@@ -235,10 +234,10 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     return promise;
     
   }).then(function() {
-    request.log.info('Number of categories to search: ' + categories.length);
+    logInfo('Number of categories to search: ' + categories.length);
     var promise = Parse.Promise.as();
 		_.each(categories, function(category) {
-  		request.log.info('process category id: ' + category.id);
+  		logInfo('process category id: ' + category.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -272,7 +271,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     message += categories.length + ' categories loaded. ';
     message += totalCategoriesAdded + ' categories added. ';
     message += 'Job time: ' + jobTime;
-    request.log.info(message);
+    logInfo(message);
     status.success(message);
   }, function(error) {
   	logError(error);
@@ -292,15 +291,15 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
   
   bigCommerce.get('/orders/count', function(err, data, response){
     totalOrders = data.count;
-    request.log.info(totalOrders);
+    logInfo(totalOrders);
     return totalOrders;
     
   }).then(function(count) {
     //ordersToProcess = totalOrders > 1000 ? 1000 : totalOrders; // Uncomment this to limit number of orders
     ordersToProcess = totalOrders; // Uncomment this to process all orders
-    request.log.info('Total orders to process: ' + ordersToProcess);
+    logInfo('Total orders to process: ' + ordersToProcess);
     var numBatches = Math.ceil(ordersToProcess / BIGCOMMERCE_BATCH_SIZE);
-    request.log.info('Number of batches: ' + numBatches);
+    logInfo('Number of batches: ' + numBatches);
     
     var promise = Parse.Promise.as();
     var pages = Array.apply(null, {length: numBatches}).map(Number.call, Number);
@@ -324,10 +323,10 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     
   }).then(function() {
     //orders = orders.slice(0,5); // REMOVE THIS ONLY FOR TESTING
-    request.log.info('Number of orders to search: ' + orders.length);
+    logInfo('Number of orders to search: ' + orders.length);
     var promise = Parse.Promise.as();
 		_.each(orders, function(order) {
-  		request.log.info('process orders id: ' + order.id);
+  		logInfo('process orders id: ' + order.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -360,7 +359,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     message += orders.length + ' orders loaded. ';
     message += totalOrdersAdded + ' orders added. ';
     message += 'Job time: ' + jobTime;
-    request.log.info(message);
+    logInfo(message);
     status.success(message);
   }, function(error) {
   	logError(error);
@@ -390,7 +389,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     return totalOrders;
     
   }).then(function(count) {
-    request.log.info('Number of requests: ' + orderStatuses.length);
+    logInfo('Number of requests: ' + orderStatuses.length);
     
     var promise = Parse.Promise.as();
     _.each(orderStatuses, function(orderStatusRequest) {
@@ -399,7 +398,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
           var request = '/orders?limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:desc' + '&status_id=' + orderStatusRequest.id;
           return bigCommerce.get(request);
         }).then(function(response) {
-          request.log.info(response.length + ' orders for status ' + orderStatusRequest.name);
+          logInfo(response.length + ' orders for status ' + orderStatusRequest.name);
   				_.each(response, function(order) {
     				orders.push(order);
           });
@@ -412,12 +411,12 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     return promise;
     
   }).then(function() {
-    request.log.info('Number of orders to search: ' + orders.length);
+    logInfo('Number of orders to search: ' + orders.length);
     //orders = orders.slice(0,5); // REMOVE THIS, ONLY FOR TESTING
 //     return true;
     var promise = Parse.Promise.as();
 		_.each(orders, function(order) {
-  		request.log.info('process orders id: ' + order.id);
+  		logInfo('process orders id: ' + order.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -450,7 +449,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     message += orders.length + ' orders loaded. ';
     message += totalOrderProductsAdded + ' orders added. ';
     message += 'Job time: ' + jobTime;
-    request.log.info(message);
+    logInfo(message);
     status.success(message);
   }, function(error) {
   	logError(error);
@@ -472,7 +471,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
   }).then(function(count) {
     
     var numBatches = Math.ceil(totalDesigners / BIGCOMMERCE_BATCH_SIZE);
-    request.log.info('Number of batches: ' + numBatches);
+    logInfo('Number of batches: ' + numBatches);
     
     var promise = Parse.Promise.as();
     var pages = Array.apply(null, {length: numBatches}).map(Number.call, Number);
@@ -495,10 +494,10 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
     return promise;
     
   }).then(function() {
-    request.log.info('Number of designers to search: ' + designers.length);
+    logInfo('Number of designers to search: ' + designers.length);
     var promise = Parse.Promise.as();
 		_.each(designers, function(designer) {
-  		request.log.info('process designers id: ' + designer.id);
+  		logInfo('process designers id: ' + designer.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -513,7 +512,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
         });
     		
   		}).then(function(response) {
-    		request.log.info(JSON.stringify(response));
+    		logInfo(JSON.stringify(response));
     		if (response.data.result.added) totalDesignersAdded++;
         return response;
         
@@ -532,7 +531,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
     message += designers.length + ' designers loaded. ';
     message += totalDesignersAdded + ' designers added. ';
     message += 'Job time: ' + jobTime;
-    request.log.info(message);
+    logInfo(message);
     status.success(message);
   }, function(error) {
   	logError(error);
@@ -552,7 +551,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
   var startTime = moment();
   
   bigCommerce.get('/options/count', function(err, data, response){
-    request.log.info('Number of options: ' + totalOptions);
+    logInfo('Number of options: ' + totalOptions);
     return data.count;
     
   }).then(function(count) {
@@ -581,11 +580,11 @@ Parse.Cloud.job("updateOptions", function(request, status) {
     return promise;
     
   }).then(function() {
-    request.log.info('Number of color options to search: ' + colorOptionValues.length);
+    logInfo('Number of color options to search: ' + colorOptionValues.length);
     
     var promise = Parse.Promise.as();
 		_.each(colorOptionValues, function(colorOptionValue) {
-  		request.log.info('process color options id: ' + colorOptionValue.id);
+  		logInfo('process color options id: ' + colorOptionValue.id);
   		promise = promise.then(function() {
     		return delay(10).then(function() {
           var colorCodeQuery = new Parse.Query(ColorCode);
@@ -595,10 +594,10 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           
         }).then(function(colorCodeResult) {
           if (colorCodeResult) {
-            request.log.info('ColorCode exists.');
+            logInfo('ColorCode exists.');
             return createOptionObject(bcOptions, colorOptionValue, 'color', colorCodeResult).save(null, {useMasterKey: true});
           } else {
-            request.log.info('ColorCode is new.');
+            logInfo('ColorCode is new.');
             totalOptionsAdded++;
             return createOptionObject(bcOptions, colorOptionValue, 'color').save(null, {useMasterKey: true});
           }
@@ -616,11 +615,11 @@ Parse.Cloud.job("updateOptions", function(request, status) {
     return promise;
     
   }).then(function() {
-    request.log.info('Number of stone options to search: ' + stoneOptionValues.length);
+    logInfo('Number of stone options to search: ' + stoneOptionValues.length);
     
     var promise = Parse.Promise.as();
 		_.each(stoneOptionValues, function(stoneOptionValue) {
-  		request.log.info('process stone options id: ' + stoneOptionValue.id);
+  		logInfo('process stone options id: ' + stoneOptionValue.id);
   		promise = promise.then(function() {
     		return delay(10).then(function() {
           var stoneCodeQuery = new Parse.Query(StoneCode);
@@ -630,10 +629,10 @@ Parse.Cloud.job("updateOptions", function(request, status) {
 
         }).then(function(stoneCodeResult) {
           if (stoneCodeResult) {
-            request.log.info('StoneCode exists.');
+            logInfo('StoneCode exists.');
             return createOptionObject(bcOptions, stoneOptionValue, 'stone', stoneCodeResult).save(null, {useMasterKey: true});
           } else {
-            request.log.info('StoneCode is new.');
+            logInfo('StoneCode is new.');
             totalOptionsAdded++;
             return createOptionObject(bcOptions, stoneOptionValue, 'stone').save(null, {useMasterKey: true});
           }
@@ -655,7 +654,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
     var jobTime = moment.duration(now.diff(startTime)).humanize();
     message = totalOptionsAdded + ' options added. ';
     message += 'Job time: ' + jobTime;
-    request.log.info(message);
+    logInfo(message);
     status.success(message);
     
   }, function(error) {
