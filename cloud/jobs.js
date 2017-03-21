@@ -369,7 +369,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
 
 Parse.Cloud.job("updateRecentOrders", function(request, status) {
   var totalOrders = 0;
-  var totalOrderProductsAdded = 0;
+  var totalOrdersAdded = 0;
   var orders = [];
   var orderStatuses = [
     {name: 'Awaiting Pickup', id: '8'},
