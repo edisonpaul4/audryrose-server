@@ -502,20 +502,23 @@ Parse.Cloud.define("createShipments", function(request, response) {
           email: "hello@loveaudryrose.com"
         };
         
-        var name = shippingAddress.first_name + ' ' + shippingAddress.last_name; 
+        var name = shippingAddress.first_name + ' ' + shippingAddress.last_name;
+        var email = shippingAddress.email ? shippingAddress.email : 'hello@loveaudryrose.com';
         var addressTo = {
           object_purpose: "PURCHASE",
           name: name,
-          company: shippingAddress.company,
           street1: shippingAddress.street_1,
-          street2: shippingAddress.street_2,
           city: shippingAddress.city,
           state: shippingAddress.state,
           zip: shippingAddress.zip,
           country: shippingAddress.country_iso2,
-          phone: shippingAddress.phone,
-          email: shippingAddress.email
+          email: email
         };
+        if (shippingAddress.phone) addressTo.phone = shippingAddress.phone;
+        if (shippingAddress.company) addressTo.company = shippingAddress.company;
+        if (shippingAddress.street_2) addressTo.street2 = shippingAddress.street_2;
+        logInfo(JSON.stringify(addressTo));
+        
         var totalWeight = 0;
         var totalPrice = 0;
         _.map(shipmentGroup.orderProducts, function(p){
@@ -562,15 +565,16 @@ Parse.Cloud.define("createShipments", function(request, response) {
         } else {
           serviceLevel = 'usps_first_class_package_international_service';
         }
+        logInfo('service level: ' + serviceLevel);
         
         var shipment = {
           address_from: addressFrom,
           address_to: addressTo,
           parcel: parcel,
-          object_purpose: "PURCHASE",
-          extra: shipmentExtra
+          object_purpose: "PURCHASE"
         };
-        logInfo('service level: ' + serviceLevel);
+        if (shipmentExtra.signature_confirmation) shipment.extra = shipmentExtra;
+        
         logInfo('do the shippo');
         
         return Parse.Cloud.httpRequest({
@@ -612,10 +616,12 @@ Parse.Cloud.define("createShipments", function(request, response) {
           }
           return bigCommerce.post(request, bcShipmentData);
           
+        } else {
+          logError(JSON.stringify(httpResponse.data));
         }
         
       }, function(error) {
-        logError(error);
+        logError('Error status: ' + error.status + ', Message: ' + error.text);
     
       }).then(function(bcShipmentResult) {
         //if (!isNew) return true; // Skip if Bigcommerce shipment exists
@@ -629,7 +635,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       		return orderShipmentQuery.first();
     		
     		} else {
-      		logError('No BC shipment created');
+      		logError('No BC shipment created for order ' + orderId);
     		}
     		
   		}, function(error) {
