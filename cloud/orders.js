@@ -468,6 +468,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       var orderId = shipmentGroup.orderId;
       var orderAddressId = shipmentGroup.orderAddressId;
       var shippingAddress = shipmentGroup.orderProducts[0].shippingAddress;
+      var billingAddress = shipmentGroup.orderBillingAddress;
       var bcShipment;
       var shippoLabel;
       
@@ -503,7 +504,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         };
         
         var name = shippingAddress.first_name + ' ' + shippingAddress.last_name;
-        var email = shippingAddress.email ? shippingAddress.email : 'hello@loveaudryrose.com';
+        var email = shippingAddress.email ? shippingAddress.email : billingAddress.email;
         var addressTo = {
           object_purpose: "PURCHASE",
           name: name,
