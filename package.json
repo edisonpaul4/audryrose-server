@@ -17,6 +17,7 @@
     "dotenv": "^2.0.0",
     "express": "~4.11.x",
     "express-handlebars": "^3.0.0",
+    "fs": "0.0.1-security",
     "handlebars": "^4.0.6",
     "handlebars-helpers": "^0.7.5",
     "hummus": "^1.0.75",
