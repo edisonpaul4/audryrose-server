@@ -303,7 +303,16 @@ Parse.Cloud.define("loadOrder", function(request, response) {
       logInfo(bcOrderShipments.length + ' shipments found');
     } else {
       logInfo('No shipments found');
-      return true;
+      if (bcOrder.status_id == 2) {
+        // Set the Bigcommerce order status to 'Awaiting Fulfillment' (resets order when shipments are deleted)
+        orderObj.set('status', 'Awaiting Fulfillment');
+        orderObj.set('status_id', 11);
+        orderObj.unset('orderShipments');
+        var request = '/orders/' + bcOrder.id;
+        return bigCommerce.put(request, {status_id: 11}); 
+      } else {
+        return true;
+      }
     }
     
     var promise = Parse.Promise.as();
@@ -347,7 +356,13 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return promise;
     
   }).then(function(result) {
-    if (orderShipments.length > 0) orderObj.set('orderShipments', orderShipments);
+    if (orderShipments.length > 0) {
+      logInfo('set ' + orderShipments.length + ' shipments to the order');
+      orderObj.set('orderShipments', orderShipments);
+    } else {
+      logInfo('set no shipments to the order');
+      orderObj.unset('orderShipments');
+    }
     logInfo('save order...');
     orderObj.save(null, {useMasterKey: true});
     
@@ -428,6 +443,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
   var totalShipmentsAdded = 0;
   var updatedOrders = [];
   var newShipments = [];
+  var shipmentGroupsFailed = [];
   var newOrderShipment = [];
     
   Parse.Cloud.httpRequest({
@@ -501,27 +517,60 @@ Parse.Cloud.define("createShipments", function(request, response) {
           email: shippingAddress.email
         };
         var totalWeight = 0;
-        _.map(shipmentGroup.orderProducts, function(p){ 
-          return totalWeight += (p.weight * p.quantity); 
+        var totalPrice = 0;
+        _.map(shipmentGroup.orderProducts, function(p){
+          totalPrice += p.total_inc_tax;
+          totalWeight += (p.weight * p.quantity); 
+          return p;
         });
-        totalWeight.toString();
+        
+        var shipmentExtra = {};
+        if (totalPrice >= 1000) {
+          shipmentExtra.signature_confirmation = 'STANDARD';
+          logInfo('shipment: signature required');
+        } else {
+          logInfo('shipment: no signature required');
+        }
+        
+        // Set default parcel to USPS_SmallFlatRateBox
         var parcel = {
           length: "8.69",
           width: "5.44",
           height: "1.75",
           distance_unit: "in",
-          weight: totalWeight,
+          weight: "3", // Use totalWeight.toString() if weight is correct in Bigcommerce
           mass_unit: "oz",
           template: "USPS_SmallFlatRateBox"
         }
+        
+        var serviceLevel;
+        if (US_SHIPPING_ZONES.indexOf(shippingAddress.shipping_zone_id) >= 0) {
+          if (totalPrice > 84) {
+            serviceLevel = 'usps_priority';
+          } else {
+            serviceLevel = 'usps_first';
+            // Overwrite parcel for USPS First Class
+            parcel = {
+              length: "3",
+              width: "2",
+              height: "1",
+              distance_unit: "in",
+              weight: "3",
+              mass_unit: "oz"
+            }
+          }
+        } else {
+          serviceLevel = 'usps_first_class_package_international_service';
+        }
+        
         var shipment = {
           address_from: addressFrom,
           address_to: addressTo,
           parcel: parcel,
-          object_purpose: "PURCHASE"
+          object_purpose: "PURCHASE",
+          extra: shipmentExtra
         };
-        
-        var serviceLevel = US_SHIPPING_ZONES.indexOf(shippingAddress.shipping_zone_id) >= 0 ? 'usps_priority' : 'usps_first_class_package_international_service';
+        logInfo('service level: ' + serviceLevel);
         logInfo('do the shippo');
         
         return Parse.Cloud.httpRequest({
@@ -542,40 +591,46 @@ Parse.Cloud.define("createShipments", function(request, response) {
         logError(error);
     
       }).then(function(httpResponse) {
-        logInfo(JSON.stringify(httpResponse.data));
-        if (httpResponse.data.object_status != 'SUCCESS') response.error('Label could not be generated for order ' + orderId);
-        shippoLabel = httpResponse.data;
-        logInfo('Shippo label status: ' + shippoLabel.object_status);
-        
-        // Create the Bigcommerce shipment
-        var request = '/orders/' + orderId + '/shipments';
-        var items = [];
-        _.each(shipmentGroup.orderProducts, function(orderProduct) { 
-          logInfo('Adding order product ' + orderProduct.orderProductId + ' to shipment');
-          items.push({order_product_id: orderProduct.orderProductId, quantity: orderProduct.quantity});
-        });
-        var bcShipmentData = {
-          tracking_number: shippoLabel.tracking_number,
-          comments: "",
-          order_address_id: orderAddressId,
-          shipping_provider: "",
-          items: items
+        if (httpResponse.data.object_status == 'SUCCESS') {
+          
+          shippoLabel = httpResponse.data;
+          logInfo('Shippo label status: ' + shippoLabel.object_status);
+          
+          // Create the Bigcommerce shipment
+          var request = '/orders/' + orderId + '/shipments';
+          var items = [];
+          _.each(shipmentGroup.orderProducts, function(orderProduct) { 
+            logInfo('Adding order product ' + orderProduct.orderProductId + ' to shipment');
+            items.push({order_product_id: orderProduct.orderProductId, quantity: orderProduct.quantity});
+          });
+          var bcShipmentData = {
+            tracking_number: shippoLabel.tracking_number,
+            comments: "",
+            order_address_id: orderAddressId,
+            shipping_provider: "",
+            items: items
+          }
+          return bigCommerce.post(request, bcShipmentData);
+          
         }
-        return bigCommerce.post(request, bcShipmentData);
         
       }, function(error) {
         logError(error);
     
       }).then(function(bcShipmentResult) {
         //if (!isNew) return true; // Skip if Bigcommerce shipment exists
-        if (!bcShipmentResult) response.error('Bigcommerce shipment could not be created for order ' + orderId);
-        bcShipment = bcShipmentResult;
-        
-        logInfo('Bigcommerce shipment ' + bcShipment.id + ' created');
-        
-        var orderShipmentQuery = new Parse.Query(OrderShipment);
-        orderShipmentQuery.equalTo('shipmentId', parseInt(bcShipment.id));
-    		return orderShipmentQuery.first();
+        if (bcShipmentResult) {
+          bcShipment = bcShipmentResult;
+          
+          logInfo('Bigcommerce shipment ' + bcShipment.id + ' created');
+          
+          var orderShipmentQuery = new Parse.Query(OrderShipment);
+          orderShipmentQuery.equalTo('shipmentId', parseInt(bcShipment.id));
+      		return orderShipmentQuery.first();
+    		
+    		} else {
+      		logError('No BC shipment created');
+    		}
     		
   		}, function(error) {
         logError(error);
@@ -584,7 +639,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         if (orderShipmentResult) {
           logInfo('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
           return createOrderShipmentObject(bcShipment, shippoLabel, orderShipmentResult).save(null, {useMasterKey: true});
-        } else {
+        } else if (bcShipment) {
           logInfo('OrderShipment is new.');
           totalShipmentsAdded++;
           return createOrderShipmentObject(bcShipment, shippoLabel).save(null, {useMasterKey: true});
@@ -594,21 +649,27 @@ Parse.Cloud.define("createShipments", function(request, response) {
         logError(error);
     
       }).then(function(orderShipmentObject) {
-        newOrderShipment = orderShipmentObject;
-    		newShipments.push(newOrderShipment);
-    		
-        var orderQuery = new Parse.Query(Order);
-        orderQuery.equalTo('orderId', parseInt(orderId));
-        orderQuery.include('orderShipments');
-    		return orderQuery.first();
+        if (orderShipmentObject) {
+          
+          newOrderShipment = orderShipmentObject;
+      		newShipments.push(newOrderShipment);
+      		
+          var orderQuery = new Parse.Query(Order);
+          orderQuery.equalTo('orderId', parseInt(orderId));
+          orderQuery.include('orderShipments');
+      		return orderQuery.first();
+    		} else {
+      		shipmentGroupsFailed.push(shipmentGroup)
+    		}
     		
   		}).then(function(orderResult) {
-    		orderResult.addUnique('orderShipments', newOrderShipment);
-    		return orderResult.save(null, {useMasterKey: true});
+    		if (orderResult) {
+      		orderResult.addUnique('orderShipments', newOrderShipment);
+      		return orderResult.save(null, {useMasterKey: true});
+    		}
     		
   		}).then(function(orderResult) {
     		logInfo('Order shipment saved to order');
-    		return true;
     		
       }, function(error) {
         logError(error);
@@ -623,6 +684,10 @@ Parse.Cloud.define("createShipments", function(request, response) {
     _.each(newShipments, function(s) { 
       var index = allOrderIds.indexOf(s.get('order_id'));
       if (index < 0) allOrderIds.push(s.get('order_id'));
+    });
+    _.each(shipmentGroupsFailed, function(s) { 
+      var index = allOrderIds.indexOf(s.orderId);
+      if (index < 0) allOrderIds.push(s.orderId);
     });
     logInfo('orderIds to save: ' + allOrderIds.join(','));
     
@@ -891,13 +956,13 @@ var createOrderProductObject = function(orderProductData, order, currentOrderPro
   if (orderProductData.total_inc_tax) orderProduct.set('total_inc_tax', parseFloat(orderProductData.total_inc_tax));
   if (orderProductData.total_tax) orderProduct.set('total_tax', parseFloat(orderProductData.total_tax));
   if (orderProductData.weight) orderProduct.set('weight', parseFloat(orderProductData.weight));
-  if (orderProductData.quantity) orderProduct.set('quantity', parseInt(orderProductData.quantity));
+  orderProduct.set('quantity', parseInt(orderProductData.quantity));
   if (orderProductData.base_cost_price) orderProduct.set('base_cost_price', parseFloat(orderProductData.base_cost_price));
   if (orderProductData.cost_price_inc_tax) orderProduct.set('cost_price_inc_tax', parseFloat(orderProductData.cost_price_inc_tax));
   if (orderProductData.cost_price_ex_tax) orderProduct.set('cost_price_ex_tax', parseFloat(orderProductData.cost_price_ex_tax));
   if (orderProductData.cost_price_tax) orderProduct.set('cost_price_tax', parseFloat(orderProductData.cost_price_tax));
   if (orderProductData.is_refunded != undefined) orderProduct.set('is_refunded', orderProductData.is_refunded);
-  if (orderProductData.quantity_refunded) orderProduct.set('quantity_refunded', parseInt(orderProductData.quantity_refunded));
+  orderProduct.set('quantity_refunded', parseInt(orderProductData.quantity_refunded));
   if (orderProductData.refund_amount) orderProduct.set('refund_amount', parseFloat(orderProductData.refund_amount));
   if (orderProductData.return_id) orderProduct.set('return_id', parseInt(orderProductData.return_id));
   if (orderProductData.wrapping_name) orderProduct.set('wrapping_name', orderProductData.wrapping_name);
@@ -906,7 +971,6 @@ var createOrderProductObject = function(orderProductData, order, currentOrderPro
   if (orderProductData.wrapping_cost_inc_tax) orderProduct.set('wrapping_cost_inc_tax', parseFloat(orderProductData.wrapping_cost_inc_tax));
   if (orderProductData.wrapping_cost_tax) orderProduct.set('wrapping_cost_tax', parseFloat(orderProductData.wrapping_cost_tax));
   if (orderProductData.wrapping_message) orderProduct.set('wrapping_message', orderProductData.wrapping_message);
-  if (orderProductData.quantity_shipped) orderProduct.set('quantity_shipped', parseInt(orderProductData.quantity_shipped));
   if (orderProductData.fixed_shipping_cost) orderProduct.set('fixed_shipping_cost', parseFloat(orderProductData.fixed_shipping_cost));
   if (orderProductData.ebay_item_id) orderProduct.set('ebay_item_id', orderProductData.ebay_item_id);
   if (orderProductData.ebay_transaction_id) orderProduct.set('ebay_transaction_id', orderProductData.ebay_transaction_id);
