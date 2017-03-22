@@ -327,6 +327,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		
   		}).then(function(result) {
     		orderShipmentObject = result;
+    		if (orderShipmentObject.has('invoice')) return orderShipmentObject;
     		return createOrderShipmentInvoice(orderObj, orderShipmentObject);
     		
 /*
