@@ -1310,6 +1310,7 @@ var createOrderShipmentInvoice = function(order, shipment) {
         var options = orderProduct.get('product_options');
         var optionsHeight = 0;
         _.each(options, function(option) {
+          logInfo(option.display_name + ': ' + option.display_value)
           var optionText = writePdfText(cxt, option.display_name + ': ' + option.display_value, regularFont, 8, 0x000000, 'left', margin + 150, nameText.y - optionsHeight, 5, pageWidth, pageHeight);
           optionsHeight += optionText.dims.height + 5;
         });
@@ -1368,6 +1369,7 @@ var createOrderShipmentInvoice = function(order, shipment) {
 }
 
 var writePdfText = function(cxt, text, font, fontSize, color, align, offsetX, offsetY, padding, pageWidth, pageHeight) {
+  if (!text || text == '') return { x: offsetX, y: offsetY, dims: { width:0, height: 0 } };
 	var dims = font.calculateTextDimensions(text, fontSize);
 	var pageMargin = Math.round(72 / 2);
 	var x;
