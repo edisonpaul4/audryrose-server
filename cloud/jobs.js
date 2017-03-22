@@ -447,7 +447,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     var jobTime = moment.duration(now.diff(startTime)).humanize();
     var message = totalOrders + ' orders in Bigcommerce. ';
     message += orders.length + ' orders loaded. ';
-    message += totalOrderProductsAdded + ' orders added. ';
+    message += totalOrdersAdded + ' orders added. ';
     message += 'Job time: ' + jobTime;
     logInfo(message);
     status.success(message);
