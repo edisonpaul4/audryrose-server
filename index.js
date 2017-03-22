@@ -1,5 +1,6 @@
 var express = require('express');
 var ParseServer = require('parse-server').ParseServer;
+var S3Adapter = require('parse-server').S3Adapter;
 var ParseDashboard = require('parse-dashboard');
 var path = require('path');
 var exphbs = require('express-handlebars');
@@ -29,7 +30,13 @@ var api = new ParseServer({
     options: {
       logLevel: 'error'
     }
-  }
+  },
+  filesAdapter: new S3Adapter(
+    process.env.S3_ACCESS_KEY,
+    process.env.S3_SECRET_KEY,
+    process.env.S3_BUCKET,
+    { directAccess: true }
+  )
 });
 
 var dashboard = new ParseDashboard({
