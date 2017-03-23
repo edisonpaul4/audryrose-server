@@ -189,6 +189,7 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 
 Parse.Cloud.define("loadOrder", function(request, response) {
   var bcOrder = request.params.order;
+  var bcOrderShipments = [];
   var orderObj;
   var orderProducts = [];
   var orderShipments = [];
@@ -212,6 +213,13 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }).then(function(result) {
     orderObj = result;
+    
+    // Load order shipments
+    var request = '/orders/' + bcOrder.id + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
+    return bigCommerce.get(request);
+    
+  }).then(function(result) {
+    if (result.length > 0) bcOrderShipments = result;
     
     // Load order products
     var request = '/orders/' + bcOrder.id + '/products?limit=' + BIGCOMMERCE_BATCH_SIZE;
@@ -243,6 +251,21 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		return getOrderProductShippingAddress(orderProductObject);
     		
   		}).then(function(orderProductObject) {
+    		// Set order product quantity shippped each time to update based on BC shipment changes
+    		if (bcOrderShipments <= 0) {
+      		orderProductObject.set('quantity_shipped', 0);
+      		logInfo('OrderProduct quantity shipped: 0');
+    		} else {
+      		var totalShipped = 0;
+      		_.each(bcOrderShipments, function(bcOrderShipment) {
+        		_.each(bcOrderShipment.items, function(item) {
+          		if (orderProduct.id == item.order_product_id) totalShipped += item.quantity;
+        		});
+      		});
+      		orderProductObject.set('quantity_shipped', totalShipped);
+      		logInfo('OrderProduct quantity shipped: ' + totalShipped);
+    		}
+    		
     		return orderProductObject.save(null, {useMasterKey: true});
     		
   		}).then(function(orderProductObject) {
@@ -294,25 +317,20 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return true;
     
   }).then(function(result) {
-    // Load order shipments
-    var request = '/orders/' + bcOrder.id + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
-    return bigCommerce.get(request);
-    
-  }).then(function(bcOrderShipments) {
-    if (bcOrderShipments.length) {
-      logInfo(bcOrderShipments.length + ' shipments found');
-    } else {
+
+    if (bcOrderShipments <= 0) {
       logInfo('No shipments found');
       if (bcOrder.status_id == 2) {
         // Set the Bigcommerce order status to 'Awaiting Fulfillment' (resets order when shipments are deleted)
         orderObj.set('status', 'Awaiting Fulfillment');
         orderObj.set('status_id', 11);
-        orderObj.unset('orderShipments');
         var request = '/orders/' + bcOrder.id;
         return bigCommerce.put(request, {status_id: 11}); 
       } else {
         return true;
       }
+    } else {      
+      logInfo(bcOrderShipments.length + ' shipments found');
     }
     
     var promise = Parse.Promise.as();
@@ -361,7 +379,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
       orderObj.set('orderShipments', orderShipments);
     } else {
       logInfo('set no shipments to the order');
-      orderObj.unset('orderShipments');
+      orderObj.set('orderShipments', undefined);
     }
     logInfo('save order...');
     orderObj.save(null, {useMasterKey: true});
@@ -441,11 +459,13 @@ Parse.Cloud.define("createShipments", function(request, response) {
   var shipmentGroups = request.params.shipmentGroups;
   var carriers;
   var totalShipmentsAdded = 0;
-  var updatedOrders = [];
+  var updatedOrdersArray = [];
   var newShipments = [];
   var shipmentGroupsFailed = [];
   var newOrderShipment = [];
   var errors = [];
+  
+  console.log(shipmentGroups.orderProducts)
     
   Parse.Cloud.httpRequest({
     method: 'get',
@@ -522,8 +542,8 @@ Parse.Cloud.define("createShipments", function(request, response) {
         var totalWeight = 0;
         var totalPrice = 0;
         _.map(shipmentGroup.orderProducts, function(p){
-          totalPrice += p.total_inc_tax;
-          totalWeight += (p.weight * p.quantity); 
+          totalPrice += parseFloat(p.total_inc_tax);
+          totalWeight += parseFloat(p.weight * p.quantity); 
           return p;
         });
         
@@ -547,7 +567,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         }
         
         var serviceLevel;
-        if (US_SHIPPING_ZONES.indexOf(shippingAddress.shipping_zone_id) >= 0) {
+        if (US_SHIPPING_ZONES.indexOf(parseInt(shippingAddress.shipping_zone_id)) >= 0) {
           if (totalPrice > 84) {
             serviceLevel = 'usps_priority';
           } else {
@@ -581,7 +601,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
             width: customShipment.width,
             height: customShipment.height,
             distance_unit: "in",
-            weight: customShipment.weight, // Use totalWeight.toString() if weight is correct in Bigcommerce
+            weight: customShipment.weight,
             mass_unit: "oz"
           }
           if (customShipment.shippingParcel != 'custom') parcel.template = customShipment.shippingParcel;
@@ -599,6 +619,10 @@ Parse.Cloud.define("createShipments", function(request, response) {
           object_purpose: "PURCHASE"
         };
         if (shipmentExtra.signature_confirmation) shipment.extra = shipmentExtra;
+        
+        console.log(shipment)
+        console.log(carrier.object_id)
+        console.log(serviceLevel)
         
         logInfo('do the shippo');
         
@@ -642,8 +666,10 @@ Parse.Cloud.define("createShipments", function(request, response) {
           return bigCommerce.post(request, bcShipmentData);
           
         } else {
-          logError(httpResponse.data.messages[0].text);
-          errors.push(httpResponse.data.messages[0].text);
+          _.each(httpResponse.data.messages, function(message) { 
+            logError(message.text);
+            errors.push(message.text);
+          });
         }
         
       }, function(error) {
@@ -723,7 +749,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     });
     logInfo('orderIds to save: ' + allOrderIds.join(','));
     
-    // Load each order into updatedOrders with pointers
+    // Load each order into updatedOrdersArray with pointers
     var promise = Parse.Promise.as();
     _.each(allOrderIds, function(orderId) {
       promise = promise.then(function() {
@@ -747,7 +773,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       }).then(function(response) {
         logInfo('get order data');
         var ordersQuery = new Parse.Query(Order);
-        ordersQuery.equalTo("orderId", orderId);
+        ordersQuery.equalTo('orderId', parseInt(orderId));
         ordersQuery.include('orderProducts');
         ordersQuery.include('orderProducts.variant');
         ordersQuery.include('orderProducts.variant.designer');
@@ -755,17 +781,98 @@ Parse.Cloud.define("createShipments", function(request, response) {
         return ordersQuery.first();
       
       }).then(function(orderResult) {
-        updatedOrders.push(orderResult);
+        updatedOrdersArray.push(orderResult);
+      }, function(error) {
+        logError(error);
       });
     });
     return promise;
     
   }).then(function() {
-    logInfo('Successfully created ' + newShipments.length + ' shipments');
-    response.success({data: updatedOrders, errors: errors});
+    logInfo('Created ' + newShipments.length + ' shipments. ' + shipmentGroupsFailed.length + ' shipment groups failed.');
+    response.success({updatedOrders: updatedOrdersArray, errors: errors});
   });
 
   
+});
+
+Parse.Cloud.define("batchCreateShipments", function(request, response) {
+  var ordersToShip = request.params.ordersToShip;
+  var updatedOrders = [];
+  var shipmentGroups = [];
+  var tabCounts;
+  
+  logInfo('\nbatchCreateShipments -----------------------------');
+  
+  // Create shipment groups
+  bigCommerce.get('/orders/count', function(err, data, response){
+    return data.count;
+  
+  }).then(function(count) {
+    
+    var promise = Parse.Promise.as();
+    _.each(ordersToShip, function(orderId) {
+      promise = promise.then(function() {
+        var orderQuery = new Parse.Query(Order);
+        orderQuery.equalTo('orderId', parseInt(orderId));
+        orderQuery.include('orderProducts');
+        orderQuery.include('orderProducts.variant');
+        orderQuery.include('orderShipments');
+        return orderQuery.first();
+        
+      }).then(function(order) {
+        var orderJSON = order.toJSON();
+        var groups = createShipmentGroups(orderJSON, orderJSON.orderProducts, orderJSON.orderShipments);
+        shipmentGroups = shipmentGroups.concat(groups.shippableGroups);
+        return true;
+        
+      }, function(error) {
+        logError(error);
+        
+      });
+    });
+    return promise;
+    
+  }).then(function(result) {
+//     console.log(shipmentGroups)
+    
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/createShipments',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      },
+      params: {
+        shipmentGroups: shipmentGroups
+      }
+    });
+    
+  }).then(function(httpResponse) {
+    console.log(httpResponse.data.result);
+    updatedOrders = httpResponse.data.result.updatedOrders;
+    errors = httpResponse.data.result.errors;
+    
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/getOrderTabCounts',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      }
+    });
+    
+  }).then(function(httpResponse) {
+    tabCounts = httpResponse.data.result;
+    
+    logInfo('order successfully reloaded');
+	  response.success({updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors});
+	  
+  }, function(error) {
+	  logError(error);
+	  response.error(error);
+	  
+  });
 });
 
 /////////////////////////
@@ -1462,6 +1569,100 @@ var createOrderShipmentInvoice = function(order, shipment) {
   });
     
   return promise;
+}
+
+var createShipmentGroups = function(order, orderProducts, shippedShipments) {
+	// Create an array of shipments
+	var shippedGroups = [];
+	var shippableGroups = [];
+	var unshippableGroups = [];
+	
+	if (orderProducts) {
+		orderProducts.map(function(orderProduct, i) {
+  		console.log('\nop:' + orderProduct.orderProductId + ' oa:' + orderProduct.order_address_id);
+  		
+  		// Check if product is in a shipment
+  		var isShipped = false;
+  		var shippedShipmentId;
+  		var shipment;
+  		if (shippedShipments) {
+    		shippedShipments.map(function(shippedShipment, j) {
+      		shippedShipment.items.map(function(item, k) {
+        		if (orderProduct.order_address_id === shippedShipment.order_address_id && orderProduct.orderProductId === item.order_product_id) {
+          		isShipped = true;
+          		shippedShipmentId = shippedShipment.shipmentId;
+          		shipment = shippedShipment;
+        		}
+        		return item;
+      		});
+      		return shippedShipments;
+    		});
+  		}
+      var group = {
+        orderId: orderProduct.order_id, 
+        orderAddressId: orderProduct.order_address_id, 
+        orderBillingAddress: order.billing_address,
+        shippedShipmentId: shippedShipmentId, 
+        orderProducts: [orderProduct],
+        shipment: shipment
+      };
+      var shipmentIndex = -1;
+  		
+  		// Set whether product is added to shippable, shipped or unshippable groups
+  		if (isShipped) {
+    		console.log('product is shipped');
+    		// Check whether product is being added to an existing shipment group
+    		
+    		shippedGroups.map(function(shippedGroup, j) {
+      		if (shippedShipmentId === shippedGroup.shippedShipmentId) shipmentIndex = j;
+      		return shippedGroups;
+    		});
+        if (shipmentIndex < 0) {
+          console.log('not in shippedGroups')
+          shippedGroups.push(group);
+        } else {
+          console.log('found in shippedGroups')
+          shippedGroups[shipmentIndex].orderProducts.push(orderProduct);
+        }
+    		
+  		} else if (orderProduct.shippable && orderProduct.quantity_shipped !== orderProduct.quantity) {
+    		console.log('product is shippable');
+    		
+    		// Check whether product is being shipped to a unique address
+    		shippableGroups.map(function(shippableGroup, j) {
+      		if (orderProduct.order_address_id === shippableGroup.orderAddressId) shipmentIndex = j;
+      		return shippableGroups;
+    		});
+        if (shipmentIndex < 0) {
+          console.log('not in shippableGroups')
+          shippableGroups.push(group);
+        } else {
+          console.log('found in shippableGroups')
+          shippableGroups[shipmentIndex].orderProducts.push(orderProduct);
+        }
+    		
+  		} else {
+    		console.log('product is not shippable');
+    		// Check whether product is being shipped to a unique address
+    		unshippableGroups.map(function(unshippableGroup, j) {
+      		if (orderProduct.order_address_id === unshippableGroup.orderAddressId) shipmentIndex = j;
+      		return unshippableGroup;
+    		});
+        if (shipmentIndex < 0) {
+          console.log('not in shippableGroups')
+          unshippableGroups.push(group);
+        } else {
+          console.log('found in shippableGroups')
+          unshippableGroups[shipmentIndex].orderProducts.push(orderProduct);
+        }
+    		
+  		}
+  		return orderProduct;
+  		
+		});
+	}
+  
+  return {shippedGroups: shippedGroups, shippableGroups: shippableGroups, unshippableGroups: unshippableGroups};
 }
 
 var writePdfText = function(cxt, text, font, fontSize, color, align, offsetX, offsetY, padding, pageWidth, pageHeight) {
