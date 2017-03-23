@@ -439,28 +439,26 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 
 Parse.Cloud.define("createShipments", function(request, response) {
   var shipmentGroups = request.params.shipmentGroups;
-  var carrier;
+  var carriers;
   var totalShipmentsAdded = 0;
   var updatedOrders = [];
   var newShipments = [];
   var shipmentGroupsFailed = [];
   var newOrderShipment = [];
+  var errors = [];
     
   Parse.Cloud.httpRequest({
     method: 'get',
     url: 'https://api.goshippo.com/carrier_accounts/',
     headers: {
       'Authorization': 'ShippoToken ' + process.env.SHIPPO_API_TOKEN
-    },
-    params: {
-      carrier: 'usps'
     }
   }, function(error) {
     logError(error);
     
   }).then(function(httpResponse) {
-    carrier = httpResponse.data.results[0]; // Only using USPS for now, so array length should be zero
-    logInfo('carrier ' + carrier.object_id);
+    carriers = httpResponse.data.results;
+    logInfo('total carriers ' + carriers.length);
     
     var promise = Parse.Promise.as();
     _.each(shipmentGroups, function(shipmentGroup) {
@@ -469,6 +467,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       var orderAddressId = shipmentGroup.orderAddressId;
       var shippingAddress = shipmentGroup.orderProducts[0].shippingAddress;
       var billingAddress = shipmentGroup.orderBillingAddress;
+      var customShipment = shipmentGroup.customShipment;
       var bcShipment;
       var shippoLabel;
       
@@ -566,8 +565,33 @@ Parse.Cloud.define("createShipments", function(request, response) {
         } else {
           serviceLevel = 'usps_first_class_package_international_service';
         }
-        logInfo('service level: ' + serviceLevel);
         
+        // Set the carrier to the default "usps"
+        var carrier;
+        _.map(carriers, function(c){
+          if (c.carrier == 'usps') carrier = c;
+          return c;
+        });
+
+        // Overwrite shipment options of customizations exist
+        if (customShipment) {
+          serviceLevel = customShipment.shippingServiceLevel;
+          parcel = {
+            length: customShipment.length,
+            width: customShipment.width,
+            height: customShipment.height,
+            distance_unit: "in",
+            weight: customShipment.weight, // Use totalWeight.toString() if weight is correct in Bigcommerce
+            mass_unit: "oz"
+          }
+          if (customShipment.shippingParcel != 'custom') parcel.template = customShipment.shippingParcel;
+          _.map(carriers, function(c){
+            if (c.carrier == customShipment.shippingProvider) carrier = c;
+            return c;
+          });
+        }
+        
+        // Create shipment object
         var shipment = {
           address_from: addressFrom,
           address_to: addressTo,
@@ -618,7 +642,8 @@ Parse.Cloud.define("createShipments", function(request, response) {
           return bigCommerce.post(request, bcShipmentData);
           
         } else {
-          logError(JSON.stringify(httpResponse.data));
+          logError(httpResponse.data.messages[0].text);
+          errors.push(httpResponse.data.messages[0].text);
         }
         
       }, function(error) {
@@ -737,7 +762,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
   }).then(function() {
     logInfo('Successfully created ' + newShipments.length + ' shipments');
-    response.success(updatedOrders);
+    response.success({data: updatedOrders, errors: errors});
   });
 
   
