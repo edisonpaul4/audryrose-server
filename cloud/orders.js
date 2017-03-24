@@ -5,7 +5,8 @@ var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 var hummus = require('hummus');
 var streams = require('memory-streams');
-var fs = require('fs');
+var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
+// var PDFMerge = require('pdf-merge');
 
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
@@ -354,17 +355,19 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		
   		}).then(function(result) {
     		orderShipmentObject = result;
-    		if (orderShipmentObject.has('invoice')) return orderShipmentObject;
-    		return createOrderShipmentInvoice(orderObj, orderShipmentObject);
-    		
-/*
-  		}).then(function(result) {
-    		orderShipmentObject = result;
-    		return createShipmentCombinedPdf(orderShipmentObject);
-*/
+    		if (orderShipmentObject.has('packingSlip')) return orderShipmentObject;
+    		return createOrderShipmentPackingSlip(orderObj, orderShipmentObject);
     		
   		}).then(function(result) {
     		orderShipmentObject = result;
+    		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url')) return false;
+    		return combinePdfs([orderShipmentObject.get('packingSlipUrl'), orderShipmentObject.get('shippo_label_url')]);
+    		
+  		}).then(function(result) {
+    		if (result) {
+          orderShipmentObject.set('labelWithPackingSlip', result);
+          orderShipmentObject.set('labelWithPackingSlipUrl', result.url());
+    		}
     		return orderShipmentObject.save(null, {useMasterKey: true});
     		
   		}).then(function(result) {
@@ -1406,7 +1409,7 @@ var createOrderShipmentObject = function(shipmentData, shippoLabel, currentShipm
   return shipment;
 }
 
-var createOrderShipmentInvoice = function(order, shipment) {
+var createOrderShipmentPackingSlip = function(order, shipment) {
   
   var pageWidth = 8.5 * 72;
   var pageHeight = 11 * 72;
@@ -1416,7 +1419,7 @@ var createOrderShipmentInvoice = function(order, shipment) {
   
   var promise = Parse.Promise.as();
   
-  var fileName = 'invoice-' + order.get('orderId') + '-' + shipment.get('shipmentId') + '.pdf';
+  var fileName = 'packing-slip-' + order.get('orderId') + '-' + shipment.get('shipmentId') + '.pdf';
   logInfo(fileName);
   
   var writer = new streams.WritableStream();
@@ -1439,7 +1442,7 @@ var createOrderShipmentInvoice = function(order, shipment) {
 	var companyAddress2 = writePdfText(cxt, 'Santa Monica, California 90403', regularFont, 8, 0x999999, 'center', 0, companyAddress1.y, 8, pageWidth, pageHeight);
   
   // Order Number
-  var orderNumberHeadlineText = 'Invoice for Order #' + order.get('orderId');
+  var orderNumberHeadlineText = 'Packing Slip for Order #' + order.get('orderId');
   var orderNumberHeadline = writePdfText(cxt, orderNumberHeadlineText, boldFont, 18, 0x000000, 'center', 0, companyAddress2.y, padding, pageWidth, pageHeight);
 	
 	// Line
@@ -1546,20 +1549,20 @@ var createOrderShipmentInvoice = function(order, shipment) {
   
   pdfWriter.writePage(page);
   pdfWriter.end();
-  logInfo('invoice pdf written');
+  logInfo('packing slip pdf written');
   
   var buffer = writer.toBuffer();
   
-  // Save invoice as a Parse File
+  // Save packing slip as a Parse File
   promise = promise.then(function() {
     var file = new Parse.File(fileName, {base64: buffer.toString('base64', 0, buffer.length)}, 'application/pdf');
     logInfo('save file');
     return file.save(null, {useMasterKey: true});
     
-  }).then(function(invoice) {
+  }).then(function(packingSlip) {
     logInfo('file saved');
-    shipment.set('invoice', invoice);
-    shipment.set('invoiceUrl', invoice.url());
+    shipment.set('packingSlip', packingSlip);
+    shipment.set('packingSlipUrl', packingSlip.url());
     return shipment;
     
   }, function(error) {
@@ -1689,58 +1692,62 @@ var writePdfText = function(cxt, text, font, fontSize, color, align, offsetX, of
   return {x:x, y:y, dims:dims};
 }
 
-/*
-var createShipmentCombinedPdf = function(shipment) {
+var combinePdfs = function(pdfs) {
   
-  if (!shipment.has('invoice') || !shipment.has('shippo_label_url')) return shipment;
-  
-  var invoiceBuffer;
-  var labelBuffer;
+  var pdfBuffers = [];
+  var pdfReadStreams = [];
   
   var promise = Parse.Promise.as();  
   promise = promise.then(function() {
-    return Parse.Cloud.httpRequest({ url: shipment.get('invoiceUrl') });
+    var promise2 = Parse.Promise.as();  
     
-  }).then(function(response) {
-    invoiceBuffer = response.buffer;
-    return Parse.Cloud.httpRequest({ url: shipment.get('shippo_label_url') });
-    
-  }).then(function(response) {
-    labelBuffer = response.buffer;
-    
-    var writer = new streams.WritableStream();
-    var pdfWriter = hummus.createWriter(new hummus.PDFStreamForResponse(writer));
-    logInfo(shipment.get('invoiceUrl'));
-    pdfWriter.appendPDFPagesFromPDF(invoiceBuffer);
-    logInfo(shipment.get('shippo_label_url'));
-    pdfWriter.appendPDFPagesFromPDF(labelBuffer);
-    pdfWriter.end();
-    logInfo('combined pdf written');
-    
-    var buffer = writer.toBuffer();
-    
-    
-    // Save pdf as a Parse File
-    var fileName = 'shipment-combined-' + shipment.get('order_id') + '-' + shipment.get('shipmentId') + '.pdf';
+  	_.each(pdfs, function(pdf) {
+    	logInfo('load: ' + pdf);
+    	
+  		promise2 = promise2.then(function() {
+    		return Parse.Cloud.httpRequest({ url: pdf });
+    		
+  		}).then(function(response) {
+    		pdfBuffers.push(response.buffer);
+    		return true;
+    		
+      }, function(error) {
+        logError(error);
+        
+      });
+  	});
+  	return promise2;
+  	
+	}).then(function() {
+  	logInfo(pdfBuffers.length + ' file buffers loaded');
+  	
+  	var writer = new streams.WritableStream();
+  	var pdfWriter = hummus.createWriter(new hummus.PDFStreamForResponse(writer));
+  	_.each(pdfBuffers, function(pdfBuffer) {
+      var pdfReadStream = new PDFRStreamForBuffer(pdfBuffer);
+    	pdfWriter.appendPDFPagesFromPDF(pdfReadStream);
+  	});
+  	pdfWriter.end();
+  	logInfo('combined pdf written');
+  	
+  	// Save combined pdf as a Parse File
+  	var buffer = writer.toBuffer();
+    var fileName = 'shipment-combined.pdf';
     var file = new Parse.File(fileName, {base64: buffer.toString('base64', 0, buffer.length)}, 'application/pdf');
     logInfo('save file');
     return file.save(null, {useMasterKey: true});
     
   }).then(function(pdf) {
     logInfo('file saved');
-    shipment.set('combinedPdf', pdf);
-    shipment.set('combinedPdfUrl', pdf.url());
-    return shipment;
-    
-  }, function(error) {
-    logError(error);
-    return error;
-    
-  });
-    
-  return promise;
+  	return pdf;
+  	
+	}, function(error){
+  	logError(error);
+	});
+	
+	return promise;
+  
 }
-*/
 
 var logInfo = function(i) {
   console.info(i);
