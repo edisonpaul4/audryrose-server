@@ -6,7 +6,6 @@ var bugsnag = require("bugsnag");
 var hummus = require('hummus');
 var streams = require('memory-streams');
 var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
-// var PDFMerge = require('pdf-merge');
 
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
@@ -1409,6 +1408,100 @@ var createOrderShipmentObject = function(shipmentData, shippoLabel, currentShipm
   return shipment;
 }
 
+var createShipmentGroups = function(order, orderProducts, shippedShipments) {
+	// Create an array of shipments
+	var shippedGroups = [];
+	var shippableGroups = [];
+	var unshippableGroups = [];
+	
+	if (orderProducts) {
+		orderProducts.map(function(orderProduct, i) {
+  		console.log('\nop:' + orderProduct.orderProductId + ' oa:' + orderProduct.order_address_id);
+  		
+  		// Check if product is in a shipment
+  		var isShipped = false;
+  		var shippedShipmentId;
+  		var shipment;
+  		if (shippedShipments) {
+    		shippedShipments.map(function(shippedShipment, j) {
+      		shippedShipment.items.map(function(item, k) {
+        		if (orderProduct.order_address_id === shippedShipment.order_address_id && orderProduct.orderProductId === item.order_product_id) {
+          		isShipped = true;
+          		shippedShipmentId = shippedShipment.shipmentId;
+          		shipment = shippedShipment;
+        		}
+        		return item;
+      		});
+      		return shippedShipments;
+    		});
+  		}
+      var group = {
+        orderId: orderProduct.order_id, 
+        orderAddressId: orderProduct.order_address_id, 
+        orderBillingAddress: order.billing_address,
+        shippedShipmentId: shippedShipmentId, 
+        orderProducts: [orderProduct],
+        shipment: shipment
+      };
+      var shipmentIndex = -1;
+  		
+  		// Set whether product is added to shippable, shipped or unshippable groups
+  		if (isShipped) {
+    		console.log('product is shipped');
+    		// Check whether product is being added to an existing shipment group
+    		
+    		shippedGroups.map(function(shippedGroup, j) {
+      		if (shippedShipmentId === shippedGroup.shippedShipmentId) shipmentIndex = j;
+      		return shippedGroups;
+    		});
+        if (shipmentIndex < 0) {
+          console.log('not in shippedGroups')
+          shippedGroups.push(group);
+        } else {
+          console.log('found in shippedGroups')
+          shippedGroups[shipmentIndex].orderProducts.push(orderProduct);
+        }
+    		
+  		} else if (orderProduct.shippable && orderProduct.quantity_shipped !== orderProduct.quantity) {
+    		console.log('product is shippable');
+    		
+    		// Check whether product is being shipped to a unique address
+    		shippableGroups.map(function(shippableGroup, j) {
+      		if (orderProduct.order_address_id === shippableGroup.orderAddressId) shipmentIndex = j;
+      		return shippableGroups;
+    		});
+        if (shipmentIndex < 0) {
+          console.log('not in shippableGroups')
+          shippableGroups.push(group);
+        } else {
+          console.log('found in shippableGroups')
+          shippableGroups[shipmentIndex].orderProducts.push(orderProduct);
+        }
+    		
+  		} else {
+    		console.log('product is not shippable');
+    		// Check whether product is being shipped to a unique address
+    		unshippableGroups.map(function(unshippableGroup, j) {
+      		if (orderProduct.order_address_id === unshippableGroup.orderAddressId) shipmentIndex = j;
+      		return unshippableGroup;
+    		});
+        if (shipmentIndex < 0) {
+          console.log('not in shippableGroups')
+          unshippableGroups.push(group);
+        } else {
+          console.log('found in shippableGroups')
+          unshippableGroups[shipmentIndex].orderProducts.push(orderProduct);
+        }
+    		
+  		}
+  		return orderProduct;
+  		
+		});
+	}
+  
+  return {shippedGroups: shippedGroups, shippableGroups: shippableGroups, unshippableGroups: unshippableGroups};
+}
+
 var createOrderShipmentPackingSlip = function(order, shipment) {
   
   var pageWidth = 8.5 * 72;
@@ -1552,6 +1645,7 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   logInfo('packing slip pdf written');
   
   var buffer = writer.toBuffer();
+  //writer.end();
   
   // Save packing slip as a Parse File
   promise = promise.then(function() {
@@ -1572,100 +1666,6 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   });
     
   return promise;
-}
-
-var createShipmentGroups = function(order, orderProducts, shippedShipments) {
-	// Create an array of shipments
-	var shippedGroups = [];
-	var shippableGroups = [];
-	var unshippableGroups = [];
-	
-	if (orderProducts) {
-		orderProducts.map(function(orderProduct, i) {
-  		console.log('\nop:' + orderProduct.orderProductId + ' oa:' + orderProduct.order_address_id);
-  		
-  		// Check if product is in a shipment
-  		var isShipped = false;
-  		var shippedShipmentId;
-  		var shipment;
-  		if (shippedShipments) {
-    		shippedShipments.map(function(shippedShipment, j) {
-      		shippedShipment.items.map(function(item, k) {
-        		if (orderProduct.order_address_id === shippedShipment.order_address_id && orderProduct.orderProductId === item.order_product_id) {
-          		isShipped = true;
-          		shippedShipmentId = shippedShipment.shipmentId;
-          		shipment = shippedShipment;
-        		}
-        		return item;
-      		});
-      		return shippedShipments;
-    		});
-  		}
-      var group = {
-        orderId: orderProduct.order_id, 
-        orderAddressId: orderProduct.order_address_id, 
-        orderBillingAddress: order.billing_address,
-        shippedShipmentId: shippedShipmentId, 
-        orderProducts: [orderProduct],
-        shipment: shipment
-      };
-      var shipmentIndex = -1;
-  		
-  		// Set whether product is added to shippable, shipped or unshippable groups
-  		if (isShipped) {
-    		console.log('product is shipped');
-    		// Check whether product is being added to an existing shipment group
-    		
-    		shippedGroups.map(function(shippedGroup, j) {
-      		if (shippedShipmentId === shippedGroup.shippedShipmentId) shipmentIndex = j;
-      		return shippedGroups;
-    		});
-        if (shipmentIndex < 0) {
-          console.log('not in shippedGroups')
-          shippedGroups.push(group);
-        } else {
-          console.log('found in shippedGroups')
-          shippedGroups[shipmentIndex].orderProducts.push(orderProduct);
-        }
-    		
-  		} else if (orderProduct.shippable && orderProduct.quantity_shipped !== orderProduct.quantity) {
-    		console.log('product is shippable');
-    		
-    		// Check whether product is being shipped to a unique address
-    		shippableGroups.map(function(shippableGroup, j) {
-      		if (orderProduct.order_address_id === shippableGroup.orderAddressId) shipmentIndex = j;
-      		return shippableGroups;
-    		});
-        if (shipmentIndex < 0) {
-          console.log('not in shippableGroups')
-          shippableGroups.push(group);
-        } else {
-          console.log('found in shippableGroups')
-          shippableGroups[shipmentIndex].orderProducts.push(orderProduct);
-        }
-    		
-  		} else {
-    		console.log('product is not shippable');
-    		// Check whether product is being shipped to a unique address
-    		unshippableGroups.map(function(unshippableGroup, j) {
-      		if (orderProduct.order_address_id === unshippableGroup.orderAddressId) shipmentIndex = j;
-      		return unshippableGroup;
-    		});
-        if (shipmentIndex < 0) {
-          console.log('not in shippableGroups')
-          unshippableGroups.push(group);
-        } else {
-          console.log('found in shippableGroups')
-          unshippableGroups[shipmentIndex].orderProducts.push(orderProduct);
-        }
-    		
-  		}
-  		return orderProduct;
-  		
-		});
-	}
-  
-  return {shippedGroups: shippedGroups, shippableGroups: shippableGroups, unshippableGroups: unshippableGroups};
 }
 
 var writePdfText = function(cxt, text, font, fontSize, color, align, offsetX, offsetY, padding, pageWidth, pageHeight) {

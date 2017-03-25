@@ -8,6 +8,7 @@ var helpers = require('handlebars-helpers')();
 var bodyParser = require('body-parser');
 var dotenv = require('dotenv').config({silent: true});
 var bugsnag = require("bugsnag");
+var memwatch = require('memwatch-next');
 
 var databaseUri = process.env.DATABASE_URI || process.env.MONGODB_URI;
 var allowInsecureHTTP = true; // Change to false in production
@@ -80,3 +81,20 @@ var httpServer = require('http').createServer(app);
 httpServer.listen(port, function() {
   console.log('Audry Rose server running on port ' + port + '.');
 });
+
+memwatch.on('leak', function(info) {  
+  console.warn(info);
+});
+
+memwatch.on('stats', function(stats) {
+  logInfo(info);
+});
+
+
+/////////////////////////
+//  UTILITY FUNCTIONS  //
+/////////////////////////
+
+var logInfo = function(i) {
+  console.info(i);
+}
