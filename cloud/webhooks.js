@@ -121,6 +121,7 @@ var logInfo = function(i) {
 }
 
 var logError = function(e) {
-  console.error(e);
-	bugsnag.notify(e);
+  var msg = e && e.text ? e.text : JSON.stringify(e);
+  console.error(msg);
+	bugsnag.notify(msg);
 }
