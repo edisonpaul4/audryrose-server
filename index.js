@@ -83,7 +83,7 @@ httpServer.listen(port, function() {
 });
 
 memwatch.on('leak', function(info) {  
-  console.warn(info);
+  logError(info);
 });
 
 memwatch.on('stats', function(stats) {
@@ -97,4 +97,10 @@ memwatch.on('stats', function(stats) {
 
 var logInfo = function(i) {
   console.info(i);
+}
+
+var logError = function(e) {
+  var msg = JSON.stringify(e);
+  console.error(msg);
+	bugsnag.notify(msg);
 }

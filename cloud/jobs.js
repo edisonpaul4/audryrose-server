@@ -4,6 +4,7 @@ var request = require('request');
 var cheerio = require('cheerio');
 var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
+var memwatch = require('memwatch-next');
 
 var Product = Parse.Object.extend('Product');
 var ColorCode = Parse.Object.extend('ColorCode');
@@ -368,6 +369,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
 });
 
 Parse.Cloud.job("updateRecentOrders", function(request, status) {
+  var hd = new memwatch.HeapDiff();
   var totalOrders = 0;
   var totalOrdersAdded = 0;
   var orders = [];
@@ -385,10 +387,18 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
   var request = '/orders/count';
   
   bigCommerce.get('/orders/count', function(err, data, response){
+    var diff = hd.end();
+    if (diff.change.size_bytes > 0) logInfo('    + updateRecentOrders memory increase:' + diff.change.size + ' total:' + diff.after.size);
+    hd = new memwatch.HeapDiff();
+    
     totalOrders = data.count;
     return totalOrders;
     
   }).then(function(count) {
+    var diff = hd.end();
+    if (diff.change.size_bytes > 0) logInfo('    + updateRecentOrders memory increase:' + diff.change.size + ' total:' + diff.after.size);
+    hd = new memwatch.HeapDiff();
+    
     logInfo('Number of requests: ' + orderStatuses.length);
     
     var promise = Parse.Promise.as();
@@ -411,12 +421,15 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     return promise;
     
   }).then(function() {
+    var diff = hd.end();
+    if (diff.change.size_bytes > 0) logInfo('    + updateRecentOrders memory increase:' + diff.change.size + ' total:' + diff.after.size);
+    hd = new memwatch.HeapDiff();
+    
     logInfo('Number of orders to search: ' + orders.length);
     //orders = orders.slice(0,5); // REMOVE THIS, ONLY FOR TESTING
 //     return true;
     var promise = Parse.Promise.as();
 		_.each(orders, function(order) {
-  		logInfo('process orders id: ' + order.id);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -432,17 +445,19 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     		
   		}).then(function(response) {
     		if (response.data.result.added) totalOrdersAdded++;
-        return response;
         
       }, function(error) {
     		logError(error);
-    		return error;
   			
   		});
     });			
     return promise;
     
   }).then(function() {
+    var diff = hd.end();
+    if (diff.change.size_bytes > 0) logInfo('    + updateRecentOrders memory increase:' + diff.change.size + ' total:' + diff.after.size);
+    hd = new memwatch.HeapDiff();
+    
     var now = moment();
     var jobTime = moment.duration(now.diff(startTime)).humanize();
     var message = totalOrders + ' orders in Bigcommerce. ';
@@ -451,6 +466,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     message += 'Job time: ' + jobTime;
     logInfo(message);
     status.success(message);
+    
   }, function(error) {
   	logError(error);
 		status.error(error);

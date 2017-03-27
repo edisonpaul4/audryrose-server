@@ -217,7 +217,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }).then(function(result) {
     var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     hd = new memwatch.HeapDiff();
     
     orderObj = result;
@@ -228,7 +228,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }).then(function(result) {
     var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     hd = new memwatch.HeapDiff();
     
     if (result.length > 0) bcOrderShipments = result;
@@ -239,7 +239,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }).then(function(bcOrderProducts) {
     var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     
     var promise = Parse.Promise.as();
 		_.each(bcOrderProducts, function(orderProduct) {
@@ -252,7 +252,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		
   		}).then(function(orderProductResult) {
         var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
         hd = new memwatch.HeapDiff();
         if (orderProductResult) {
           logInfo('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.');
@@ -265,19 +265,19 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		
   		}).then(function(orderProductObject) {
         var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
         hd = new memwatch.HeapDiff();
     		return getOrderProductVariant(orderProductObject);
     		
   		}).then(function(orderProductObject) {
         var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
         hd = new memwatch.HeapDiff();
     		return getOrderProductShippingAddress(orderProductObject);
     		
   		}).then(function(orderProductObject) {
         var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
         hd = new memwatch.HeapDiff();
     		// Set order product quantity shippped each time to update based on BC shipment changes
     		if (bcOrderShipments <= 0) {
@@ -298,8 +298,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		
   		}).then(function(orderProductObject) {
         var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
         hd = new memwatch.HeapDiff();
+        logInfo('add OrderProduct ' + orderProductObject.get('orderProductId') + ' to orderProducts array');
     		orderProducts.push(orderProductObject);
   		});
     });
@@ -307,7 +308,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }).then(function(result) {
     var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     hd = new memwatch.HeapDiff();
     
     logInfo('total orderProducts: ' + orderProducts.length);
@@ -322,10 +323,11 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }).then(function(result) {
     var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     hd = new memwatch.HeapDiff();
     
     // Count the order's products shippable/resizable status
+    logInfo('Count the orders products shippable/resizable status');
     var numShippable = 0;
     var numResizable = 0;
     _.each(orderProducts, function(orderProduct) {
@@ -335,12 +337,15 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
     // Set order shippable status
     if (numShippable == orderProducts.length) {
+      logInfo('set as fully shippable');
       orderObj.set('fullyShippable', true);
       orderObj.set('partiallyShippable', false);
     } else if (numShippable > 0) {
+      logInfo('set as partially shippable');
       orderObj.set('fullyShippable', false);
       orderObj.set('partiallyShippable', true);
     } else {
+      logInfo('set as cannot ship');
       orderObj.set('fullyShippable', false);
       orderObj.set('partiallyShippable', false);
     }
@@ -357,8 +362,10 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }).then(function(result) {
     var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     hd = new memwatch.HeapDiff();
+    
+    logInfo('Process order shipments');
     
     if (bcOrderShipments <= 0) {
       logInfo('No shipments found');
@@ -377,6 +384,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
     var promise = Parse.Promise.as();
 		_.each(bcOrderShipments, function(orderShipment) {
+  		hd = new memwatch.HeapDiff();
   		var orderShipmentObject;
   		promise = promise.then(function() {
     		logInfo('Process shipment id: ' + orderShipment.id);
@@ -385,6 +393,10 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		return orderShipmentQuery.first()
     		
   		}).then(function(orderShipmentResult) {
+        var diff = hd.end();
+        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+        hd = new memwatch.HeapDiff();
+        
         if (orderShipmentResult) {
           logInfo('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
           return createOrderShipmentObject(orderShipment, null, orderShipmentResult);
@@ -395,16 +407,28 @@ Parse.Cloud.define("loadOrder", function(request, response) {
         }
     		
   		}).then(function(result) {
+        var diff = hd.end();
+        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+        hd = new memwatch.HeapDiff();
+        
     		orderShipmentObject = result;
     		if (orderShipmentObject.has('packingSlip')) return orderShipmentObject;
     		return createOrderShipmentPackingSlip(orderObj, orderShipmentObject);
     		
   		}).then(function(result) {
+        var diff = hd.end();
+        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+        hd = new memwatch.HeapDiff();
+        
     		orderShipmentObject = result;
     		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url')) return false;
     		return combinePdfs([orderShipmentObject.get('packingSlipUrl'), orderShipmentObject.get('shippo_label_url')]);
     		
   		}).then(function(result) {
+        var diff = hd.end();
+        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+        hd = new memwatch.HeapDiff();
+            		
     		if (result) {
           orderShipmentObject.set('labelWithPackingSlip', result);
           orderShipmentObject.set('labelWithPackingSlipUrl', result.url());
@@ -412,14 +436,18 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		return orderShipmentObject.save(null, {useMasterKey: true});
     		
   		}).then(function(result) {
-    		return orderShipments.push(result);
+        var diff = hd.end();
+        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+        hd = new memwatch.HeapDiff();
+        
+    		orderShipments.push(result);
   		});
     });
     return promise;
     
   }).then(function(result) {
     var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     hd = new memwatch.HeapDiff();
     
     if (orderShipments.length > 0) {
@@ -427,14 +455,14 @@ Parse.Cloud.define("loadOrder", function(request, response) {
       orderObj.set('orderShipments', orderShipments);
     } else {
       logInfo('set no shipments to the order');
-      orderObj.set('orderShipments', undefined);
+      orderObj.unset('orderShipments');
     }
     logInfo('save order...');
-    orderObj.save(null, {useMasterKey: true});
+    return orderObj.save(null, {useMasterKey: true});
     
-  }).then(function(orderObj) {
+  }).then(function() {
     var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('change:' + diff.change.size + ' details:' + JSON.stringify(diff.change.details));
+    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     
     logInfo('order saved');
     response.success({added: orderAdded});
@@ -1288,19 +1316,23 @@ var getOrderProductVariantMatch = function(orderProduct, variants) {
 }
 
 var getOrderProductsStatus = function(orderProducts) {
+  logInfo('- getOrderProductsStatus -')
   
   var promise = Parse.Promise.as();
   
   promise = promise.then(function() {
     
-  	_.each(orderProducts, function(orderProduct) {
+  	for (var i = 0; i < orderProducts.length; i++) {
+    	var orderProduct = orderProducts[i];
     	
     	if (orderProduct.has('quantity_shipped') && orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) {
+      	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' has already shipped');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
-      	return true;
+      	continue;
     	} else if (orderProduct.has('isCustom') && orderProduct.get('isCustom') == true) {
-      	
+      	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' is custom');
+      	// TODO: do something here with custom order products
     	}
     	
     	var orderProductVariant = orderProduct.has('variant') ? orderProduct.get('variant') : null;
@@ -1308,23 +1340,23 @@ var getOrderProductsStatus = function(orderProducts) {
       var isResizeProductType = (orderProductVariant && orderProductVariant.has('size_value')) ? true : false;
     	
     	if (!orderProductVariant) {
-      	logInfo('OrderProduct ' + orderProduct.get('product_id') + ' does not have any variants');
+      	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' does not have any variants');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
-      	return true;
+      	continue;
       	
     	} else if (orderProductVariant.get('inventoryLevel') >= orderProduct.get('quantity')) {
       	// Has inventory, save it and exit
-      	logInfo('OrderProduct ' + orderProduct.get('product_id') + ' is shippable');
+      	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' is shippable');
       	orderProduct.unset('resizable');
       	orderProduct.set('shippable', true);
-      	return true;
+      	continue;
       	
     	} else if (!isResizeProductType) {
-      	logInfo('OrderProduct ' + orderProduct.get('product_id') + ' is not a resizable product');
+      	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' is not a resizable product');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
-      	return true;
+      	continue;
       	
     	} else {
       	// No inventory and OrderProduct has sizes, check if resizable
@@ -1339,7 +1371,7 @@ var getOrderProductsStatus = function(orderProducts) {
       		
     		}).then(function(result) {
           if (result) {
-            logInfo('Set product status for OrderProduct ' + orderProduct.get('product_id'));
+            logInfo('Set product status for OrderProduct ' + orderProduct.get('orderProductId'));
             var orderVariantSize = parseFloat(orderProductVariant.get('size_value'));
             var orderProductVariantOptions = orderProductVariant.has('variantOptions') ? orderProductVariant.get('variantOptions') : [];
             var variants = result.get('variants');
@@ -1387,7 +1419,7 @@ var getOrderProductsStatus = function(orderProducts) {
             }
             return true;
           } else {
-            var msg = 'Cannot determine product resizable for OrderProduct ' + orderProduct.get('product_id');
+            var msg = 'Cannot determine product resizable for OrderProduct ' + orderProduct.get('orderProductId');
             logInfo(msg);
             orderProduct.set('resizable', false);
             return true;
@@ -1395,9 +1427,11 @@ var getOrderProductsStatus = function(orderProducts) {
     		});
     		return promise2;
   		}
-  	});
+  	}
 	}).then(function() {
   	return Parse.Object.saveAll(orderProducts, {useMasterKey: true});
+	}).then(function() {
+  	return true;
 	});
   return promise;
 }
@@ -1693,8 +1727,8 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   pdfWriter.end();
   logInfo('packing slip pdf written');
   
+  writer.end();
   var buffer = writer.toBuffer();
-  //writer.end();
   
   // Save packing slip as a Parse File
   promise = promise.then(function() {
@@ -1718,7 +1752,7 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
 }
 
 var writePdfText = function(cxt, text, font, fontSize, color, align, offsetX, offsetY, padding, pageWidth, pageHeight) {
-  if (!text || text == '') return { x: offsetX, y: offsetY, dims: { width:0, height: 0 } };
+  if (!text || text == '' || text == undefined || text == 'undefined') return { x: offsetX, y: offsetY, dims: { width:0, height: 0 } };
 	var dims = font.calculateTextDimensions(text, fontSize);
 	var pageMargin = Math.round(72 / 2);
 	var x;
@@ -1780,6 +1814,7 @@ var combinePdfs = function(pdfs) {
   	logInfo('combined pdf written');
   	
   	// Save combined pdf as a Parse File
+  	writer.end();
   	var buffer = writer.toBuffer();
     var fileName = 'shipment-combined.pdf';
     var file = new Parse.File(fileName, {base64: buffer.toString('base64', 0, buffer.length)}, 'application/pdf');
