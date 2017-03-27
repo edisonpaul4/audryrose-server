@@ -9,6 +9,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@newrelic/native-metrics": "^2.1.0",
     "body-parser": "^1.15.2",
     "bugsnag": "^1.9.1",
     "bugsnag-js": "^3.0.7",
