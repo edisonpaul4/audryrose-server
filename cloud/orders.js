@@ -309,6 +309,8 @@ Parse.Cloud.define("loadOrder", function(request, response) {
         hd = new memwatch.HeapDiff();
         logInfo('add OrderProduct ' + orderProductObject.get('orderProductId') + ' to orderProducts array');
     		orderProducts.push(orderProductObject);
+    		return true;
+    		
   		});
     });
     return promise;
@@ -448,6 +450,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
         hd = new memwatch.HeapDiff();
         
     		orderShipments.push(result);
+    		return true;
   		});
     });
     return promise;
@@ -807,9 +810,12 @@ Parse.Cloud.define("createShipments", function(request, response) {
     		
   		}).then(function(orderResult) {
     		logInfo('Order shipment saved to order');
+    		return true;
     		
       }, function(error) {
         logError(error);
+        return false;
+        
       });
     });
     return promise;
@@ -858,8 +864,11 @@ Parse.Cloud.define("createShipments", function(request, response) {
       
       }).then(function(orderResult) {
         updatedOrdersArray.push(orderResult);
+        return true;
+        
       }, function(error) {
         logError(error);
+        return false;
       });
     });
     return promise;
@@ -904,6 +913,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
         
       }, function(error) {
         logError(error);
+        return false;
         
       });
     });
@@ -1252,6 +1262,7 @@ var getOrderProductShippingAddress = function(orderProduct) {
     return orderProduct;
   }, function(error) {
     logError(error);
+    return false;
   });
   
   return promise;
@@ -1793,6 +1804,7 @@ var combinePdfs = function(pdfs) {
     		
       }, function(error) {
         logError(error);
+        return false;
         
       });
   	});
@@ -1824,6 +1836,8 @@ var combinePdfs = function(pdfs) {
   	
 	}, function(error){
   	logError(error);
+  	return false;
+  	
 	});
 	
 	return promise;
