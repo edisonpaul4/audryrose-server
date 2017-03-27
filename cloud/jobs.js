@@ -102,7 +102,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     		
   		}).then(function(response) {
     		if (response.data.result.added) totalProductsAdded++;
-        return response;
+        return true;
         
       }, function(error) {
         logError(error);
@@ -171,7 +171,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
   		}).then(function(response) {
     		totalProductsProcessed++;
     		totalVariantsAdded += response.data.result;
-        return totalVariantsAdded;
+        return true;
         
       }, function(error) {
         logError(error);
@@ -254,7 +254,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     		
   		}).then(function(response) {
     		if (response.data.result.added) totalCategoriesAdded++;
-        return response;
+        return true;
         
       }, function(error) {
     		logError(error);
@@ -343,7 +343,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     		
   		}).then(function(response) {
     		if (response.data.result.added) totalOrdersAdded++;
-        return response;
+        return true;
         
       }, function(error) {
     		logError(error);
@@ -445,6 +445,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     		
   		}).then(function(response) {
     		if (response.data.result.added) totalOrdersAdded++;
+    		return true;
         
       }, function(error) {
     		logError(error);
@@ -530,7 +531,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
   		}).then(function(response) {
     		logInfo(JSON.stringify(response));
     		if (response.data.result.added) totalDesignersAdded++;
-        return response;
+        return true;
         
       }, function(error) {
     		logError(error);
@@ -619,7 +620,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           }
       		
     		}).then(function(response) {
-          return response;
+          return true;
           
         }, function(error) {
       		logError(error);
