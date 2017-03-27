@@ -257,6 +257,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
         orderProductQuery.equalTo('orderProductId', parseInt(orderProduct.id));
     		return orderProductQuery.first();
     		
+  		}, function(error){
+    		logError(error);
+    		
   		}).then(function(orderProductResult) {
         var diff = hd.end();
         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
@@ -270,17 +273,26 @@ Parse.Cloud.define("loadOrder", function(request, response) {
           return createOrderProductObject(orderProduct, orderObj);
         }
     		
+  		}, function(error){
+    		logError(error);
+    		
   		}).then(function(orderProductObject) {
         var diff = hd.end();
         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
         hd = new memwatch.HeapDiff();
     		return getOrderProductVariant(orderProductObject);
     		
+  		}, function(error){
+    		logError(error);
+    		
   		}).then(function(orderProductObject) {
         var diff = hd.end();
         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
         hd = new memwatch.HeapDiff();
     		return getOrderProductShippingAddress(orderProductObject);
+    		
+  		}, function(error){
+    		logError(error);
     		
   		}).then(function(orderProductObject) {
         var diff = hd.end();
@@ -303,6 +315,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		
     		return orderProductObject.save(null, {useMasterKey: true});
     		
+  		}, function(error){
+    		logError(error);
+    		
   		}).then(function(orderProductObject) {
         var diff = hd.end();
         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
@@ -310,6 +325,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
         logInfo('add OrderProduct ' + orderProductObject.get('orderProductId') + ' to orderProducts array');
     		orderProducts.push(orderProductObject);
     		return true;
+    		
+  		}, function(error){
+    		logError(error);
     		
   		});
     });
