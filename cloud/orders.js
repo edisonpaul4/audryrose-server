@@ -189,7 +189,8 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 });
 
 Parse.Cloud.define("loadOrder", function(request, response) {
-  var bcOrder = request.params.order;
+  var bcOrder;
+  var bcOrderId = request.params.orderId;
   var bcOrderShipments = [];
   var orderObj;
   var orderProducts = [];
@@ -199,11 +200,17 @@ Parse.Cloud.define("loadOrder", function(request, response) {
   var orderAdded = false;
   var hd;
   
-  logInfo('\nOrder ' + bcOrder.id + ' is ' + bcOrder.status + ' ------------------------');
-  
-  var orderQuery = new Parse.Query(Order);
-  orderQuery.equalTo('orderId', parseInt(bcOrder.id));
-  orderQuery.first().then(function(orderResult) {
+  var orderRequest = '/orders/' + bcOrderId;
+  logInfo(orderRequest);
+  bigCommerce.get(orderRequest).then(function(res) {
+    bcOrder = res;
+    logInfo('\nOrder ' + bcOrderId + ' is ' + bcOrder.status + ' ------------------------');
+    
+    var orderQuery = new Parse.Query(Order);
+    orderQuery.equalTo('orderId', parseInt(bcOrderId));
+    return orderQuery.first();
+    
+  }).then(function(orderResult) {
     hd = new memwatch.HeapDiff();
     
     if (orderResult) {
@@ -223,7 +230,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     orderObj = result;
     
     // Load order shipments
-    var request = '/orders/' + bcOrder.id + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
+    var request = '/orders/' + bcOrderId + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
     return bigCommerce.get(request);
     
   }).then(function(result) {
@@ -234,7 +241,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     if (result.length > 0) bcOrderShipments = result;
     
     // Load order products
-    var request = '/orders/' + bcOrder.id + '/products?limit=' + BIGCOMMERCE_BATCH_SIZE;
+    var request = '/orders/' + bcOrderId + '/products?limit=' + BIGCOMMERCE_BATCH_SIZE;
     return bigCommerce.get(request);
     
   }).then(function(bcOrderProducts) {
@@ -373,7 +380,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
         // Set the Bigcommerce order status to 'Awaiting Fulfillment' (resets order when shipments are deleted)
         orderObj.set('status', 'Awaiting Fulfillment');
         orderObj.set('status_id', 11);
-        var request = '/orders/' + bcOrder.id;
+        var request = '/orders/' + bcOrderId;
         return bigCommerce.put(request, {status_id: 11}); 
       } else {
         return true;
@@ -482,23 +489,16 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
   
   logInfo('reloadOrder ' + orderId);
 
-  var orderRequest = '/orders/' + orderId;
-  logInfo(orderRequest);
-  bigCommerce.get(orderRequest).then(function(res) {
-    bcOrder = res;
-    
-    return Parse.Cloud.httpRequest({
-      method: 'post',
-      url: process.env.SERVER_URL + '/functions/loadOrder',
-      headers: {
-        'X-Parse-Application-Id': process.env.APP_ID,
-        'X-Parse-Master-Key': process.env.MASTER_KEY
-      },
-      params: {
-        order: bcOrder
-      }
-    });
-    
+  Parse.Cloud.httpRequest({
+    method: 'post',
+    url: process.env.SERVER_URL + '/functions/loadOrder',
+    headers: {
+      'X-Parse-Application-Id': process.env.APP_ID,
+      'X-Parse-Master-Key': process.env.MASTER_KEY
+    },
+    params: {
+      orderId: orderId
+    }
   }).then(function(response) {
     logInfo('get order data');
     var ordersQuery = new Parse.Query(Order);
@@ -834,9 +834,6 @@ Parse.Cloud.define("createShipments", function(request, response) {
       promise = promise.then(function() {
         var orderRequest = '/orders/' + orderId;
         logInfo(orderRequest);
-        return bigCommerce.get(orderRequest);
-        
-      }).then(function(bcOrder) {
         return Parse.Cloud.httpRequest({
           method: 'post',
           url: process.env.SERVER_URL + '/functions/loadOrder',
@@ -845,7 +842,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
             'X-Parse-Master-Key': process.env.MASTER_KEY
           },
           params: {
-            order: bcOrder
+            orderId: orderId
           }
         });
           

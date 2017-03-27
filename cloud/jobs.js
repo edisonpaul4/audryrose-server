@@ -284,7 +284,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
   var totalOrders = 0;
   var ordersToProcess = 0;
   var totalOrdersAdded = 0;
-  var orders = [];
+  var orderIds = [];
   
   var startTime = moment();
   
@@ -312,7 +312,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
           return bigCommerce.get(request);
         }).then(function(response) {
   				_.each(response, function(order) {
-    				orders.push(order);
+    				orderIds.push(order.id);
           });
           return true;
         }, function(error) {
@@ -323,11 +323,11 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     return promise;
     
   }).then(function() {
-    //orders = orders.slice(0,5); // REMOVE THIS ONLY FOR TESTING
-    logInfo('Number of orders to search: ' + orders.length);
+    //orderIds = orderIds.slice(0,5); // REMOVE THIS ONLY FOR TESTING
+    logInfo('Number of orders to search: ' + orderIds.length);
     var promise = Parse.Promise.as();
-		_.each(orders, function(order) {
-  		logInfo('process orders id: ' + order.id);
+		_.each(orderIds, function(orderId) {
+  		logInfo('process orders id: ' + orderId);
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -337,7 +337,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
             'X-Parse-Master-Key': process.env.MASTER_KEY
           },
           params: {
-            order: order
+            orderId: orderId
           }
         });
     		
@@ -357,7 +357,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     var now = moment();
     var jobTime = moment.duration(now.diff(startTime)).humanize();
     var message = totalOrders + ' orders in Bigcommerce. ';
-    message += orders.length + ' orders loaded. ';
+    message += orderIds.length + ' orders loaded. ';
     message += totalOrdersAdded + ' orders added. ';
     message += 'Job time: ' + jobTime;
     logInfo(message);
@@ -372,7 +372,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
   var hd = new memwatch.HeapDiff();
   var totalOrders = 0;
   var totalOrdersAdded = 0;
-  var orders = [];
+  var orderIds = [];
   var orderStatuses = [
     {name: 'Awaiting Pickup', id: '8'},
     {name: 'Awaiting Shipment', id: '9'},
@@ -410,7 +410,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
         }).then(function(response) {
           logInfo(response.length + ' orders for status ' + orderStatusRequest.name);
   				_.each(response, function(order) {
-    				orders.push(order);
+    				orderIds.push(order.id);
           });
           return true;
         }, function(error) {
@@ -425,11 +425,11 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     if (diff.change.size_bytes > 0) logInfo('    + updateRecentOrders memory increase:' + diff.change.size + ' total:' + diff.after.size);
     hd = new memwatch.HeapDiff();
     
-    logInfo('Number of orders to search: ' + orders.length);
-    //orders = orders.slice(0,5); // REMOVE THIS, ONLY FOR TESTING
+    logInfo('Number of orders to search: ' + orderIds.length);
+    //orderIds = orderIds.slice(0,5); // REMOVE THIS, ONLY FOR TESTING
 //     return true;
     var promise = Parse.Promise.as();
-		_.each(orders, function(order) {
+		_.each(orderIds, function(orderId) {
   		promise = promise.then(function() {
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -439,7 +439,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
             'X-Parse-Master-Key': process.env.MASTER_KEY
           },
           params: {
-            order: order
+            orderId: orderId
           }
         });
     		
@@ -461,7 +461,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     var now = moment();
     var jobTime = moment.duration(now.diff(startTime)).humanize();
     var message = totalOrders + ' orders in Bigcommerce. ';
-    message += orders.length + ' orders loaded. ';
+    message += orderIds.length + ' orders loaded. ';
     message += totalOrdersAdded + ' orders added. ';
     message += 'Job time: ' + jobTime;
     logInfo(message);
