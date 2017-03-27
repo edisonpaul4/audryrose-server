@@ -68,7 +68,7 @@
     "watch-js": "watchify lib/app.js -o 'exorcist public/js/app-bundle.js.map > public/js/app-bundle.js' -v -d -t",
     "build-css": "node-sass scss/app.scss public/css/styles.min.css",
     "watch-css": "node-sass -w scss/app.scss public/css/styles.min.css",
-    "start": "node index.js"
+    "start": "node --optimize_for_size --max_old_space_size=460 --gc_interval=100 index.js"
   },
   "browser": {
     "jquery": "./node_modules/jquery/dist/jquery.js"
