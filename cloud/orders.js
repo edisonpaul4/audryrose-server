@@ -6,7 +6,7 @@ var bugsnag = require("bugsnag");
 var hummus = require('hummus');
 var streams = require('memory-streams');
 var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
-var memwatch = require('memwatch-next');
+// var memwatch = require('memwatch-next');
 
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
@@ -211,7 +211,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return orderQuery.first();
     
   }).then(function(orderResult) {
-    hd = new memwatch.HeapDiff();
+//     hd = new memwatch.HeapDiff();
     
     if (orderResult) {
       logInfo('Order exists.');
@@ -223,9 +223,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     }
     
   }).then(function(result) {
-    var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-    hd = new memwatch.HeapDiff();
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
     
     orderObj = result;
     
@@ -234,9 +234,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return bigCommerce.get(request);
     
   }).then(function(result) {
-    var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-    hd = new memwatch.HeapDiff();
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
     
     if (result.length > 0) bcOrderShipments = result;
     
@@ -245,12 +245,12 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return bigCommerce.get(request);
     
   }).then(function(bcOrderProducts) {
-    var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     
     var promise = Parse.Promise.as();
 		_.each(bcOrderProducts, function(orderProduct) {
-  		hd = new memwatch.HeapDiff();
+//   		hd = new memwatch.HeapDiff();
   		promise = promise.then(function() {
     		logInfo('Process orderProduct id: ' + orderProduct.id);
         var orderProductQuery = new Parse.Query(OrderProduct);
@@ -261,9 +261,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		logError(error);
     		
   		}).then(function(orderProductResult) {
-        var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-        hd = new memwatch.HeapDiff();
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
         if (orderProductResult) {
           logInfo('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.');
           return createOrderProductObject(orderProduct, orderObj, orderProductResult);
@@ -277,27 +277,27 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		logError(error);
     		
   		}).then(function(orderProductObject) {
-        var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-        hd = new memwatch.HeapDiff();
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
     		return getOrderProductVariant(orderProductObject);
     		
   		}, function(error){
     		logError(error);
     		
   		}).then(function(orderProductObject) {
-        var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-        hd = new memwatch.HeapDiff();
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
     		return getOrderProductShippingAddress(orderProductObject);
     		
   		}, function(error){
     		logError(error);
     		
   		}).then(function(orderProductObject) {
-        var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-        hd = new memwatch.HeapDiff();
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
     		// Set order product quantity shippped each time to update based on BC shipment changes
     		if (bcOrderShipments <= 0) {
       		orderProductObject.set('quantity_shipped', 0);
@@ -319,9 +319,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		logError(error);
     		
   		}).then(function(orderProductObject) {
-        var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-        hd = new memwatch.HeapDiff();
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
         logInfo('add OrderProduct ' + orderProductObject.get('orderProductId') + ' to orderProducts array');
     		orderProducts.push(orderProductObject);
     		return true;
@@ -334,9 +334,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return promise;
     
   }).then(function(result) {
-    var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-    hd = new memwatch.HeapDiff();
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
     
     logInfo('total orderProducts: ' + orderProducts.length);
     orderObj.set('orderProducts', orderProducts);
@@ -349,9 +349,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     }
     
   }).then(function(result) {
-    var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-    hd = new memwatch.HeapDiff();
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
     
     // Count the order's products shippable/resizable status
     logInfo('Count the orders products shippable/resizable status');
@@ -388,9 +388,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return true;
     
   }).then(function(result) {
-    var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-    hd = new memwatch.HeapDiff();
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
     
     logInfo('Process order shipments');
     
@@ -411,7 +411,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
     var promise = Parse.Promise.as();
 		_.each(bcOrderShipments, function(orderShipment) {
-  		hd = new memwatch.HeapDiff();
+//   		hd = new memwatch.HeapDiff();
   		var orderShipmentObject;
   		promise = promise.then(function() {
     		logInfo('Process shipment id: ' + orderShipment.id);
@@ -420,9 +420,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		return orderShipmentQuery.first()
     		
   		}).then(function(orderShipmentResult) {
-        var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-        hd = new memwatch.HeapDiff();
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
         
         if (orderShipmentResult) {
           logInfo('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
@@ -434,27 +434,27 @@ Parse.Cloud.define("loadOrder", function(request, response) {
         }
     		
   		}).then(function(result) {
-        var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-        hd = new memwatch.HeapDiff();
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
         
     		orderShipmentObject = result;
     		if (orderShipmentObject.has('packingSlip')) return orderShipmentObject;
     		return createOrderShipmentPackingSlip(orderObj, orderShipmentObject);
     		
   		}).then(function(result) {
-        var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-        hd = new memwatch.HeapDiff();
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
         
     		orderShipmentObject = result;
     		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url')) return false;
     		return combinePdfs([orderShipmentObject.get('packingSlipUrl'), orderShipmentObject.get('shippo_label_url')]);
     		
   		}).then(function(result) {
-        var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-        hd = new memwatch.HeapDiff();
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
             		
     		if (result) {
           orderShipmentObject.set('labelWithPackingSlip', result);
@@ -463,9 +463,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		return orderShipmentObject.save(null, {useMasterKey: true});
     		
   		}).then(function(result) {
-        var diff = hd.end();
-        if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-        hd = new memwatch.HeapDiff();
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
         
     		orderShipments.push(result);
     		return true;
@@ -474,9 +474,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return promise;
     
   }).then(function(result) {
-    var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-    hd = new memwatch.HeapDiff();
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
     
     if (orderShipments.length > 0) {
       logInfo('set ' + orderShipments.length + ' shipments to the order');
@@ -489,8 +489,8 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return orderObj.save(null, {useMasterKey: true});
     
   }).then(function() {
-    var diff = hd.end();
-    if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     
     logInfo('order saved');
     response.success({added: orderAdded});
