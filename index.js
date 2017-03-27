@@ -87,7 +87,7 @@ memwatch.on('leak', function(info) {
 });
 
 memwatch.on('stats', function(stats) {
-  logInfo(info);
+  logInfo(stats);
 });
 
 
