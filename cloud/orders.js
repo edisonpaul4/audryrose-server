@@ -6,6 +6,7 @@ var bugsnag = require("bugsnag");
 var hummus = require('hummus');
 var streams = require('memory-streams');
 var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
+var memwatch = require('memwatch-next');
 
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
@@ -196,12 +197,15 @@ Parse.Cloud.define("loadOrder", function(request, response) {
   var totalProductsAdded = 0;
   var totalShipmentsAdded = 0;
   var orderAdded = false;
+  var hd;
   
   logInfo('\nOrder ' + bcOrder.id + ' is ' + bcOrder.status + ' ------------------------');
   
   var orderQuery = new Parse.Query(Order);
   orderQuery.equalTo('orderId', parseInt(bcOrder.id));
   orderQuery.first().then(function(orderResult) {
+    hd = new memwatch.HeapDiff();
+    
     if (orderResult) {
       logInfo('Order exists.');
       return createOrderObject(bcOrder, orderResult).save(null, {useMasterKey: true});
@@ -212,6 +216,10 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     }
     
   }).then(function(result) {
+    var diff = hd.end();
+    logInfo(JSON.stringify(diff));
+    hd = new memwatch.HeapDiff();
+    
     orderObj = result;
     
     // Load order shipments
@@ -219,6 +227,10 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return bigCommerce.get(request);
     
   }).then(function(result) {
+    var diff = hd.end();
+    logInfo(JSON.stringify(diff));
+    hd = new memwatch.HeapDiff();
+    
     if (result.length > 0) bcOrderShipments = result;
     
     // Load order products
@@ -226,15 +238,22 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return bigCommerce.get(request);
     
   }).then(function(bcOrderProducts) {
+    var diff = hd.end();
+    logInfo(JSON.stringify(diff));
+    
     var promise = Parse.Promise.as();
 		_.each(bcOrderProducts, function(orderProduct) {
+  		hd = new memwatch.HeapDiff();
   		promise = promise.then(function() {
     		logInfo('Process orderProduct id: ' + orderProduct.id);
         var orderProductQuery = new Parse.Query(OrderProduct);
         orderProductQuery.equalTo('orderProductId', parseInt(orderProduct.id));
-    		return orderProductQuery.first()
+    		return orderProductQuery.first();
     		
   		}).then(function(orderProductResult) {
+        var diff = hd.end();
+        logInfo(JSON.stringify(diff));
+        hd = new memwatch.HeapDiff();
         if (orderProductResult) {
           logInfo('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.');
           return createOrderProductObject(orderProduct, orderObj, orderProductResult);
@@ -245,12 +264,21 @@ Parse.Cloud.define("loadOrder", function(request, response) {
         }
     		
   		}).then(function(orderProductObject) {
+        var diff = hd.end();
+        logInfo(JSON.stringify(diff));
+        hd = new memwatch.HeapDiff();
     		return getOrderProductVariant(orderProductObject);
     		
   		}).then(function(orderProductObject) {
+        var diff = hd.end();
+        logInfo(JSON.stringify(diff));
+        hd = new memwatch.HeapDiff();
     		return getOrderProductShippingAddress(orderProductObject);
     		
   		}).then(function(orderProductObject) {
+        var diff = hd.end();
+        logInfo(JSON.stringify(diff));
+        hd = new memwatch.HeapDiff();
     		// Set order product quantity shippped each time to update based on BC shipment changes
     		if (bcOrderShipments <= 0) {
       		orderProductObject.set('quantity_shipped', 0);
@@ -269,12 +297,19 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     		return orderProductObject.save(null, {useMasterKey: true});
     		
   		}).then(function(orderProductObject) {
-    		return orderProducts.push(orderProductObject);
+        var diff = hd.end();
+        logInfo(JSON.stringify(diff));
+        hd = new memwatch.HeapDiff();
+    		orderProducts.push(orderProductObject);
   		});
     });
     return promise;
     
   }).then(function(result) {
+    var diff = hd.end();
+    logInfo(JSON.stringify(diff));
+    hd = new memwatch.HeapDiff();
+    
     logInfo('total orderProducts: ' + orderProducts.length);
     orderObj.set('orderProducts', orderProducts);
     
@@ -286,6 +321,10 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     }
     
   }).then(function(result) {
+    var diff = hd.end();
+    logInfo(JSON.stringify(diff));
+    hd = new memwatch.HeapDiff();
+    
     // Count the order's products shippable/resizable status
     var numShippable = 0;
     var numResizable = 0;
@@ -317,7 +356,10 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return true;
     
   }).then(function(result) {
-
+    var diff = hd.end();
+    logInfo(JSON.stringify(diff));
+    hd = new memwatch.HeapDiff();
+    
     if (bcOrderShipments <= 0) {
       logInfo('No shipments found');
       if (bcOrder.status_id == 2) {
@@ -376,6 +418,10 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     return promise;
     
   }).then(function(result) {
+    var diff = hd.end();
+    logInfo(JSON.stringify(diff));
+    hd = new memwatch.HeapDiff();
+    
     if (orderShipments.length > 0) {
       logInfo('set ' + orderShipments.length + ' shipments to the order');
       orderObj.set('orderShipments', orderShipments);
@@ -387,6 +433,9 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     orderObj.save(null, {useMasterKey: true});
     
   }).then(function(orderObj) {
+    var diff = hd.end();
+    logInfo(JSON.stringify(diff));
+    
     logInfo('order saved');
     response.success({added: orderAdded});
     
