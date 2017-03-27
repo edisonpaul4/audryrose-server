@@ -52,7 +52,7 @@ Parse.Cloud.define("getOptions", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
-	  response.error(error);
+	  response.error(error.message);
 	  
   });
 });
@@ -86,7 +86,7 @@ Parse.Cloud.define("saveOption", function(request, response) {
     
   }, function(error) {
 		logError(error);
-		response.error(error);
+		response.error(error.message);
 		
 	});
   

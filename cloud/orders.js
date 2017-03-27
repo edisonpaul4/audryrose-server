@@ -129,7 +129,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
-	  response.error(error);
+	  response.error(error.message);
 	  
   });
 });
@@ -183,7 +183,7 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
-	  response.error(error);
+	  response.error(error.message);
 	  
   });
 });
@@ -479,7 +479,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     
   }, function(error) {
     logError(error);
-    response.error(error);
+    response.error(error.message);
 		
 	});
 });
@@ -532,7 +532,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
-	  response.error(error);
+	  response.error(error.message);
 	  
   });
 });
@@ -956,7 +956,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
-	  response.error(error);
+	  response.error(error.message);
 	  
   });
 });

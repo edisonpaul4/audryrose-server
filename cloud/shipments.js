@@ -48,7 +48,7 @@ Parse.Cloud.define("getShipments", function(request, response) {
 	  
   }, function(error) {
     logError(error);
-	  response.error(error);
+	  response.error(error.message);
 	  
   });
 });

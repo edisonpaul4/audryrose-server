@@ -139,7 +139,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
 	  
   }, function(error) {
     logError(error);
-	  response.error(error);
+	  response.error(error.message);
 	  
   });
 });
@@ -184,7 +184,7 @@ Parse.Cloud.define("getProductTabCounts", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
-	  response.error(error);
+	  response.error(error.message);
 	  
   });
 });
@@ -211,7 +211,7 @@ Parse.Cloud.define("getProductFilters", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
-	  response.error(error);
+	  response.error(error.message);
 	  
   });
 });
@@ -287,7 +287,7 @@ Parse.Cloud.define("loadProduct", function(request, response) {
     
   }, function(error) {
 		logError(error);
-		response.error(error);
+		response.error(error.message);
 		
 	});
 });
@@ -465,7 +465,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     
   }, function(error) {
   	logError(error);
-		response.error(error);
+		response.error(error.message);
   });
 });
 
@@ -531,7 +531,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
-	  response.error(error);
+	  response.error(error.message);
 	  
   });
 });
@@ -551,7 +551,7 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
       return productResult.save(null, {useMasterKey: true});
     } else {
       logError(error);
-      response.error(error);
+      response.error(error.message);
     }
     
   }).then(function(productObject) {
@@ -580,7 +580,7 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
     
   }, function(error) {
 		logError(error);
-		response.error(error);
+		response.error(error.message);
 		
 	});
   
@@ -622,7 +622,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
           return variant.save(null, {useMasterKey: true});
         } else {
           logError(error);
-          response.error(error);
+          response.error(error.message);
         }
         
       }).then(function(variantObject) {
@@ -633,7 +633,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         
       }, function(error) {
     		logError(error);
-    		response.error(error);
+    		response.error(error.message);
     		
     	});
     	
@@ -671,7 +671,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         
       }, function(error) {
     		logError(error);
-    		response.error(error);
+    		response.error(error.message);
     		
     	});
   	});
@@ -719,7 +719,7 @@ Parse.Cloud.define("loadCategory", function(request, response) {
     
   }, function(error) {
 		logError(error);
-		response.error(error);
+		response.error(error.message);
 		
 	});
 });
