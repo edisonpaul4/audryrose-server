@@ -936,7 +936,8 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
     return promise;
     
   }).then(function(result) {
-    console.log('shipmentGroups created')
+    logInfo('shipmentGroups created');
+    logInfo(JSON.stringify(shipmentGroups));
     
     return Parse.Cloud.httpRequest({
       method: 'post',
