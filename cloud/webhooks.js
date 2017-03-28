@@ -119,6 +119,10 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
   
 });
 
+/////////////////////////
+//  WEBHOOK ENDPOINTS  //
+/////////////////////////
+
 Parse.Cloud.define("ordersWebhook", function(request, response) {
   logInfo('ordersWebhook ---------------------------------------');
   logInfo('endpoint: ' + request.params.scope);
@@ -146,6 +150,39 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
 		response.error("Error on ordersWebhook: " + error.message);
 		
 	});
+});
+
+Parse.Cloud.define("productsWebhook", function(request, response) {
+  logInfo('productsWebhook ---------------------------------------');
+  logInfo('endpoint: ' + request.params.scope);
+  
+  var webhookData = request.params.data;
+//   var productId = parseInt(webhookData.id);
+  logInfo(JSON.stringify(webhookData));
+  response.success();
+  
+/*
+  Parse.Cloud.httpRequest({
+    method: 'post',
+    url: process.env.SERVER_URL + '/functions/loadOrder',
+    headers: {
+      'X-Parse-Application-Id': process.env.APP_ID,
+      'X-Parse-Master-Key': process.env.MASTER_KEY
+    },
+    params: {
+      orderId: orderId
+    }
+  }).then(function(httpResponse) {
+    
+    logInfo('order successfully reloaded');
+	  response.success();
+	  
+  }, function(error) {
+		logError(error);
+		response.error("Error on ordersWebhook: " + error.message);
+		
+	});
+*/
 });
 
 
