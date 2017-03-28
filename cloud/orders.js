@@ -939,17 +939,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
     
   }).then(function(result) {
     logInfo('shipmentGroups created');
-    logInfo(JSON.stringify(shipmentGroups));
     
-    response.success();
-    
-  }, function(error) {
-	  logError(error);
-	  response.error(error.message);
-	  
-  });
-    
-/*
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/createShipments',
@@ -962,6 +952,10 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
       }
     });
     
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
   }).then(function(httpResponse) {
     updatedOrders = httpResponse.data.result.updatedOrders;
     errors = httpResponse.data.result.errors;
@@ -975,6 +969,10 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
       }
     });
     
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
   }).then(function(httpResponse) {
     tabCounts = httpResponse.data.result;
     
@@ -986,7 +984,6 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
 	  response.error(error.message);
 	  
   });
-*/
 });
 
 /////////////////////////
