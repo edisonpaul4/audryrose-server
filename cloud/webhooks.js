@@ -157,24 +157,38 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
   logInfo('endpoint: ' + request.params.scope);
   
   var webhookData = request.params.data;
-//   var productId = parseInt(webhookData.id);
+  var productId = parseInt(webhookData.id);
   logInfo(JSON.stringify(webhookData));
   response.success();
   
-/*
   Parse.Cloud.httpRequest({
     method: 'post',
-    url: process.env.SERVER_URL + '/functions/loadOrder',
+    url: process.env.SERVER_URL + '/functions/loadProduct',
     headers: {
       'X-Parse-Application-Id': process.env.APP_ID,
       'X-Parse-Master-Key': process.env.MASTER_KEY
     },
     params: {
-      orderId: orderId
+      productId: productId
     }
   }).then(function(httpResponse) {
+    logInfo('loadProduct success');
     
-    logInfo('order successfully reloaded');
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/loadProductVariants',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      },
+      params: {
+        productId: productId
+      }
+    });
+    
+  }).then(function(httpResponse) {
+    logInfo('loadProductVariants success');
+    logInfo('product successfully reloaded');
 	  response.success();
 	  
   }, function(error) {
@@ -182,7 +196,6 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
 		response.error("Error on ordersWebhook: " + error.message);
 		
 	});
-*/
 });
 
 
