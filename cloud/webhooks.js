@@ -76,6 +76,10 @@ Parse.Cloud.define("createWebhook", function(request, response) {
   var bcWebhookData = {
     scope: endpoint,
     destination: destination,
+    headers: {
+      'X-Parse-Application-Id': process.env.APP_ID,
+  		'X-Parse-Session-Token': request.params.sessionToken
+    },
     is_active: true
   }
   
