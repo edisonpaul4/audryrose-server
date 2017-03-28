@@ -124,8 +124,8 @@ Parse.Cloud.define("getProducts", function(request, response) {
       'X-Parse-Application-Id': process.env.APP_ID,
       'X-Parse-Master-Key': process.env.MASTER_KEY
     }
-  }).then(function(response) {
-    tabCounts = response.data.result;
+  }).then(function(httpResponse) {
+    tabCounts = httpResponse.data.result;
     return productsQuery.count();
     
   }).then(function(count) {
@@ -490,7 +490,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
       }
     });
     
-  }).then(function(response) {
+  }).then(function(httpResponse) {
     
     return Parse.Cloud.httpRequest({
       method: 'post',
@@ -504,7 +504,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
       }
     });
     
-  }).then(function(response) {
+  }).then(function(httpResponse) {
     
     var productsQuery = new Parse.Query(Product);
     productsQuery.equalTo("productId", productId);
