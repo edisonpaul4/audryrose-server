@@ -902,7 +902,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
 Parse.Cloud.define("batchCreateShipments", function(request, response) {
   var ordersToShip = request.params.ordersToShip;
   var updatedOrders = [];
-  var shipmentGroups = [];
+  var allShipmentGroups = [];
   var tabCounts;
   
   logInfo('\nbatchCreateShipments -----------------------------');
@@ -926,7 +926,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
       }).then(function(order) {
         var orderJSON = order.toJSON();
         var groups = createShipmentGroups(orderJSON, orderJSON.orderProducts, orderJSON.orderShipments);
-        shipmentGroups = shipmentGroups.concat(groups.shippableGroups);
+        allShipmentGroups = allShipmentGroups.concat(groups.shippableGroups);
         return true;
         
       }, function(error) {
@@ -948,7 +948,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
         'X-Parse-Master-Key': process.env.MASTER_KEY
       },
       params: {
-        shipmentGroups: shipmentGroups
+        shipmentGroups: allShipmentGroups
       }
     });
     
