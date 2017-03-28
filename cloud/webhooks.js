@@ -83,6 +83,8 @@ Parse.Cloud.define("createWebhook", function(request, response) {
     is_active: true
   }
   
+  logInfo(bcWebhookData);
+  
   bigCommerce.post('/hooks', bcWebhookData).then(function(webhook) {
     logInfo(webhook);
     return bigCommerce.get('/hooks');
@@ -91,7 +93,7 @@ Parse.Cloud.define("createWebhook", function(request, response) {
 	  response.success({webhooks: webhooks, webhookEndpoints: WEBHOOK_ENDPOINTS});
     
   }, function(error) {
-		logError(error.message);
+		logError(error);
 		response.error("Error saving webhook: " + error.message);
 		
 	});
@@ -110,7 +112,7 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
 	  response.success({webhooks: webhooks, webhookEndpoints: WEBHOOK_ENDPOINTS});
     
   }, function(error) {
-		logError(error.message);
+		logError(error);
 		response.error("Error saving webhook: " + error.message);
 		
 	});
@@ -119,8 +121,31 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
 
 Parse.Cloud.define("ordersWebhook", function(request, response) {
   logInfo('ordersWebhook ---------------------------------------');
-  logInfo(JSON.stringify(request.params));
-  response.success();
+  logInfo('endpoint: ' + request.params.scope);
+  
+  var webhookData = request.params.data;
+  var orderId = parseInt(webhookData.id);
+  
+  Parse.Cloud.httpRequest({
+    method: 'post',
+    url: process.env.SERVER_URL + '/functions/loadOrder',
+    headers: {
+      'X-Parse-Application-Id': process.env.APP_ID,
+      'X-Parse-Master-Key': process.env.MASTER_KEY
+    },
+    params: {
+      orderId: orderId
+    }
+  }).then(function(httpResponse) {
+    
+    logInfo('order successfully reloaded');
+	  response.success();
+	  
+  }, function(error) {
+		logError(error);
+		response.error("Error on ordersWebhook: " + error.message);
+		
+	});
 });
 
 
@@ -133,7 +158,7 @@ var logInfo = function(i) {
 }
 
 var logError = function(e) {
-  var msg = JSON.stringify(e);
+  var msg = e.message ? e.message.text ? e.message.text : JSON.stringify(e.message) : JSON.stringify(e);
   console.error(msg);
 	bugsnag.notify(msg);
 }

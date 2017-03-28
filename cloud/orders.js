@@ -556,6 +556,8 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 });
 
 Parse.Cloud.define("createShipments", function(request, response) {
+  logInfo('createShipments --------------------------');
+  
   var shipmentGroups = request.params.shipmentGroups;
   var carriers;
   var totalShipmentsAdded = 0;
