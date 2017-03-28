@@ -941,6 +941,15 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
     logInfo('shipmentGroups created');
     logInfo(JSON.stringify(shipmentGroups));
     
+    response.success();
+    
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
+  });
+    
+/*
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/createShipments',
@@ -977,6 +986,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
 	  response.error(error.message);
 	  
   });
+*/
 });
 
 /////////////////////////
