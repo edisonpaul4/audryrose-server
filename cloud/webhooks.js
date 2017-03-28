@@ -18,7 +18,7 @@ var bigCommerce = new BigCommerce({
 bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
-const webhookEndpoints = [
+const WEBHOOK_ENDPOINTS = [
   'store/order/*',
   'store/order/created',
   'store/order/updated',
@@ -30,10 +30,8 @@ const webhookEndpoints = [
   'store/product/updated',
   'store/product/deleted',
   'store/product/inventory/*',
-  'store/product/inventory/updated',
   'store/product/inventory/order/updated',
   'store/product/inventory/updated',
-  'store/product/inventory/order/updated',
   'store/category/*',
   'store/category/created',
   'store/category/updated',
@@ -43,8 +41,6 @@ const webhookEndpoints = [
   'store/sku/updated',
   'store/sku/deleted',
   'store/sku/inventory/*',
-  'store/sku/inventory/updated',
-  'store/sku/inventory/order/updated',
   'store/sku/inventory/updated',
   'store/sku/inventory/order/updated',
   'store/customer/*',
@@ -64,7 +60,7 @@ const webhookEndpoints = [
 
 Parse.Cloud.define("getWebhooks", function(request, response) {
   bigCommerce.get('/hooks').then(function(webhooks) {
-	  response.success({webhooks: webhooks, webhookEndpoints: webhookEndpoints});
+	  response.success({webhooks: webhooks, webhookEndpoints: WEBHOOK_ENDPOINTS});
 	  
   }, function(error) {
 	  logError(error);
@@ -73,43 +69,55 @@ Parse.Cloud.define("getWebhooks", function(request, response) {
   });
 });
 
-/*
-Parse.Cloud.define("saveOption", function(request, response) {
-  var objectId = request.params.objectId;
-  var manualCode = request.params.manualCode;
-  var optionToUpdate;
+Parse.Cloud.define("createWebhook", function(request, response) {
+  var endpoint = request.params.endpoint;
+  var destination = request.params.destination;
   
-  var colorQuery = new Parse.Query(ColorCode);
-  colorQuery.equalTo('objectId', objectId);
-  colorQuery.first().then(function(option) {
-    if (option) optionToUpdate = option;
+  var bcWebhookData = {
+    scope: endpoint,
+    destination: destination,
+    is_active: true
+  }
+  
+  bigCommerce.post('/hooks', bcWebhookData).then(function(webhook) {
+    logInfo(webhook);
+    return bigCommerce.get('/hooks');
     
-    var stoneQuery = new Parse.Query(StoneCode);
-    stoneQuery.equalTo('objectId', objectId);
-    return stoneQuery.first();
-    
-  }).then(function(option) {
-    if (option) optionToUpdate = option;
-    
-    if (manualCode && manualCode != '') {
-      optionToUpdate.set('manualCode', manualCode);
-    } else {
-      optionToUpdate.unset('manualCode');
-    }
-    return optionToUpdate.save(null, {useMasterKey: true});
-    
-  }).then(function(optionObject) {
-	  response.success(optionObject);
+  }).then(function(webhooks) {
+	  response.success({webhooks: webhooks, webhookEndpoints: WEBHOOK_ENDPOINTS});
     
   }, function(error) {
-		console.error("Error saving option: " + error.message);
-		bugsnag.notify(error);
-		response.error("Error saving option: " + error.message);
+		logError(error.message);
+		response.error("Error saving webhook: " + error.message);
 		
 	});
   
 });
-*/
+
+Parse.Cloud.define("deleteWebhook", function(request, response) {
+  var id = request.params.id;
+  
+  var request = '/hooks/' + id;
+  bigCommerce.delete(request).then(function() {
+    console.log('deleted ' + id);
+    return bigCommerce.get('/hooks');
+    
+  }).then(function(webhooks) {
+	  response.success({webhooks: webhooks, webhookEndpoints: WEBHOOK_ENDPOINTS});
+    
+  }, function(error) {
+		logError(error.message);
+		response.error("Error saving webhook: " + error.message);
+		
+	});
+  
+});
+
+Parse.Cloud.define("ordersWebhook", function(request, response) {
+  logInfo('ordersWebhook ---------------------------------------');
+  logInfo(JSON.stringify(request.params));
+  response.success();
+});
 
 
 /////////////////////////
