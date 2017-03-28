@@ -558,7 +558,8 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 Parse.Cloud.define("createShipments", function(request, response) {
   logInfo('createShipments --------------------------');
   
-  var shipmentGroups = request.params.shipmentGroups;
+  var shipmentGroups = request.params.shipmentGroups ? request.params.shipmentGroups : null;
+  var ordersToShip = request.params.ordersToShip ? request.params.ordersToShip : null;
   var carriers;
   var totalShipmentsAdded = 0;
   var updatedOrdersArray = [];
@@ -579,6 +580,40 @@ Parse.Cloud.define("createShipments", function(request, response) {
   }).then(function(httpResponse) {
     carriers = httpResponse.data.results;
     logInfo('total carriers ' + carriers.length);
+    
+    if (!shipmentGroups && ordersToShip) {
+      logInfo('create shipment groups from order ids');
+      
+      var promise = Parse.Promise.as();
+      _.each(ordersToShip, function(orderId) {
+        promise = promise.then(function() {
+          var orderQuery = new Parse.Query(Order);
+          orderQuery.equalTo('orderId', parseInt(orderId));
+          orderQuery.include('orderProducts');
+          orderQuery.include('orderProducts.variant');
+          orderQuery.include('orderShipments');
+          return orderQuery.first();
+          
+        }).then(function(order) {
+          var orderJSON = order.toJSON();
+          var groups = createShipmentGroups(orderJSON, orderJSON.orderProducts, orderJSON.orderShipments);
+          allShipmentGroups = allShipmentGroups.concat(groups.shippableGroups);
+          return true;
+          
+        }, function(error) {
+          logError(error);
+          return false;
+          
+        });
+      });
+      return promise;
+      
+    } else {
+      return true;
+    }
+    
+  }).then(function(httpResponse) {
+    logInfo(shipmentGroups.length + ' shipment groups');
     
     var promise = Parse.Promise.as();
     _.each(shipmentGroups, function(shipmentGroup) {
@@ -894,6 +929,10 @@ Parse.Cloud.define("createShipments", function(request, response) {
   }).then(function() {
     logInfo('Created ' + newShipments.length + ' shipments. ' + shipmentGroupsFailed.length + ' shipment groups failed.');
     response.success({updatedOrders: updatedOrdersArray, errors: errors});
+    
+  }, function(error) {
+    logError(error);
+    response.error(error.message);
   });
 
   
@@ -913,33 +952,6 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
   
   }).then(function(count) {
     
-    var promise = Parse.Promise.as();
-    _.each(ordersToShip, function(orderId) {
-      promise = promise.then(function() {
-        var orderQuery = new Parse.Query(Order);
-        orderQuery.equalTo('orderId', parseInt(orderId));
-        orderQuery.include('orderProducts');
-        orderQuery.include('orderProducts.variant');
-        orderQuery.include('orderShipments');
-        return orderQuery.first();
-        
-      }).then(function(order) {
-        var orderJSON = order.toJSON();
-        var groups = createShipmentGroups(orderJSON, orderJSON.orderProducts, orderJSON.orderShipments);
-        allShipmentGroups = allShipmentGroups.concat(groups.shippableGroups);
-        return true;
-        
-      }, function(error) {
-        logError(error);
-        return false;
-        
-      });
-    });
-    return promise;
-    
-  }).then(function(result) {
-    logInfo('shipmentGroups created');
-    
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/createShipments',
@@ -948,7 +960,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
         'X-Parse-Master-Key': process.env.MASTER_KEY
       },
       params: {
-        shipmentGroups: allShipmentGroups
+        ordersToShip: ordersToShip
       }
     });
     
