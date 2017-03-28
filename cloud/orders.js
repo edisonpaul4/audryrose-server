@@ -583,6 +583,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
     if (!shipmentGroups && ordersToShip) {
       logInfo('create shipment groups from order ids');
+      shipmentGroups = [];
       
       var promise = Parse.Promise.as();
       _.each(ordersToShip, function(orderId) {
@@ -597,7 +598,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         }).then(function(order) {
           var orderJSON = order.toJSON();
           var groups = createShipmentGroups(orderJSON, orderJSON.orderProducts, orderJSON.orderShipments);
-          allShipmentGroups = allShipmentGroups.concat(groups.shippableGroups);
+          shipmentGroups = shipmentGroups.concat(groups.shippableGroups);
           return true;
           
         }, function(error) {
