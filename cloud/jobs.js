@@ -24,7 +24,7 @@ var bigCommerce = new BigCommerce({
 bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
-const NUM_HOURS_TO_EXPIRE = 12;
+const NUM_HOURS_TO_EXPIRE = 24;
 const COLORS_IDS = [31, 3, 36, 30, 23];
 const STONE_IDS = [33];
 
@@ -143,7 +143,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
 	expiredProducts.lessThan("variantsUpdatedAt", expireDate.toDate());
 	var productsQuery = Parse.Query.or(neverUpdated, expiredProducts);
 	productsQuery.ascending('variantsUpdatedAt');
-  productsQuery.limit(BIGCOMMERCE_BATCH_SIZE);
+  productsQuery.limit(1000);
   
   productsQuery.count().then(function(count) {
     totalProducts = count;
