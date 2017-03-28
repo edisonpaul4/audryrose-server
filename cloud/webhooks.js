@@ -78,7 +78,7 @@ Parse.Cloud.define("createWebhook", function(request, response) {
     destination: destination,
     headers: {
       'X-Parse-Application-Id': process.env.APP_ID,
-  		'X-Parse-Session-Token': request.params.sessionToken
+  		'X-Parse-REST-API-Key': process.env.REST_API_KEY
     },
     is_active: true
   }
