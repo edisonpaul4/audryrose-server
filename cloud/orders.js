@@ -564,8 +564,6 @@ Parse.Cloud.define("createShipments", function(request, response) {
   var shipmentGroupsFailed = [];
   var newOrderShipment = [];
   var errors = [];
-  
-  console.log(shipmentGroups.orderProducts)
     
   Parse.Cloud.httpRequest({
     method: 'get',
@@ -854,9 +852,9 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
     // Load each order into updatedOrdersArray with pointers
     var promise = Parse.Promise.as();
-    _.each(allOrderIds, function(orderId) {
+    _.each(allOrderIds, function(orderIdToLoad) {
       promise = promise.then(function() {
-        var orderRequest = '/orders/' + orderId;
+        var orderRequest = '/orders/' + orderIdToLoad;
         logInfo(orderRequest);
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -866,14 +864,14 @@ Parse.Cloud.define("createShipments", function(request, response) {
             'X-Parse-Master-Key': process.env.MASTER_KEY
           },
           params: {
-            orderId: orderId
+            orderId: orderIdToLoad
           }
         });
           
       }).then(function(response) {
         logInfo('get order data');
         var ordersQuery = new Parse.Query(Order);
-        ordersQuery.equalTo('orderId', parseInt(orderId));
+        ordersQuery.equalTo('orderId', parseInt(orderIdToLoad));
         ordersQuery.include('orderProducts');
         ordersQuery.include('orderProducts.variant');
         ordersQuery.include('orderProducts.variant.designer');
@@ -953,7 +951,6 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
     });
     
   }).then(function(httpResponse) {
-    console.log(httpResponse.data.result);
     updatedOrders = httpResponse.data.result.updatedOrders;
     errors = httpResponse.data.result.errors;
     
@@ -1584,7 +1581,9 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
           shippableGroups.push(group);
         } else {
           console.log('found in shippableGroups')
-          shippableGroups[shipmentIndex].orderProducts.push(orderProduct);
+          var groupProducts = shippableGroups[shipmentIndex].orderProducts;
+          groupProducts.push(orderProduct);
+          shippableGroups[shipmentIndex].orderProducts = groupProducts;
         }
     		
   		} else {
