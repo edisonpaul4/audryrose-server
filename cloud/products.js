@@ -12,6 +12,7 @@ var Designer = Parse.Object.extend('Designer');
 var StyleNumber = Parse.Object.extend('StyleNumber');
 var ColorCode = Parse.Object.extend('ColorCode');
 var StoneCode = Parse.Object.extend('StoneCode');
+var Order = Parse.Object.extend('Order');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -846,16 +847,62 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 Parse.Cloud.afterSave("Product", function(request) {
   var productId = request.object.get('productId');
   logInfo('Product afterSave triggered for ' + productId);
-/*
-  var orderNumbersQuery = new Parse.Query(Order);
-  orderNumbersQuery.containedIn('productIds', searchTerms);
-*/
+  
+  var ordersQuery = new Parse.Query(Order);
+  ordersQuery.equalTo('productIds', productId);
+  ordersQuery.containedIn('status_id', [3, 7, 8, 9, 11, 12]);
+  
+  var debounceBuffer = moment().subtract(10, 'seconds');
+  ordersQuery.lessThan('updatedAt', debounceBuffer.toDate());
+  
+  delay(5000).then(function() {
+    return ordersQuery.count()
+    
+  }).then(function(count){
+    logInfo('total orders of product: ' + count);
+    return ordersQuery.find();
+    
+  }).then(function(orders) {
+    
+    var promise = Parse.Promise.as();
+		_.each(orders, function(order) {
+  		var orderId = order.get('orderId');
+  		logInfo('reload order id: ' + orderId);
+  		promise = promise.then(function() {
+        return Parse.Cloud.httpRequest({
+          method: 'post',
+          url: process.env.SERVER_URL + '/functions/loadOrder',
+          headers: {
+            'X-Parse-Application-Id': process.env.APP_ID,
+            'X-Parse-Master-Key': process.env.MASTER_KEY
+          },
+          params: {
+            orderId: orderId
+          }
+        });
+    		
+  		}).then(function(response) {
+    		return true;
+        
+      }, function(error) {
+    		logError(error);
+  			
+  		});
+    });			
+    return promise;
+  });
 });
 
 
 /////////////////////////
 //  UTILITY FUNCTIONS  //
 /////////////////////////
+
+var delay = function(t) {
+  return new Promise(function(resolve) { 
+    setTimeout(resolve, t)
+  });
+}
 
 var optionIsPurchasingEnabled = function(option_id, option_value_id, rules) {
   var isEnabled = true;
