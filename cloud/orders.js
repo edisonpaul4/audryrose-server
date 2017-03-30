@@ -938,8 +938,13 @@ Parse.Cloud.define("createShipments", function(request, response) {
         var orderShipments = updatedOrder.get('orderShipments');
         _.each(orderShipments, function(orderShipment) {
           if (newShipmentId == orderShipment.get('shipmentId')) {
-            logInfo('add to batch pdf: ' + orderShipment.get('labelWithPackingSlipUrl'));
-            pdfsToCombine.push(orderShipment.get('labelWithPackingSlipUrl'));
+            if (orderShipment.has('labelWithPackingSlipUrl')) {
+              logInfo('add to batch pdf: ' + orderShipment.get('labelWithPackingSlipUrl'));
+              pdfsToCombine.push(orderShipment.get('labelWithPackingSlipUrl'));
+            } else {
+              var msg = 'Error: Order #' + orderShipment.get('order_id') + ' shipping label not added to combined print pdf file.';
+              errors.push(msg);
+            }
           }
         });
       });
@@ -1044,8 +1049,13 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
     _.each(orders, function(order) {
       var orderShipments = order.get('orderShipments');
       _.each(orderShipments, function(orderShipment) {
-        logInfo('add to batch pdf: ' + orderShipment.get('labelWithPackingSlipUrl'));
-        pdfsToCombine.push(orderShipment.get('labelWithPackingSlipUrl'));
+        if (orderShipment.has('labelWithPackingSlipUrl')) {
+          logInfo('add to batch pdf: ' + orderShipment.get('labelWithPackingSlipUrl'));
+          pdfsToCombine.push(orderShipment.get('labelWithPackingSlipUrl'));
+        } else {
+          var msg = 'Error: Order #' + orderShipment.get('order_id') + ' shipping label not added to combined print file.';
+          errors.push(msg);
+        }
       });
     });
     return combinePdfs(pdfsToCombine);
@@ -1911,9 +1921,9 @@ var combinePdfs = function(pdfs) {
     var promise2 = Parse.Promise.as();  
     
   	_.each(pdfs, function(pdf) {
-    	logInfo('load: ' + pdf);
     	
   		promise2 = promise2.then(function() {
+    		logInfo('load: ' + pdf);
     		return Parse.Cloud.httpRequest({ url: pdf });
     		
   		}).then(function(response) {
