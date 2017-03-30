@@ -563,6 +563,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
   var carriers;
   var totalShipmentsAdded = 0;
   var updatedOrdersArray = [];
+  var generatedFile;
   var newShipments = [];
   var shipmentGroupsFailed = [];
   var newOrderShipment = [];
@@ -928,8 +929,34 @@ Parse.Cloud.define("createShipments", function(request, response) {
     return promise;
     
   }).then(function() {
+    
+    // Combine all new pdfs into a single file
+    var pdfsToCombine = [];
+    _.each(newShipments, function(newShipment) {
+      var newShipmentId = newShipment.get('shipmentId');
+      _.each(updatedOrdersArray, function(updatedOrder) {
+        var orderShipments = updatedOrder.get('orderShipments');
+        _.each(orderShipments, function(orderShipment) {
+          if (newShipmentId == orderShipment.get('shipmentId')) {
+            logInfo('add to batch pdf: ' + orderShipment.get('labelWithPackingSlipUrl'));
+            pdfsToCombine.push(orderShipment.get('labelWithPackingSlipUrl'));
+          }
+        });
+      });
+    });
+    return combinePdfs(pdfsToCombine);
+    
+  }).then(function(result) {
+    if (result) {
+      logInfo('batch pdf generated');
+      generatedFile = result.url();
+    } else {
+      logError('no batch pdf generated');
+      errors.push('Error creating combined shipping labels pdf.');
+    }
+    
     logInfo('Created ' + newShipments.length + ' shipments. ' + shipmentGroupsFailed.length + ' shipment groups failed.');
-    response.success({updatedOrders: updatedOrdersArray, errors: errors});
+    response.success({updatedOrders: updatedOrdersArray, errors: errors, generatedFile: generatedFile});
     
   }, function(error) {
     logError(error);
@@ -944,6 +971,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
   var updatedOrders = [];
   var allShipmentGroups = [];
   var tabCounts;
+  var generatedFile;
   
   logInfo('\nbatchCreateShipments -----------------------------');
   
@@ -972,6 +1000,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
   }).then(function(httpResponse) {
     updatedOrders = httpResponse.data.result.updatedOrders;
     errors = httpResponse.data.result.errors;
+    generatedFile = httpResponse.data.result.generatedFile;
     
     return Parse.Cloud.httpRequest({
       method: 'post',
@@ -990,11 +1019,54 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
     tabCounts = httpResponse.data.result;
     
     logInfo('order successfully reloaded');
-	  response.success({updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors});
+	  response.success({updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors, generatedFile: generatedFile});
 	  
   }, function(error) {
 	  logError(error);
 	  response.error(error.message);
+	  
+  });
+});
+
+Parse.Cloud.define("batchPrintShipments", function(request, response) {
+  var ordersToPrint = request.params.ordersToPrint;
+  var generatedFile;
+  var errors = [];
+  
+  var ordersQuery = new Parse.Query(Order);
+  ordersQuery.containedIn('orderId', ordersToPrint);
+  ordersQuery.include('orderShipments');
+  
+  ordersQuery.find().then(function(orders) {
+    
+    // Combine all new pdfs into a single file
+    var pdfsToCombine = [];
+    _.each(orders, function(order) {
+      var orderShipments = order.get('orderShipments');
+      _.each(orderShipments, function(orderShipment) {
+        logInfo('add to batch pdf: ' + orderShipment.get('labelWithPackingSlipUrl'));
+        pdfsToCombine.push(orderShipment.get('labelWithPackingSlipUrl'));
+      });
+    });
+    return combinePdfs(pdfsToCombine);
+    
+  }, function(error) {
+	  logError(error);
+	  errors.push(error.message);
+	  
+  }).then(function(result) {
+    if (result) {
+      logInfo('batch pdf generated');
+      generatedFile = result.url();
+    } else {
+      logError('no batch pdf generated');
+      errors.push('Error creating combined shipping labels pdf.');
+    }
+	  response.success({generatedFile: generatedFile, errors: errors});
+	  
+  }, function(error) {
+	  logError(error);
+	  response.error(error);
 	  
   });
 });
@@ -1871,7 +1943,7 @@ var combinePdfs = function(pdfs) {
   	// Save combined pdf as a Parse File
   	writer.end();
   	var buffer = writer.toBuffer();
-    var fileName = 'shipment-combined.pdf';
+    var fileName = 'combined.pdf';
     var file = new Parse.File(fileName, {base64: buffer.toString('base64', 0, buffer.length)}, 'application/pdf');
     logInfo('save file');
     return file.save(null, {useMasterKey: true});
