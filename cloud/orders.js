@@ -1026,8 +1026,11 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
   // Process properties based on OrderProducts - needs to use promises
   if (order.has('orderProducts')) {
     var orderProducts = order.get('orderProducts');
+    var orderProductIds = [];
     Parse.Object.fetchAll(orderProducts).then(function(orderProductObjects) {
       _.each(orderProductObjects, function(orderProduct) {
+        // Add parent product id to array for faster order searching
+        if (orderProduct.has('product_id')) orderProductIds.push(orderProduct.get('product_id'));
         // Add the product names as search terms
         var nameTerms = orderProduct.get('name').split(' ');
         nameTerms = _.map(nameTerms, toLowerCase);
@@ -1035,6 +1038,8 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
       });
       return searchTerms;
     }).then(function() {
+      // Save the array of product ids
+      order.set("productIds", orderProductIds);
       // Add the product names as search terms
       searchTerms = processSearchTerms(searchTerms);
       order.set("search_terms", searchTerms);
