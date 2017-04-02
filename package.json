@@ -30,7 +30,7 @@
     "newrelic": "^1.38.1",
     "node-bigcommerce": "^2.2.0",
     "numeral": "^2.0.4",
-    "parse": "~1.8.0",
+    "parse": "latest",
     "parse-dashboard": "^1.0.21",
     "parse-server": "*",
     "request": "^2.79.0",

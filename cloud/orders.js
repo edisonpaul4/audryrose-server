@@ -45,7 +45,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
   var currentSort = (request.params.sort) ? request.params.sort : 'date-added-desc';
   var search = request.params.search ? request.params.search : null;
   var subpage = request.params.subpage ? request.params.subpage : 'awaiting-fulfillment';
-//   var filters = request.params.filters ? request.params.filters : null;
+  var paginate = true;
   
   var ordersQuery = new Parse.Query(Order);
   
@@ -82,10 +82,12 @@ Parse.Cloud.define("getOrders", function(request, response) {
       case 'fully-shippable':
         ordersQuery = getPendingOrderQuery();
         ordersQuery.equalTo('fullyShippable', true);
+        paginate = false;
         break;
       case 'partially-shippable':
         ordersQuery = getPendingOrderQuery();
         ordersQuery.equalTo('partiallyShippable', true);
+        paginate = false;
         break;
       case 'cannot-ship':
         ordersQuery = getPendingOrderQuery();
@@ -100,12 +102,16 @@ Parse.Cloud.define("getOrders", function(request, response) {
   }
   
   ordersQuery = getOrderSort(ordersQuery, currentSort);
-  ordersQuery.limit(ORDERS_PER_PAGE);
   ordersQuery.include('orderProducts');
   ordersQuery.include('orderProducts.variant');
   ordersQuery.include('orderProducts.variant.designer');
   ordersQuery.include('orderShipments');
-//   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
+  
+  if (paginate) {
+    ordersQuery.limit(ORDERS_PER_PAGE);
+  } else {
+    ordersQuery.limit(1000);
+  }
   
   Parse.Cloud.httpRequest({
     method: 'post',
@@ -120,12 +126,36 @@ Parse.Cloud.define("getOrders", function(request, response) {
     
   }).then(function(count) {
     totalOrders = count;
-    totalPages = Math.ceil(totalOrders / ORDERS_PER_PAGE);
-    ordersQuery.skip((currentPage - 1) * ORDERS_PER_PAGE);
-    return ordersQuery.find({useMasterKey:true});
+    totalPages = paginate ? Math.ceil(totalOrders / ORDERS_PER_PAGE) : 1;
+    if (paginate) ordersQuery.skip((currentPage - 1) * ORDERS_PER_PAGE);
     
-  }).then(function(orders) {
-	  response.success({orders: orders, totalPages: totalPages, totalOrders: totalOrders, tabCounts: tabCounts});
+    // Only return orders that are shippable based on current inventory
+    if (subpage == 'fully-shippable' || subpage == 'partially-shippable') {
+      return getInventoryAwareShippableOrders(ordersQuery, currentSort);
+    } else {
+      return ordersQuery.find({useMasterKey:true});
+    }
+    
+  }).then(function(ordersResult) {
+    if (ordersResult.shippable || ordersResult.partiallyShippable) {
+      totalOrders = ordersResult.shippable.length + ordersResult.partiallyShippable.length + ordersResult.unshippable.length;
+      switch (subpage) {
+        case 'fully-shippable':
+          tabCounts.fullyShippable = ordersResult.shippable.length;
+          response.success({orders: ordersResult.shippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts});
+          break;
+        case 'partially-shippable':
+          tabCounts.partiallyShippable = ordersResult.partiallyShippable.length;
+          response.success({orders: ordersResult.partiallyShippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts});
+          break;
+        default:
+          response.success({orders: ordersResult, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts});
+          break;
+      }
+      
+    } else {
+      response.success({orders: ordersResult, totalPages: totalPages, totalOrders: totalOrders, tabCounts: tabCounts});
+    }
 	  
   }, function(error) {
 	  logError(error);
@@ -137,6 +167,8 @@ Parse.Cloud.define("getOrders", function(request, response) {
 Parse.Cloud.define("getOrderTabCounts", function(request, response) {  
   
   var tabs = {};
+  var inventoryBasedUnshippable = 0;
+  var inventoryBasedPartiallyShippable = 0;
   
   var awaitingFulfillmentQuery = getPendingOrderQuery();
   
@@ -146,9 +178,13 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
   
   var fullyShippableQuery = getPendingOrderQuery();
   fullyShippableQuery.equalTo('fullyShippable', true);  
+  fullyShippableQuery.include('orderProducts');
+  fullyShippableQuery.include('orderProducts.variant');
   
   var partiallyShippableQuery = getPendingOrderQuery();
   partiallyShippableQuery.equalTo('partiallyShippable', true);  
+  partiallyShippableQuery.include('orderProducts');
+  partiallyShippableQuery.include('orderProducts.variant');
   
   var cannotShipQuery = getPendingOrderQuery();
   cannotShipQuery.equalTo('fullyShippable', false);
@@ -163,18 +199,22 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
     
   }).then(function(count) {
     tabs.resizable = count;
-    return fullyShippableQuery.count();
+    return getInventoryAwareShippableOrders(fullyShippableQuery, 'fully-shippable');
     
-  }).then(function(count) {
-    tabs.fullyShippable = count;
-    return partiallyShippableQuery.count();
+  }).then(function(ordersResult) {
+    tabs.fullyShippable = ordersResult.shippable.length;
+    if (ordersResult.partiallyShippable.length > 0) inventoryBasedPartiallyShippable += ordersResult.partiallyShippable.length;
+    if (ordersResult.unshippable.length > 0) inventoryBasedUnshippable += ordersResult.unshippable.length;
+    return getInventoryAwareShippableOrders(partiallyShippableQuery, 'partially-shippable');
     
-  }).then(function(count) {
-    tabs.partiallyShippable = count;
+  }).then(function(ordersResult) {
+    tabs.partiallyShippable = ordersResult.partiallyShippable.length;
+    if (ordersResult.unshippable.length > 0) inventoryBasedUnshippable += ordersResult.unshippable.length;
     return cannotShipQuery.count();
     
   }).then(function(count) {
     tabs.cannotShip = count;
+    if (inventoryBasedUnshippable > 0) tabs.cannotShip += inventoryBasedUnshippable;
     return fulfilledQuery.count();
     
   }).then(function(count) {
@@ -1232,6 +1272,82 @@ var getPendingOrderQuery = function() {
   return Parse.Query.or(afQuery, psQuery);
 }
 
+var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
+  var ordersSorted = ordersQuery;
+  ordersSorted.ascending("date_created");
+  var variantsOrderedCount = [];
+  var shippableOrderProducts = [];
+  var unshippableOrderProducts = [];
+  var shippableOrders = [];
+  var partiallyShippableOrders = [];
+  var unshippableOrders = [];
+  
+  var promise = Parse.Promise.as();
+  
+  promise = promise.then(function() {
+    return ordersSorted.find();
+    
+  }).then(function(ordersResult) {
+    _.each(ordersResult, function(order) {
+      var orderProducts = order.get('orderProducts');
+      _.each(orderProducts, function(orderProduct) {
+        var variant = orderProduct.get('variant');
+        var counted = false;
+        for (var i = 0; i < variantsOrderedCount.length; i++) {
+          var item = variantsOrderedCount[i];
+          if (item.variantId == variant.id) {
+            var totalOrdered = item.totalOrdered + orderProduct.get('quantity');
+            if (totalOrdered <= variant.get('inventoryLevel')) {
+//               logInfo('variant ' + variant.id + ' is shippable with ' + totalOrdered + ' total ordered');
+              variantsOrderedCount[i].totalOrdered = totalOrdered;
+              shippableOrderProducts.push(orderProduct);
+            } else {
+//               logInfo('variant ' + variant.id + ' is not shippable with ' + totalOrdered + ' total ordered');
+              unshippableOrderProducts.push(orderProduct);
+            }
+            counted = true;
+          }
+        };
+        if (!counted && orderProduct.get('quantity') <= variant.get('inventoryLevel')) {
+//           logInfo('new variant ' + variant.id + ' is shippable with ' + orderProduct.get('quantity') + ' total ordered');
+          variantsOrderedCount.push({variantId: variant.id, totalOrdered: orderProduct.get('quantity')});
+          shippableOrderProducts.push(orderProduct);
+        } else if (!counted && orderProduct.get('quantity') > variant.get('inventoryLevel')) {
+//           logInfo('new variant ' + variant.id + ' is not shippable with ' + orderProduct.get('quantity') + ' total ordered');
+          unshippableOrderProducts.push(orderProduct);
+        }
+      });
+    });
+    logInfo('shippableOrderProducts:' + shippableOrderProducts.length + ', unshippableOrderProducts:' + unshippableOrderProducts.length);
+    ordersQuery = getOrderSort(ordersQuery, currentSort);
+    return ordersQuery.find();
+  
+  }).then(function(ordersResult) {
+    _.each(ordersResult, function(order) {
+      var orderProducts = order.get('orderProducts');
+      var totalShippableOrderProducts = 0;
+      _.each(orderProducts, function(orderProduct) {
+        _.each(shippableOrderProducts, function(shippableOrderProduct) {
+          if (orderProduct.id == shippableOrderProduct.id) totalShippableOrderProducts++;
+        });
+      });
+      if (orderProducts.length == totalShippableOrderProducts) {
+//         logInfo('order is shippable');
+        shippableOrders.push(order);
+      } else if (totalShippableOrderProducts > 0) {
+//         logInfo('order is partially shippable');
+        partiallyShippableOrders.push(order);
+      } else {
+//         logInfo('order is unshippable');
+        unshippableOrders.push(order);
+      }
+    });
+    return {shippable: shippableOrders, partiallyShippable: partiallyShippableOrders, unshippable: unshippableOrders};
+  });
+      
+  return promise;
+}
+
 var createOrderObject = function(orderData, currentOrder) {
   var order = (currentOrder) ? currentOrder : new Order();
   
@@ -1678,7 +1794,7 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
           shippedGroups[shipmentIndex].orderProducts.push(orderProduct);
         }
     		
-  		} else if (orderProduct.shippable && orderProduct.quantity_shipped !== orderProduct.quantity) {
+  		} else if (orderProduct.shippable && orderProduct.quantity_shipped !== orderProduct.quantity && orderProduct.variant.inventoryLevel >= orderProduct.quantity) { 
     		console.log('product is shippable');
     		
     		// Check whether product is being shipped to a unique address
