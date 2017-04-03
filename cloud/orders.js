@@ -124,6 +124,10 @@ Parse.Cloud.define("getOrders", function(request, response) {
     tabCounts = response.data.result;
     return ordersQuery.count();
     
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
   }).then(function(count) {
     totalOrders = count;
     totalPages = paginate ? Math.ceil(totalOrders / ORDERS_PER_PAGE) : 1;
@@ -136,6 +140,10 @@ Parse.Cloud.define("getOrders", function(request, response) {
       return ordersQuery.find({useMasterKey:true});
     }
     
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
   }).then(function(ordersResult) {
     if (ordersResult.shippable || ordersResult.partiallyShippable) {
       totalOrders = ordersResult.shippable.length + ordersResult.partiallyShippable.length + ordersResult.unshippable.length;
@@ -197,26 +205,46 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
     tabs.awaitingFulfillment = count;
     return resizableQuery.count();
     
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
   }).then(function(count) {
     tabs.resizable = count;
     return getInventoryAwareShippableOrders(fullyShippableQuery, 'fully-shippable');
     
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
   }).then(function(ordersResult) {
     tabs.fullyShippable = ordersResult.shippable.length;
     if (ordersResult.partiallyShippable.length > 0) inventoryBasedPartiallyShippable += ordersResult.partiallyShippable.length;
     if (ordersResult.unshippable.length > 0) inventoryBasedUnshippable += ordersResult.unshippable.length;
     return getInventoryAwareShippableOrders(partiallyShippableQuery, 'partially-shippable');
     
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
   }).then(function(ordersResult) {
     tabs.partiallyShippable = ordersResult.partiallyShippable.length;
     if (ordersResult.unshippable.length > 0) inventoryBasedUnshippable += ordersResult.unshippable.length;
     return cannotShipQuery.count();
     
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
   }).then(function(count) {
     tabs.cannotShip = count;
     if (inventoryBasedUnshippable > 0) tabs.cannotShip += inventoryBasedUnshippable;
     return fulfilledQuery.count();
     
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
   }).then(function(count) {
     tabs.fulfilled = count;
 	  response.success(tabs);
@@ -1289,32 +1317,37 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
     
   }).then(function(ordersResult) {
     _.each(ordersResult, function(order) {
+      logInfo('getInventoryAwareShippableOrders order: ' + order.get('orderId'));
       var orderProducts = order.get('orderProducts');
       _.each(orderProducts, function(orderProduct) {
         var variant = orderProduct.get('variant');
-        var counted = false;
-        for (var i = 0; i < variantsOrderedCount.length; i++) {
-          var item = variantsOrderedCount[i];
-          if (item.variantId == variant.id) {
-            var totalOrdered = item.totalOrdered + orderProduct.get('quantity');
-            if (totalOrdered <= variant.get('inventoryLevel')) {
-//               logInfo('variant ' + variant.id + ' is shippable with ' + totalOrdered + ' total ordered');
-              variantsOrderedCount[i].totalOrdered = totalOrdered;
-              shippableOrderProducts.push(orderProduct);
-            } else {
-//               logInfo('variant ' + variant.id + ' is not shippable with ' + totalOrdered + ' total ordered');
-              unshippableOrderProducts.push(orderProduct);
+        if (variant) {
+          var counted = false;
+          for (var i = 0; i < variantsOrderedCount.length; i++) {
+            var item = variantsOrderedCount[i];
+            if (variant && item.variantId == variant.id) {
+              var totalOrdered = item.totalOrdered + orderProduct.get('quantity');
+              if (totalOrdered <= variant.get('inventoryLevel')) {
+  //               logInfo('variant ' + variant.id + ' is shippable with ' + totalOrdered + ' total ordered');
+                variantsOrderedCount[i].totalOrdered = totalOrdered;
+                shippableOrderProducts.push(orderProduct);
+              } else {
+  //               logInfo('variant ' + variant.id + ' is not shippable with ' + totalOrdered + ' total ordered');
+                unshippableOrderProducts.push(orderProduct);
+              }
+              counted = true;
             }
-            counted = true;
+          };
+          if (!counted && orderProduct.get('quantity') <= variant.get('inventoryLevel')) {
+  //           logInfo('new variant ' + variant.id + ' is shippable with ' + orderProduct.get('quantity') + ' total ordered');
+            variantsOrderedCount.push({variantId: variant.id, totalOrdered: orderProduct.get('quantity')});
+            shippableOrderProducts.push(orderProduct);
+          } else if (!counted && orderProduct.get('quantity') > variant.get('inventoryLevel')) {
+  //           logInfo('new variant ' + variant.id + ' is not shippable with ' + orderProduct.get('quantity') + ' total ordered');
+            unshippableOrderProducts.push(orderProduct);
           }
-        };
-        if (!counted && orderProduct.get('quantity') <= variant.get('inventoryLevel')) {
-//           logInfo('new variant ' + variant.id + ' is shippable with ' + orderProduct.get('quantity') + ' total ordered');
-          variantsOrderedCount.push({variantId: variant.id, totalOrdered: orderProduct.get('quantity')});
-          shippableOrderProducts.push(orderProduct);
-        } else if (!counted && orderProduct.get('quantity') > variant.get('inventoryLevel')) {
-//           logInfo('new variant ' + variant.id + ' is not shippable with ' + orderProduct.get('quantity') + ' total ordered');
-          unshippableOrderProducts.push(orderProduct);
+        } else {
+          logInfo('order product does not have a variant');
         }
       });
     });
