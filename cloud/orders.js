@@ -479,7 +479,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
 //         hd = new memwatch.HeapDiff();
         
     		orderShipmentObject = result;
-    		if (orderShipmentObject.has('packingSlip')) return orderShipmentObject;
+//     		if (orderShipmentObject.has('packingSlip')) return orderShipmentObject;
     		return createOrderShipmentPackingSlip(orderObj, orderShipmentObject);
     		
   		}).then(function(result) {
@@ -1866,12 +1866,11 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   cxt.drawImage(logoXPos, logoYPos, __dirname + '/../public/img/logo.jpg', {transformation:{width:200,height:31, proportional:true}});
   
 	// Company Address
-	var companyAddress1 = writePdfText(cxt, '1112 Montana Ave #106', regularFont, 8, 0x999999, 'center', 0, logoYPos, padding, pageWidth, pageHeight);
-	var companyAddress2 = writePdfText(cxt, 'Santa Monica, California 90403', regularFont, 8, 0x999999, 'center', 0, companyAddress1.y, 8, pageWidth, pageHeight);
+	var companyAddress = writePdfText(cxt, '1112 Montana Ave #106, Santa Monica, California 90403', regularFont, 8, 0x999999, 'center', 0, logoYPos, padding, pageWidth, pageHeight);
   
   // Order Number
   var orderNumberHeadlineText = 'Packing Slip for Order #' + order.get('orderId');
-  var orderNumberHeadline = writePdfText(cxt, orderNumberHeadlineText, boldFont, 18, 0x000000, 'center', 0, companyAddress2.y, padding, pageWidth, pageHeight);
+  var orderNumberHeadline = writePdfText(cxt, orderNumberHeadlineText, boldFont, 18, 0x000000, 'center', 0, companyAddress.y, padding, pageWidth, pageHeight);
 	
 	// Line
 	var lineYPos = orderNumberHeadline.y - padding;
@@ -1884,9 +1883,9 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   var billingCompany = writePdfText(cxt, billingAddress.company, regularFont, 10, 0x000000, 'left', margin, billingName.y, 5, pageWidth, pageHeight);
   var billingStreet1 = writePdfText(cxt, billingAddress.street_1, regularFont, 10, 0x000000, 'left', margin, billingCompany.y, 5, pageWidth, pageHeight);
   var billingStreet2 = writePdfText(cxt, billingAddress.street_2, regularFont, 10, 0x000000, 'left', margin, billingStreet1.y, 5, pageWidth, pageHeight);
-  var billingCityStateZip = writePdfText(cxt, billingAddress.city + ', ' + billingAddress.state + '  ' + billingAddress.zip, regularFont, 10, 0x000000, 'left', margin, billingStreet2.y, 8, pageWidth, pageHeight);
+  var billingCityStateZip = writePdfText(cxt, billingAddress.city + ', ' + billingAddress.state + '  ' + billingAddress.zip, regularFont, 10, 0x000000, 'left', margin, billingStreet2.y, 5, pageWidth, pageHeight);
   var billingCountry = writePdfText(cxt, billingAddress.country, regularFont, 10, 0x000000, 'left', margin, billingCityStateZip.y, 5, pageWidth, pageHeight);
-  var billingPhone = writePdfText(cxt, billingAddress.phone, regularFont, 10, 0x000000, 'left', margin, billingCountry.y, 12, pageWidth, pageHeight);
+  var billingPhone = writePdfText(cxt, billingAddress.phone, regularFont, 10, 0x000000, 'left', margin, billingCountry.y, 5, pageWidth, pageHeight);
   var billingEmail = writePdfText(cxt, billingAddress.email, regularFont, 10, 0x000000, 'left', margin, billingPhone.y, 5, pageWidth, pageHeight);
 	
   // Shipping Details
@@ -1898,12 +1897,13 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   var shippingStreet2 = writePdfText(cxt, shippingAddress.street_2, regularFont, 10, 0x000000, 'left', pageCenterX, shippingStreet1.y, 5, pageWidth, pageHeight);
   var shippingCityStateZip = writePdfText(cxt, shippingAddress.city + ', ' + shippingAddress.state + '  ' + shippingAddress.zip, regularFont, 10, 0x000000, 'left', pageCenterX, shippingStreet2.y, 5, pageWidth, pageHeight);
   var shippingCountry = writePdfText(cxt, shippingAddress.country, regularFont, 10, 0x000000, 'left', pageCenterX, shippingCityStateZip.y, 5, pageWidth, pageHeight);
-  var shippingPhone = writePdfText(cxt, shippingAddress.phone, regularFont, 10, 0x000000, 'left', pageCenterX, shippingCountry.y, 12, pageWidth, pageHeight);
+  var shippingPhone = writePdfText(cxt, shippingAddress.phone, regularFont, 10, 0x000000, 'left', pageCenterX, shippingCountry.y, 5, pageWidth, pageHeight);
   var shippingEmail = writePdfText(cxt, shippingAddress.email, regularFont, 10, 0x000000, 'left', pageCenterX, shippingPhone.y, 5, pageWidth, pageHeight);
 	
   // Order Number
   var orderNumberText = 'Order: #' + order.get('orderId');
-  var orderNumber = writePdfText(cxt, orderNumberText, boldFont, 10, 0x000000, 'left', margin, shippingEmail.y, padding, pageWidth, pageHeight);
+  var orderNumberY = shippingEmail.y < billingEmail.y ? shippingEmail.y : billingEmail.y;
+  var orderNumber = writePdfText(cxt, orderNumberText, boldFont, 10, 0x000000, 'left', margin, orderNumberY, padding, pageWidth, pageHeight);
   
   // Payment Method
   var paymentMethodText = 'Payment Method: ' + order.get('payment_method') + ' (' + numeral(order.get('total_inc_tax')).format('$0,0.00') + ')';
@@ -1911,48 +1911,61 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   
   // Order Date
   var orderDateText = 'Order Date: ' + moment(order.get('date_created').iso).format('M/D/YY');
-  var orderDate = writePdfText(cxt, orderDateText, boldFont, 10, 0x000000, 'left', pageCenterX, shippingEmail.y, padding, pageWidth, pageHeight);
+  var orderDate = writePdfText(cxt, orderDateText, boldFont, 10, 0x000000, 'left', pageCenterX, orderNumberY, padding, pageWidth, pageHeight);
   
   // Shipping Method
   var shippingMethodText = 'Shipping Method: ' + shipment.get('shipping_method');
   var shippingMethod = writePdfText(cxt, shippingMethodText, boldFont, 10, 0x000000, 'left', pageCenterX, orderDate.y, 12, pageWidth, pageHeight);
   
 	// Line
-	lineYPos = shippingMethod.y - padding;
+	lineYPos = shippingMethod.y < paymentMethod.y ? shippingMethod.y - padding : paymentMethod.y - padding;
 	cxt.drawPath(margin, lineYPos, pageWidth - margin, lineYPos, {color:'lightgray', width:1});
 	
 	// Order Items Heading
 	var orderItemsHeading = writePdfText(cxt, 'Order Items', boldFont, 12, 0x999999, 'left', margin, lineYPos, padding, pageWidth, pageHeight);
 	
 	// Column Headings
-	var quantityHeading = writePdfText(cxt, 'Qty', boldFont, 10, 0x000000, 'left', margin, orderItemsHeading.y, padding, pageWidth, pageHeight);
-	var codeSkuHeading = writePdfText(cxt, 'Code/SKU', boldFont, 10, 0x000000, 'left', margin + 50, orderItemsHeading.y, padding, pageWidth, pageHeight);
-	var productNameHeading = writePdfText(cxt, 'Product Name', boldFont, 10, 0x000000, 'left', margin + 150, orderItemsHeading.y, padding, pageWidth, pageHeight);
-	var priceHeading = writePdfText(cxt, 'Price', boldFont, 10, 0x000000, 'right', margin + 100, orderItemsHeading.y, padding, pageWidth, pageHeight);
-	var totalHeading = writePdfText(cxt, 'Total', boldFont, 10, 0x000000, 'right', margin, orderItemsHeading.y, padding, pageWidth, pageHeight);
+	var columnHeadingY = orderItemsHeading.y;
+	var quantityHeading = writePdfText(cxt, 'ORDERED', boldFont, 8, 0x000000, 'left', margin, columnHeadingY, padding, pageWidth, pageHeight);
+	var shippedHeading = writePdfText(cxt, 'SHIPPED', boldFont, 8, 0x000000, 'left', margin + 50, columnHeadingY, padding, pageWidth, pageHeight);
+	var codeSkuHeading = writePdfText(cxt, 'SKU', boldFont, 8, 0x000000, 'left', margin + 100, columnHeadingY, padding, pageWidth, pageHeight);
+	var productNameHeading = writePdfText(cxt, 'PRODUCT NAME', boldFont, 8, 0x000000, 'left', margin + 180, columnHeadingY, padding, pageWidth, pageHeight);
+	var priceHeading = writePdfText(cxt, 'PRICE', boldFont, 8, 0x000000, 'right', margin + 80, columnHeadingY, padding, pageWidth, pageHeight);
+	var totalHeading = writePdfText(cxt, 'TOTAL', boldFont, 8, 0x000000, 'right', margin, columnHeadingY, padding, pageWidth, pageHeight);
 	
 	// Item Rows
 	var shipmentItems = shipment.get('items');
 	var orderProducts = order.get('orderProducts');
 	var rowY = totalHeading.y - 10;
-  _.each(shipmentItems, function(shipmentItem) {
-    _.each(orderProducts, function(orderProduct) {
+	var shippedProducts = [];
+	var unshippedProducts = [];
+	_.each(orderProducts, function(orderProduct) {
+  	var inShipment = false;
+    _.each(shipmentItems, function(shipmentItem) {
       if (shipmentItem.order_product_id == orderProduct.get('orderProductId')) {
-        var quantityText = writePdfText(cxt, orderProduct.get('quantity').toString(), regularFont, 10, 0x000000, 'left', margin, rowY, 10, pageWidth, pageHeight);
-        var skuText = writePdfText(cxt, orderProduct.get('sku'), regularFont, 10, 0x000000, 'left', margin + 50, rowY, 10, pageWidth, pageHeight);
-        var nameText = writePdfText(cxt, orderProduct.get('name'), regularFont, 10, 0x000000, 'left', margin + 150, rowY, 10, pageWidth, pageHeight);
-        var options = orderProduct.get('product_options');
-        var optionsHeight = 0;
-        _.each(options, function(option) {
-          logInfo(option.display_name + ': ' + option.display_value)
-          var optionText = writePdfText(cxt, option.display_name + ': ' + option.display_value, regularFont, 8, 0x000000, 'left', margin + 150, nameText.y - optionsHeight, 5, pageWidth, pageHeight);
-          optionsHeight += optionText.dims.height + 5;
-        });
-        var priceText = writePdfText(cxt, numeral(orderProduct.get('price_inc_tax')).format('$0,0.00'), regularFont, 10, 0x000000, 'right', margin + 100, rowY, 10, pageWidth, pageHeight);
-        var totalText = writePdfText(cxt, numeral(orderProduct.get('total_inc_tax')).format('$0,0.00'), regularFont, 10, 0x000000, 'right', margin, rowY, 10, pageWidth, pageHeight);
-        rowY -= (nameText.dims.height + optionsHeight + 10);
+        inShipment = true;
       }
     });
+    if (!inShipment && orderProduct.get('quantity_shipped') < orderProduct.get('quantity')) {
+      unshippedProducts.push(orderProduct);
+    } else if (!inShipment && orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) {
+      shippedProducts.push(orderProduct);
+    }
+    var rowColor = inShipment ? 0x000000 : 0x999999;
+    var quantityText = writePdfText(cxt, orderProduct.get('quantity').toString(), regularFont, 9, rowColor, 'left', margin, rowY, 10, pageWidth, pageHeight);
+    var shippedText = writePdfText(cxt, orderProduct.get('quantity_shipped').toString(), regularFont, 9, rowColor, 'left', margin + 50, rowY, 10, pageWidth, pageHeight);
+    var skuText = writePdfText(cxt, orderProduct.get('sku'), regularFont, 9, rowColor, 'left', margin + 100, rowY, 10, pageWidth, pageHeight);
+    var nameText = writePdfText(cxt, orderProduct.get('name'), regularFont, 9, rowColor, 'left', margin + 180, rowY, 10, pageWidth, pageHeight);
+    var options = orderProduct.get('product_options');
+    var optionsHeight = 0;
+    _.each(options, function(option) {
+      logInfo(option.display_name + ': ' + option.display_value)
+      var optionText = writePdfText(cxt, option.display_name + ': ' + option.display_value, regularFont, 8, rowColor, 'left', margin + 180, nameText.y - optionsHeight, 5, pageWidth, pageHeight);
+      optionsHeight += optionText.dims.height + 5;
+    });
+    var priceText = writePdfText(cxt, numeral(orderProduct.get('price_inc_tax')).format('$0,0.00'), regularFont, 9, rowColor, 'right', margin + 80, rowY, 10, pageWidth, pageHeight);
+    var totalText = writePdfText(cxt, numeral(orderProduct.get('total_inc_tax')).format('$0,0.00'), regularFont, 9, rowColor, 'right', margin, rowY, 10, pageWidth, pageHeight);
+    rowY -= (nameText.dims.height + optionsHeight + 10);
   });
   
 	// Line
@@ -1960,20 +1973,24 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
 	cxt.drawPath(margin, lineYPos, pageWidth - margin, lineYPos, {color:'lightgray', width:1});
 	
 	// Subtotal
-	var subtotalLabel = writePdfText(cxt, 'Subtotal:', regularFont, 10, 0x000000, 'right', margin + 100, lineYPos, padding, pageWidth, pageHeight);
-	var subtotalText = writePdfText(cxt, numeral(order.get('subtotal_ex_tax')).format('$0,0.00'), regularFont, 10, 0x000000, 'right', margin, lineYPos, padding, pageWidth, pageHeight);
+	var subtotalLabel = writePdfText(cxt, 'Subtotal:', regularFont, 9, 0x000000, 'right', margin + 80, lineYPos, padding, pageWidth, pageHeight);
+	var subtotalText = writePdfText(cxt, numeral(order.get('subtotal_ex_tax')).format('$0,0.00'), regularFont, 9, 0x000000, 'right', margin, lineYPos, padding, pageWidth, pageHeight);
+	
+	// Coupon
+  var couponLabel = writePdfText(cxt, 'Coupon:', regularFont, 9, 0x000000, 'right', margin + 80, subtotalLabel.y, 10, pageWidth, pageHeight);
+	var couponText = writePdfText(cxt, '-' + numeral(order.get('coupon_discount')).format('$0,0.00'), regularFont, 9, 0x000000, 'right', margin, subtotalLabel.y, 10, pageWidth, pageHeight);
 	
 	// Shipping
-	var shippingLabel = writePdfText(cxt, 'Shipping:', regularFont, 10, 0x000000, 'right', margin + 100, subtotalLabel.y, 12, pageWidth, pageHeight);
-	var shippingText = writePdfText(cxt, numeral(order.get('shipping_cost_ex_tax')).format('$0,0.00'), regularFont, 10, 0x000000, 'right', margin, subtotalLabel.y, 12, pageWidth, pageHeight);
+	var shippingLabel = writePdfText(cxt, 'Shipping:', regularFont, 9, 0x000000, 'right', margin + 80, couponLabel.y, 10, pageWidth, pageHeight);
+	var shippingText = writePdfText(cxt, numeral(order.get('shipping_cost_ex_tax')).format('$0,0.00'), regularFont, 9, 0x000000, 'right', margin, couponLabel.y, 10, pageWidth, pageHeight);
 	
 	// Tax
-	var taxLabel = writePdfText(cxt, 'Tax:', regularFont, 10, 0x000000, 'right', margin + 100, shippingLabel.y, 12, pageWidth, pageHeight);
-	var taxText = writePdfText(cxt, numeral(order.get('total_tax')).format('$0,0.00'), regularFont, 10, 0x000000, 'right', margin, shippingLabel.y, 12, pageWidth, pageHeight);
+	var taxLabel = writePdfText(cxt, 'Tax:', regularFont, 9, 0x000000, 'right', margin + 80, shippingLabel.y, 10, pageWidth, pageHeight);
+	var taxText = writePdfText(cxt, numeral(order.get('total_tax')).format('$0,0.00'), regularFont, 9, 0x000000, 'right', margin, shippingLabel.y, 10, pageWidth, pageHeight);
 	
 	// Total
-	var totalLabel = writePdfText(cxt, 'Grand Total:', boldFont, 10, 0x000000, 'right', margin + 100, taxLabel.y, 12, pageWidth, pageHeight);
-	var totalText = writePdfText(cxt, numeral(order.get('total_inc_tax')).format('$0,0.00'), boldFont, 10, 0x000000, 'right', margin, taxLabel.y, 12, pageWidth, pageHeight);
+	var totalLabel = writePdfText(cxt, 'Grand Total:', boldFont, 9, 0x000000, 'right', margin + 80, taxLabel.y, 10, pageWidth, pageHeight);
+	var totalText = writePdfText(cxt, numeral(order.get('total_inc_tax')).format('$0,0.00'), boldFont, 9, 0x000000, 'right', margin, taxLabel.y, 10, pageWidth, pageHeight);
   
   pdfWriter.writePage(page);
   pdfWriter.end();
@@ -2001,6 +2018,10 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   });
     
   return promise;
+}
+
+var pdfOrderProductRow = function() {
+  
 }
 
 var writePdfText = function(cxt, text, font, fontSize, color, align, offsetX, offsetY, padding, pageWidth, pageHeight) {
