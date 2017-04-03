@@ -186,14 +186,18 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
       }
     });
     
-  }).then(function(httpResponse) {
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	}).then(function(httpResponse) {
     logInfo('loadProductVariants success');
     logInfo('product successfully reloaded');
 	  response.success();
 	  
   }, function(error) {
 		logError(error);
-		response.error("Error on ordersWebhook: " + error.message);
+		response.error(error.message);
 		
 	});
 });
