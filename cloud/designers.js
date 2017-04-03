@@ -30,11 +30,24 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   var totalPages;
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
   var currentSort = (request.params.sort) ? request.params.sort : 'name-asc';
+  var subpage = request.params.subpage ? request.params.subpage : 'all';
   
   var designersQuery = new Parse.Query(Designer);
-  designersQuery = getDesignerSort(designersQuery, currentSort)
+  designersQuery = getDesignerSort(designersQuery, currentSort);
+  
+  switch (subpage) {
+    case 'all':
+//       designersQuery.equalTo('status', 'Shipped');
+      break; 
+    case 'ordered':
+//       designersQuery.equalTo('status', 'Shipped');
+      break; 
+    case 'resizing':
+//       designersQuery.equalTo('status', 'Shipped');
+      break; 
+  }
+  
   designersQuery.limit(DESIGNERS_PER_PAGE);
-//   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
   designersQuery.count().then(function(count) {
     totalDesigners = count;
