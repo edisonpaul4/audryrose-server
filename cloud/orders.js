@@ -1051,7 +1051,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       batchPdf.set('name', pdfName);
       return batchPdf.save(null, {useMasterKey: true});
     } else {
-      logError('no batch pdf generated');
+      logInfo('no batch pdf generated');
       return;
     }
     
@@ -1079,27 +1079,16 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
   logInfo('\nbatchCreateShipments -----------------------------');
   
   // Create shipment groups
-  bigCommerce.get('/orders/count', function(err, data, response){
-    return data.count;
-  
-  }).then(function(count) {
-    
-    return Parse.Cloud.httpRequest({
-      method: 'post',
-      url: process.env.SERVER_URL + '/functions/createShipments',
-      headers: {
-        'X-Parse-Application-Id': process.env.APP_ID,
-        'X-Parse-Master-Key': process.env.MASTER_KEY
-      },
-      params: {
-        ordersToShip: ordersToShip
-      }
-    });
-    
-  }, function(error) {
-	  logError(error);
-	  response.error(error.message);
-	  
+  Parse.Cloud.httpRequest({
+    method: 'post',
+    url: process.env.SERVER_URL + '/functions/createShipments',
+    headers: {
+      'X-Parse-Application-Id': process.env.APP_ID,
+      'X-Parse-Master-Key': process.env.MASTER_KEY
+    },
+    params: {
+      ordersToShip: ordersToShip
+    }
   }).then(function(httpResponse) {
     updatedOrders = httpResponse.data.result.updatedOrders;
     errors = httpResponse.data.result.errors;
@@ -1117,7 +1106,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
     
   }, function(error) {
 	  logError(error);
-	  response.error(error.message);
+	  response.error(error);
 	  
   }).then(function(httpResponse) {
     tabCounts = httpResponse.data.result;
@@ -1127,7 +1116,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
-	  response.error(error.message);
+	  response.error(error);
 	  
   });
 });
@@ -2194,7 +2183,7 @@ var combinePdfs = function(pdfs) {
   	
 	}, function(error){
   	logError(error);
-  	return false;
+  	return;
   	
 	});
 	
