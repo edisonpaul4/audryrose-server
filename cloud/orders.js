@@ -417,6 +417,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     }
     
   }).then(function(result) {
+    if (result.length > 0) orderProducts = result;
 //     var diff = hd.end();
 //     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //     hd = new memwatch.HeapDiff();
@@ -742,7 +743,6 @@ Parse.Cloud.define("createShipments", function(request, response) {
         if (shippingAddress.phone) addressTo.phone = shippingAddress.phone;
         if (shippingAddress.company) addressTo.company = shippingAddress.company;
         if (shippingAddress.street_2) addressTo.street2 = shippingAddress.street_2;
-        logInfo(JSON.stringify(addressTo));
         
         var totalWeight = 0;
         var totalPrice = 0;
@@ -872,8 +872,10 @@ Parse.Cloud.define("createShipments", function(request, response) {
           
         } else {
           _.each(httpResponse.data.messages, function(message) { 
-            logError(message.text);
-            errors.push(message.text);
+            
+//             logError(message.text);
+            var msg = 'Error with Order #' + orderId + ': ' + message.text;
+            errors.push(msg);
           });
         }
         
@@ -991,7 +993,6 @@ Parse.Cloud.define("createShipments", function(request, response) {
         
       }, function(error) {
         logError(error);
-        return false;
       });
     });
     return promise;
@@ -1279,6 +1280,12 @@ var getOrderSort = function(ordersQuery, currentSort) {
     case 'date-added-asc':
       ordersQuery.ascending("date_created");
       break;
+    case 'date-shipped-desc':
+      ordersQuery.descending("date_shipped");
+      break;
+    case 'date-shipped-asc':
+      ordersQuery.ascending("date_shipped");
+      break;
     case 'total-desc':
       ordersQuery.descending("total_inc_tax");
       break;
@@ -1317,7 +1324,7 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
     
   }).then(function(ordersResult) {
     _.each(ordersResult, function(order) {
-      logInfo('getInventoryAwareShippableOrders order: ' + order.get('orderId'));
+//       logInfo('getInventoryAwareShippableOrders order: ' + order.get('orderId'));
       var orderProducts = order.get('orderProducts');
       _.each(orderProducts, function(orderProduct) {
         var variant = orderProduct.get('variant');
@@ -1600,122 +1607,140 @@ var getOrderProductVariantMatch = function(orderProduct, variants) {
 var getOrderProductsStatus = function(orderProducts) {
   logInfo('- getOrderProductsStatus -')
   
+  var savedOrderProducts = [];
+  var count = 0;
+  
   var promise = Parse.Promise.as();
   
-  promise = promise.then(function() {
+  _.each(orderProducts, function(orderProduct) {
     
-  	for (var i = 0; i < orderProducts.length; i++) {
-    	var orderProduct = orderProducts[i];
-    	
-    	if (orderProduct.has('quantity_shipped') && orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) {
-      	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' has already shipped');
-      	orderProduct.set('resizable', false);
-      	orderProduct.set('shippable', false);
-      	continue;
-    	} else if (orderProduct.has('isCustom') && orderProduct.get('isCustom') == true) {
-      	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' is custom');
-      	// TODO: do something here with custom order products
-    	}
+    promise = promise.then(function() {
+      
+    	logInfo('\nGet status for OrderProduct ' + orderProduct.get('orderProductId'));
     	
     	var orderProductVariant = orderProduct.has('variant') ? orderProduct.get('variant') : null;
       // Determine if product is in resizable class
       var isResizeProductType = (orderProductVariant && orderProductVariant.has('size_value')) ? true : false;
     	
-    	if (!orderProductVariant) {
+    	if (orderProduct.has('quantity_shipped') && orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) {
+      	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' has already shipped');
+      	orderProduct.set('resizable', false);
+      	orderProduct.set('shippable', false);
+      	return orderProduct;
+
+    	} else if (orderProduct.has('isCustom') && orderProduct.get('isCustom') == true) {
+      	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' is custom');
+      	// TODO: do something here with custom order products
+      	return orderProduct;
+      	
+    	} else if (!orderProductVariant) {
       	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' does not have any variants');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
-      	continue;
+        return orderProduct;
       	
     	} else if (orderProductVariant.get('inventoryLevel') >= orderProduct.get('quantity')) {
       	// Has inventory, save it and exit
       	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' is shippable');
-      	orderProduct.unset('resizable');
+      	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', true);
-      	continue;
+        return orderProduct;
       	
     	} else if (!isResizeProductType) {
       	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' is not a resizable product');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
-      	continue;
+        return orderProduct;
       	
     	} else {
       	// No inventory and OrderProduct has sizes, check if resizable
       	orderProduct.set('shippable', false);
-      	
-      	var promise2 = Parse.Promise.as();
-    		promise2 = promise2.then(function() {
-      		var productQuery = new Parse.Query(Product);
-      		productQuery.equalTo('productId', orderProduct.get('product_id'));
-      		productQuery.include('variants');
-      		return productQuery.first();
+      	return getOrderProductResizable(orderProduct);
       		
-    		}).then(function(result) {
-          if (result) {
-            logInfo('Set product status for OrderProduct ' + orderProduct.get('orderProductId'));
-            var orderVariantSize = parseFloat(orderProductVariant.get('size_value'));
-            var orderProductVariantOptions = orderProductVariant.has('variantOptions') ? orderProductVariant.get('variantOptions') : [];
-            var variants = result.get('variants');
-            var eligibleVariants = [];
-            // Check if any variants are eligible for resize
-            _.each(variants, function(variant) {
-              // Check if variant is in stock
-              if (variant.has('inventoryLevel') && variant.get('inventoryLevel') > 0) {
-                var variantSize = parseFloat(variant.get('size_value'));
-                var sizeDifference = Math.abs(orderVariantSize - variantSize);
-                
-                var matchesProductOptions = false;
-                var totalOptionsToCheck = orderProductVariantOptions.length;
-                var optionsChecked = 0;
-                var optionMatches = 0;
-                _.each(orderProductVariantOptions, function(orderProductVariantOption) {
-                  optionsChecked++;
-                  // Ignore the size options
-                  if (SIZE_PRODUCT_OPTIONS.indexOf(orderProductVariantOption.option_id) < 0) {
-                    var variantOptions = variant.has('variantOptions') ? variant.get('variantOptions') : [];
-                    _.each(variantOptions, function(variantOption) {
-                      if (orderProductVariantOption.option_id == variantOption.option_id && orderProductVariantOption.option_value_id == variantOption.option_value_id) {
-                        logInfo('\nVariant size difference: ' + sizeDifference);
-                        logInfo('Variant inventory: ' + variant.get('inventoryLevel')); 
-                        logInfo(orderProductVariantOption.display_name + ': ' + orderProductVariantOption.value + ' ' + variantOption.value);
-                        optionMatches++;
-                      }
-                    });
-                  }
-                  
-                  if (optionsChecked == totalOptionsToCheck && optionMatches == (totalOptionsToCheck - 1)) {
-                    // All options checked
-                    matchesProductOptions = true;
-                  }
-                });
-                
-                if (matchesProductOptions) eligibleVariants.push(variant);
-              }
-            });
-            logInfo(eligibleVariants.length + ' variants could be resized');
-            if (eligibleVariants.length > 0) {
-              orderProduct.set('resizable', true);
-            } else {
-              orderProduct.set('resizable', false);
-            }
-            return true;
-          } else {
-            var msg = 'Cannot determine product resizable for OrderProduct ' + orderProduct.get('orderProductId');
-            logInfo(msg);
-            orderProduct.set('resizable', false);
-            return true;
-          }
-    		});
-    		return promise2;
-  		}
-  	}
-	}).then(function() {
-  	return Parse.Object.saveAll(orderProducts, {useMasterKey: true});
-	}).then(function() {
-  	return true;
+      }
+
+  	}).then(function(orderProductEdited) {
+    	return orderProductEdited.save(null, {useMasterKey:true});
+    	
+  	}).then(function(orderProductResult) {
+    	savedOrderProducts.push(orderProductResult);
+    	count++;
+    	if (count == orderProducts.length) return savedOrderProducts;
+    	
+  	}, function(error) {
+    	logError(error);
+  	});
 	});
   return promise;
+}
+
+var getOrderProductResizable = function(orderProduct) {
+  var orderProductVariant = orderProduct.get('variant');
+  
+	var promise = Parse.Promise.as();
+	promise = promise.then(function() {
+		var productQuery = new Parse.Query(Product);
+		productQuery.equalTo('productId', orderProduct.get('product_id'));
+		productQuery.include('variants');
+		return productQuery.first();
+		
+	}).then(function(result) {
+    if (result) {
+      logInfo('Set product status for OrderProduct ' + orderProduct.get('orderProductId'));
+      var orderVariantSize = parseFloat(orderProductVariant.get('size_value'));
+      var orderProductVariantOptions = orderProductVariant.has('variantOptions') ? orderProductVariant.get('variantOptions') : [];
+      var variants = result.get('variants');
+      var eligibleVariants = [];
+      // Check if any variants are eligible for resize
+      _.each(variants, function(variant) {
+        // Check if variant is in stock
+        if (variant.has('inventoryLevel') && variant.get('inventoryLevel') > 0) {
+          var variantSize = parseFloat(variant.get('size_value'));
+          var sizeDifference = Math.abs(orderVariantSize - variantSize);
+          
+          var matchesProductOptions = false;
+          var totalOptionsToCheck = orderProductVariantOptions.length;
+          var optionsChecked = 0;
+          var optionMatches = 0;
+          _.each(orderProductVariantOptions, function(orderProductVariantOption) {
+            optionsChecked++;
+            // Ignore the size options
+            if (SIZE_PRODUCT_OPTIONS.indexOf(orderProductVariantOption.option_id) < 0) {
+              var variantOptions = variant.has('variantOptions') ? variant.get('variantOptions') : [];
+              _.each(variantOptions, function(variantOption) {
+                if (orderProductVariantOption.option_id == variantOption.option_id && orderProductVariantOption.option_value_id == variantOption.option_value_id) {
+                  logInfo('\nVariant size difference: ' + sizeDifference);
+                  logInfo('Variant inventory: ' + variant.get('inventoryLevel')); 
+                  logInfo(orderProductVariantOption.display_name + ': ' + orderProductVariantOption.value + ' ' + variantOption.value);
+                  optionMatches++;
+                }
+              });
+            }
+            
+            if (optionsChecked == totalOptionsToCheck && optionMatches == (totalOptionsToCheck - 1)) {
+              // All options checked
+              matchesProductOptions = true;
+            }
+          });
+          
+          if (matchesProductOptions) eligibleVariants.push(variant);
+        }
+      });
+      logInfo(eligibleVariants.length + ' variants could be resized');
+      if (eligibleVariants.length > 0) {
+        orderProduct.set('resizable', true);
+      } else {
+        orderProduct.set('resizable', false);
+      }
+      return orderProduct;
+    } else {
+      var msg = 'Cannot determine product resizable for OrderProduct ' + orderProduct.get('orderProductId');
+      logInfo(msg);
+      orderProduct.set('resizable', false);
+      return orderProduct;
+    }
+	});
+	return promise;
 }
 
 var createOrderShipmentObject = function(shipmentData, shippoLabel, currentShipment) {
@@ -2051,10 +2076,6 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   });
     
   return promise;
-}
-
-var pdfOrderProductRow = function() {
-  
 }
 
 var writePdfText = function(cxt, text, font, fontSize, color, align, offsetX, offsetY, padding, pageWidth, pageHeight) {
