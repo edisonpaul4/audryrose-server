@@ -64,7 +64,7 @@ Parse.Cloud.define("getWebhooks", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
-	  response.error(error.message);
+	  response.error(error);
 	  
   });
 });
@@ -94,7 +94,7 @@ Parse.Cloud.define("createWebhook", function(request, response) {
     
   }, function(error) {
 		logError(error);
-		response.error("Error saving webhook: " + error.message);
+		response.error(error);
 		
 	});
   
@@ -113,7 +113,7 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
     
   }, function(error) {
 		logError(error);
-		response.error("Error saving webhook: " + error.message);
+		response.error(error);
 		
 	});
   
@@ -147,7 +147,7 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
 	  
   }, function(error) {
 		logError(error);
-		response.error("Error on ordersWebhook: " + error.message);
+		response.error(error);
 		
 	});
 });
@@ -188,7 +188,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
     
   }, function(error) {
 		logError(error);
-		response.error(error.message);
+		response.error(error);
 		
 	}).then(function(httpResponse) {
     logInfo('loadProductVariants success');
@@ -197,7 +197,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
 	  
   }, function(error) {
 		logError(error);
-		response.error(error.message);
+		response.error(error);
 		
 	});
 });
