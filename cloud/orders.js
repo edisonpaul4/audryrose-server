@@ -890,8 +890,8 @@ Parse.Cloud.define("createShipments", function(request, response) {
         } else {
           _.each(httpResponse.data.messages, function(message) { 
             
-//             logError(message.text);
             var msg = 'Error with Order #' + orderId + ': ' + message.text;
+            logInfo(msg);
             errors.push(msg);
           });
         }
@@ -911,7 +911,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       		return orderShipmentQuery.first();
     		
     		} else {
-      		logError('No BC shipment created for order ' + orderId);
+      		logInfo('No BC shipment created for order ' + orderId);
     		}
     		
   		}, function(error) {
