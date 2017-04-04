@@ -47,7 +47,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
   var search = request.params.search ? request.params.search : null;
   var subpage = request.params.subpage ? request.params.subpage : 'awaiting-fulfillment';
   var paginate = true;
-  var batchPdfs = [];
+  var files = [];
   
   var ordersQuery = new Parse.Query(Order);
   
@@ -59,7 +59,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
     var searchTerms = search.split(' ');
     searchTerms = _.map(searchTerms, toLowerCase);
     
-    logInfo(searchTerms);
+//     logInfo(searchTerms);
     
     var searchOrderNumberQuery = new Parse.Query(Order);
     searchOrderNumberQuery.matches('orderId', regex);
@@ -69,7 +69,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
     
   } else {
     
-    logInfo(subpage);
+//     logInfo(subpage);
     switch (subpage) {
       case 'fulfilled':
         ordersQuery.equalTo('status', 'Shipped');
@@ -133,9 +133,9 @@ Parse.Cloud.define("getOrders", function(request, response) {
 	  response.error(error.message);
 	  
   }).then(function(result) {
-    _.each(batchPdfs, function(batchPdf) {
+    _.each(result, function(batchPdf) {
       var file = batchPdf.get('file')
-      batchPdfs.push({name: batchPdf.get('name'), createdAt: batchPdf.get('createdAt'), url: file.url()});
+      files.push({name: batchPdf.get('name'), createdAt: batchPdf.get('createdAt'), url: file.url()});
     })
     return ordersQuery.count();
     
@@ -165,19 +165,19 @@ Parse.Cloud.define("getOrders", function(request, response) {
       switch (subpage) {
         case 'fully-shippable':
           tabCounts.fullyShippable = ordersResult.shippable.length;
-          response.success({orders: ordersResult.shippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, batchPdfs: batchPdfs});
+          response.success({orders: ordersResult.shippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, files: files});
           break;
         case 'partially-shippable':
           tabCounts.partiallyShippable = ordersResult.partiallyShippable.length;
-          response.success({orders: ordersResult.partiallyShippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, batchPdfs: batchPdfs});
+          response.success({orders: ordersResult.partiallyShippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, files: files});
           break;
         default:
-          response.success({orders: ordersResult, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, batchPdfs: batchPdfs});
+          response.success({orders: ordersResult, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, files: files});
           break;
       }
       
     } else {
-      response.success({orders: ordersResult, totalPages: totalPages, totalOrders: totalOrders, tabCounts: tabCounts, batchPdfs: batchPdfs});
+      response.success({orders: ordersResult, totalPages: totalPages, totalOrders: totalOrders, tabCounts: tabCounts, files: files});
     }
 	  
   }, function(error) {
@@ -1074,6 +1074,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
   var allShipmentGroups = [];
   var tabCounts;
   var generatedFile;
+  var newFiles = [];
   
   logInfo('\nbatchCreateShipments -----------------------------');
   
@@ -1103,6 +1104,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
     updatedOrders = httpResponse.data.result.updatedOrders;
     errors = httpResponse.data.result.errors;
     generatedFile = httpResponse.data.result.generatedFile;
+    newFiles = httpResponse.data.result.newFiles;
     
     return Parse.Cloud.httpRequest({
       method: 'post',
@@ -1121,7 +1123,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
     tabCounts = httpResponse.data.result;
     
     logInfo('order successfully reloaded');
-	  response.success({updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors, generatedFile: generatedFile});
+	  response.success({updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors, generatedFile: generatedFile, newFiles: newFiles});
 	  
   }, function(error) {
 	  logError(error);
