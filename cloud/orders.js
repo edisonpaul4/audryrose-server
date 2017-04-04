@@ -126,6 +126,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
     tabCounts = response.data.result;
     var batchPdfsQuery = new Parse.Query(BatchPdf);
     batchPdfsQuery.limit(20);
+    batchPdfsQuery.descending('createdAt');
     return batchPdfsQuery.find();
     
   }, function(error) {
