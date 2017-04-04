@@ -13,6 +13,7 @@ var OrderProduct = Parse.Object.extend('OrderProduct');
 var OrderShipment = Parse.Object.extend('OrderShipment');
 var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');
+var BatchPdf = Parse.Object.extend('BatchPdf');
 
 const ORDERS_PER_PAGE = 50;
 
@@ -46,6 +47,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
   var search = request.params.search ? request.params.search : null;
   var subpage = request.params.subpage ? request.params.subpage : 'awaiting-fulfillment';
   var paginate = true;
+  var batchPdfs = [];
   
   var ordersQuery = new Parse.Query(Order);
   
@@ -122,6 +124,19 @@ Parse.Cloud.define("getOrders", function(request, response) {
     }
   }).then(function(response) {
     tabCounts = response.data.result;
+    var batchPdfsQuery = new Parse.Query(BatchPdf);
+    batchPdfsQuery.limit(20);
+    return batchPdfsQuery.find();
+    
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
+  }).then(function(result) {
+    _.each(batchPdfs, function(batchPdf) {
+      var file = batchPdf.get('file')
+      batchPdfs.push({name: batchPdf.get('name'), createdAt: batchPdf.get('createdAt'), url: file.url()});
+    })
     return ordersQuery.count();
     
   }, function(error) {
@@ -150,19 +165,19 @@ Parse.Cloud.define("getOrders", function(request, response) {
       switch (subpage) {
         case 'fully-shippable':
           tabCounts.fullyShippable = ordersResult.shippable.length;
-          response.success({orders: ordersResult.shippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts});
+          response.success({orders: ordersResult.shippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, batchPdfs: batchPdfs});
           break;
         case 'partially-shippable':
           tabCounts.partiallyShippable = ordersResult.partiallyShippable.length;
-          response.success({orders: ordersResult.partiallyShippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts});
+          response.success({orders: ordersResult.partiallyShippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, batchPdfs: batchPdfs});
           break;
         default:
-          response.success({orders: ordersResult, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts});
+          response.success({orders: ordersResult, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, batchPdfs: batchPdfs});
           break;
       }
       
     } else {
-      response.success({orders: ordersResult, totalPages: totalPages, totalOrders: totalOrders, tabCounts: tabCounts});
+      response.success({orders: ordersResult, totalPages: totalPages, totalOrders: totalOrders, tabCounts: tabCounts, batchPdfs: batchPdfs});
     }
 	  
   }, function(error) {
@@ -426,13 +441,15 @@ Parse.Cloud.define("loadOrder", function(request, response) {
     logInfo('Count the orders products shippable/resizable status');
     var numShippable = 0;
     var numResizable = 0;
+    var numShipped = 0;
     _.each(orderProducts, function(orderProduct) {
       if (orderProduct.has('shippable') && orderProduct.get('shippable') == true) numShippable++;
       if (orderProduct.has('resizable') && orderProduct.get('resizable') == true) numResizable++;
+      if (orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) numShipped++;
     });
     
     // Set order shippable status
-    if (numShippable == orderProducts.length) {
+    if (numShippable == orderProducts.length || numShippable == (orderProducts.length - numShipped)) {
       logInfo('set as fully shippable');
       orderObj.set('fullyShippable', true);
       orderObj.set('partiallyShippable', false);
@@ -1018,19 +1035,30 @@ Parse.Cloud.define("createShipments", function(request, response) {
         });
       });
     });
-    return combinePdfs(pdfsToCombine);
+    if (pdfsToCombine.length > 0) {
+      return combinePdfs(pdfsToCombine);
+    } else {
+      return;
+    }
     
   }).then(function(result) {
     if (result) {
       logInfo('batch pdf generated');
       generatedFile = result.url();
+      var batchPdf = new BatchPdf();
+      batchPdf.set('file', result);
+      var pdfName = newShipments.length + ' Shipments';
+      batchPdf.set('name', pdfName);
+      return batchPdf.save(null, {useMasterKey: true});
     } else {
       logError('no batch pdf generated');
-      errors.push('Error creating combined shipping labels pdf.');
+      return;
     }
     
+  }).then(function(result) {
+    var newFiles = result ? [result] : null;
     logInfo('Created ' + newShipments.length + ' shipments. ' + shipmentGroupsFailed.length + ' shipment groups failed.');
-    response.success({updatedOrders: updatedOrdersArray, errors: errors, generatedFile: generatedFile});
+    response.success({updatedOrders: updatedOrdersArray, errors: errors, generatedFile: generatedFile, newFiles: newFiles});
     
   }, function(error) {
     logError(error);
@@ -1137,11 +1165,20 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
     if (result) {
       logInfo('batch pdf generated');
       generatedFile = result.url();
+      var batchPdf = new BatchPdf();
+      batchPdf.set('file', result);
+      var pdfName = ordersToPrint.length + ' Orders';
+      batchPdf.set('name', pdfName);
+      return batchPdf.save(null, {useMasterKey: true});
     } else {
       logError('no batch pdf generated');
       errors.push('Error creating combined shipping labels pdf.');
+      return;
     }
-	  response.success({generatedFile: generatedFile, errors: errors});
+    
+  }).then(function(result) {
+    var newFiles = result ? [result] : null;
+	  response.success({generatedFile: generatedFile, errors: errors, newFiles: newFiles});
 	  
   }, function(error) {
 	  logError(error);
@@ -1335,30 +1372,30 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
             if (variant && item.variantId == variant.id) {
               var totalOrdered = item.totalOrdered + orderProduct.get('quantity');
               if (totalOrdered <= variant.get('inventoryLevel')) {
-  //               logInfo('variant ' + variant.id + ' is shippable with ' + totalOrdered + ' total ordered');
+//                 logInfo('variant ' + variant.id + ' is shippable with ' + totalOrdered + ' total ordered');
                 variantsOrderedCount[i].totalOrdered = totalOrdered;
                 shippableOrderProducts.push(orderProduct);
               } else {
-  //               logInfo('variant ' + variant.id + ' is not shippable with ' + totalOrdered + ' total ordered');
+//                 logInfo('variant ' + variant.id + ' is not shippable with ' + totalOrdered + ' total ordered');
                 unshippableOrderProducts.push(orderProduct);
               }
               counted = true;
             }
           };
           if (!counted && orderProduct.get('quantity') <= variant.get('inventoryLevel')) {
-  //           logInfo('new variant ' + variant.id + ' is shippable with ' + orderProduct.get('quantity') + ' total ordered');
+//             logInfo('new variant ' + variant.id + ' is shippable with ' + orderProduct.get('quantity') + ' total ordered');
             variantsOrderedCount.push({variantId: variant.id, totalOrdered: orderProduct.get('quantity')});
             shippableOrderProducts.push(orderProduct);
           } else if (!counted && orderProduct.get('quantity') > variant.get('inventoryLevel')) {
-  //           logInfo('new variant ' + variant.id + ' is not shippable with ' + orderProduct.get('quantity') + ' total ordered');
+//             logInfo('new variant ' + variant.id + ' is not shippable with ' + orderProduct.get('quantity') + ' total ordered');
             unshippableOrderProducts.push(orderProduct);
           }
         } else {
-          logInfo('order product does not have a variant');
+//           logInfo('order product does not have a variant');
         }
       });
     });
-    logInfo('shippableOrderProducts:' + shippableOrderProducts.length + ', unshippableOrderProducts:' + unshippableOrderProducts.length);
+//     logInfo('shippableOrderProducts:' + shippableOrderProducts.length + ', unshippableOrderProducts:' + unshippableOrderProducts.length);
     ordersQuery = getOrderSort(ordersQuery, currentSort);
     return ordersQuery.find();
   
@@ -1372,13 +1409,13 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
         });
       });
       if (orderProducts.length == totalShippableOrderProducts) {
-//         logInfo('order is shippable');
+//         logInfo('order ' + order.get('orderId') + ' is shippable. op:' + orderProducts.length + ', shippable:' + totalShippableOrderProducts);
         shippableOrders.push(order);
       } else if (totalShippableOrderProducts > 0) {
-//         logInfo('order is partially shippable');
+//         logInfo('order ' + order.get('orderId') + ' is partially shippable. op:' + orderProducts.length + ', shippable:' + totalShippableOrderProducts);
         partiallyShippableOrders.push(order);
       } else {
-//         logInfo('order is unshippable');
+//         logInfo('order ' + order.get('orderId') + ' is unshippable. op:' + orderProducts.length + ', shippable:' + totalShippableOrderProducts);
         unshippableOrders.push(order);
       }
     });
