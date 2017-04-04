@@ -318,12 +318,18 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     var rulesRequest = '/products/' + productId + '/rules';
     return bigCommerce.get(rulesRequest);
   
+  }, function(error) {
+  	logError(error);
+		response.error(error.message);
   }).then(function(res) {
     bcProductRules = res;
     if (!bcProduct.option_set) return null;
     var optionSetsRequest = '/optionsets/' + bcProduct.option_set_id + '/options';
     return bigCommerce.get(optionSetsRequest);
   
+  }, function(error) {
+  	logError(error);
+		response.error(error.message);
   }).then(function(res) {
     bcProductOptions = res;
     
@@ -350,9 +356,15 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
           return createProductVariantObject(product, variantId, null);
         }
         
+      }, function(error) {
+      	logError(error);
+    		response.error(error.message);
       }).then(function(variantObject) {
         return variantObject.save(null, {useMasterKey: true});
         
+      }, function(error) {
+      	logError(error);
+    		response.error(error.message);
       }).then(function(variantObject) {
         allVariants.push(variantObject);
         return variantObject;
@@ -438,9 +450,15 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
             return createProductVariantObject(product, variantId, variantOptions);
           }
           
+        }, function(error) {
+        	logError(error);
+      		response.error(error.message);
         }).then(function(variantObject) {
           return variantObject.save(null, {useMasterKey: true});
           
+        }, function(error) {
+        	logError(error);
+      		response.error(error.message);
         }).then(function(variantObject) {
           allVariants.push(variantObject);
           return variantObject;
@@ -454,12 +472,18 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
       return promise;
     }
     
+  }, function(error) {
+  	logError(error);
+		response.error(error.message);
   }).then(function() {
 		var now = new Date();
 		product.set("variantsUpdatedAt", now);
     product.set('variants', allVariants);
     return product.save(null, {useMasterKey: true});
     
+  }, function(error) {
+  	logError(error);
+		response.error(error.message);
   }).then(function(savedProduct) {
     
     response.success(totalVariantsAdded);
