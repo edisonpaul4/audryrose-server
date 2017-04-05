@@ -130,16 +130,18 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
   var webhookData = request.params.data;
   var orderId = parseInt(webhookData.id);
   
-  Parse.Cloud.httpRequest({
-    method: 'post',
-    url: process.env.SERVER_URL + '/functions/loadOrder',
-    headers: {
-      'X-Parse-Application-Id': process.env.APP_ID,
-      'X-Parse-Master-Key': process.env.MASTER_KEY
-    },
-    params: {
-      orderId: orderId
-    }
+  delay(10000).then(function() {
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/loadOrder',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      },
+      params: {
+        orderId: orderId
+      }
+    });
   }).then(function(httpResponse) {
     
     logInfo('order successfully reloaded');
@@ -206,6 +208,12 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
 /////////////////////////
 //  UTILITY FUNCTIONS  //
 /////////////////////////
+
+var delay = function(t) {
+  return new Promise(function(resolve) { 
+    setTimeout(resolve, t)
+  });
+}
 
 var logInfo = function(i) {
   console.info(i);

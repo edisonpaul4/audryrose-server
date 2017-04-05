@@ -8,6 +8,8 @@ var streams = require('memory-streams');
 var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
 // var memwatch = require('memwatch-next');
 
+// var loadOrder = require('./orders/load-order.js');
+
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
 var OrderShipment = Parse.Object.extend('OrderShipment');
@@ -273,314 +275,10 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 });
 
 Parse.Cloud.define("loadOrder", function(request, response) {
-  var bcOrder;
   var bcOrderId = request.params.orderId;
-  var bcOrderShipments = [];
-  var orderObj;
-  var orderProducts = [];
-  var orderShipments = [];
-  var totalProductsAdded = 0;
-  var totalShipmentsAdded = 0;
-  var orderAdded = false;
-  var hd;
   
-  var orderRequest = '/orders/' + bcOrderId;
-  logInfo(orderRequest);
-  bigCommerce.get(orderRequest).then(function(res) {
-    bcOrder = res;
-    logInfo('\nOrder ' + bcOrderId + ' is ' + bcOrder.status + ' ------------------------');
-    
-    var orderQuery = new Parse.Query(Order);
-    orderQuery.equalTo('orderId', parseInt(bcOrderId));
-    return orderQuery.first();
-    
-  }).then(function(orderResult) {
-//     hd = new memwatch.HeapDiff();
-    
-    if (orderResult) {
-      logInfo('Order exists.');
-      return createOrderObject(bcOrder, orderResult).save(null, {useMasterKey: true});
-    } else {
-      logInfo('Order is new.');
-      orderAdded = true;
-      return createOrderObject(bcOrder).save(null, {useMasterKey: true});
-    }
-    
-  }).then(function(result) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
-    
-    orderObj = result;
-    
-    // Load order shipments
-    var request = '/orders/' + bcOrderId + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
-    return bigCommerce.get(request);
-    
-  }).then(function(result) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
-    
-    if (result.length > 0) bcOrderShipments = result;
-    
-    // Load order products
-    var request = '/orders/' + bcOrderId + '/products?limit=' + BIGCOMMERCE_BATCH_SIZE;
-    return bigCommerce.get(request);
-    
-  }).then(function(bcOrderProducts) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-    
-    var promise = Parse.Promise.as();
-		_.each(bcOrderProducts, function(orderProduct) {
-//   		hd = new memwatch.HeapDiff();
-  		promise = promise.then(function() {
-    		logInfo('Process orderProduct id: ' + orderProduct.id);
-        var orderProductQuery = new Parse.Query(OrderProduct);
-        orderProductQuery.equalTo('orderProductId', parseInt(orderProduct.id));
-    		return orderProductQuery.first();
-    		
-  		}, function(error){
-    		logError(error);
-    		
-  		}).then(function(orderProductResult) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
-        if (orderProductResult) {
-          logInfo('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.');
-          return createOrderProductObject(orderProduct, orderObj, orderProductResult);
-        } else {
-          logInfo('OrderProduct ' + orderProduct.id + ' is new.');
-          totalProductsAdded++;
-          return createOrderProductObject(orderProduct, orderObj);
-        }
-    		
-  		}, function(error){
-    		logError(error);
-    		
-  		}).then(function(orderProductObject) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
-    		return getOrderProductVariant(orderProductObject);
-    		
-  		}, function(error){
-    		logError(error);
-    		
-  		}).then(function(orderProductObject) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
-    		return getOrderProductShippingAddress(orderProductObject);
-    		
-  		}, function(error){
-    		logError(error);
-    		
-  		}).then(function(orderProductObject) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
-    		// Set order product quantity shippped each time to update based on BC shipment changes
-    		if (bcOrderShipments <= 0) {
-      		orderProductObject.set('quantity_shipped', 0);
-      		logInfo('OrderProduct quantity shipped: 0');
-    		} else {
-      		var totalShipped = 0;
-      		_.each(bcOrderShipments, function(bcOrderShipment) {
-        		_.each(bcOrderShipment.items, function(item) {
-          		if (orderProduct.id == item.order_product_id) totalShipped += item.quantity;
-        		});
-      		});
-      		orderProductObject.set('quantity_shipped', totalShipped);
-      		logInfo('OrderProduct quantity shipped: ' + totalShipped);
-    		}
-    		
-    		return orderProductObject.save(null, {useMasterKey: true});
-    		
-  		}, function(error){
-    		logError(error);
-    		
-  		}).then(function(orderProductObject) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
-        logInfo('add OrderProduct ' + orderProductObject.get('orderProductId') + ' to orderProducts array');
-    		orderProducts.push(orderProductObject);
-    		return true;
-    		
-  		}, function(error){
-    		logError(error);
-    		
-  		});
-    });
-    return promise;
-    
-  }).then(function(result) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
-    
-    logInfo('total orderProducts: ' + orderProducts.length);
-    orderObj.set('orderProducts', orderProducts);
-    
-    // Check shippable and resize status of each OrderProduct
-    if (orderProducts.length > 0) {
-      return getOrderProductsStatus(orderProducts);
-    } else {
-      return true;
-    }
-    
-  }).then(function(result) {
-    if (result.length > 0) orderProducts = result;
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
-    
-    // Count the order's products shippable/resizable status
-    logInfo('Count the orders products shippable/resizable status');
-    var numShippable = 0;
-    var numResizable = 0;
-    var numShipped = 0;
-    _.each(orderProducts, function(orderProduct) {
-      if (orderProduct.has('shippable') && orderProduct.get('shippable') == true) numShippable++;
-      if (orderProduct.has('resizable') && orderProduct.get('resizable') == true) numResizable++;
-      if (orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) numShipped++;
-    });
-    
-    // Set order shippable status
-    if (numShippable == orderProducts.length || numShippable == (orderProducts.length - numShipped)) {
-      logInfo('set as fully shippable');
-      orderObj.set('fullyShippable', true);
-      orderObj.set('partiallyShippable', false);
-    } else if (numShippable > 0) {
-      logInfo('set as partially shippable');
-      orderObj.set('fullyShippable', false);
-      orderObj.set('partiallyShippable', true);
-    } else {
-      logInfo('set as cannot ship');
-      orderObj.set('fullyShippable', false);
-      orderObj.set('partiallyShippable', false);
-    }
-    
-    // Set order resizable status
-    if (numResizable > 0) {
-      logInfo('set as resizable');
-      orderObj.set('resizable', true);
-    } else {
-      orderObj.set('resizable', false);
-    }
-    
-    return true;
-    
-  }).then(function(result) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
-    
-    logInfo('Process order shipments');
-    
-    if (bcOrderShipments <= 0) {
-      logInfo('No shipments found');
-      if (bcOrder.status_id == 2) {
-        // Set the Bigcommerce order status to 'Awaiting Fulfillment' (resets order when shipments are deleted)
-        orderObj.set('status', 'Awaiting Fulfillment');
-        orderObj.set('status_id', 11);
-        var request = '/orders/' + bcOrderId;
-        return bigCommerce.put(request, {status_id: 11}); 
-      } else {
-        return true;
-      }
-    } else {      
-      logInfo(bcOrderShipments.length + ' shipments found');
-    }
-    
-    var promise = Parse.Promise.as();
-		_.each(bcOrderShipments, function(orderShipment) {
-//   		hd = new memwatch.HeapDiff();
-  		var orderShipmentObject;
-  		promise = promise.then(function() {
-    		logInfo('Process shipment id: ' + orderShipment.id);
-        var orderShipmentQuery = new Parse.Query(OrderShipment);
-        orderShipmentQuery.equalTo('shipmentId', parseInt(orderShipment.id));
-    		return orderShipmentQuery.first()
-    		
-  		}).then(function(orderShipmentResult) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
-        
-        if (orderShipmentResult) {
-          logInfo('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
-          return createOrderShipmentObject(orderShipment, null, orderShipmentResult);
-        } else {
-          logInfo('OrderShipment ' + orderShipment.id + ' is new.');
-          totalShipmentsAdded++;
-          return createOrderShipmentObject(orderShipment, null);
-        }
-    		
-  		}).then(function(result) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
-        
-    		orderShipmentObject = result;
-//     		if (orderShipmentObject.has('packingSlip')) return orderShipmentObject;
-    		return createOrderShipmentPackingSlip(orderObj, orderShipmentObject);
-    		
-  		}).then(function(result) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
-        
-    		orderShipmentObject = result;
-    		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url')) return false;
-    		return combinePdfs([orderShipmentObject.get('packingSlipUrl'), orderShipmentObject.get('shippo_label_url')]);
-    		
-  		}).then(function(result) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
-            		
-    		if (result) {
-          orderShipmentObject.set('labelWithPackingSlip', result);
-          orderShipmentObject.set('labelWithPackingSlipUrl', result.url());
-    		}
-    		return orderShipmentObject.save(null, {useMasterKey: true});
-    		
-  		}).then(function(result) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
-        
-    		orderShipments.push(result);
-    		return true;
-  		});
-    });
-    return promise;
-    
-  }).then(function(result) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
-    
-    if (orderShipments.length > 0) {
-      logInfo('set ' + orderShipments.length + ' shipments to the order');
-      orderObj.set('orderShipments', orderShipments);
-    } else {
-      logInfo('set no shipments to the order');
-      orderObj.unset('orderShipments');
-    }
-    logInfo('save order...');
-    return orderObj.save(null, {useMasterKey: true});
-    
-  }).then(function() {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-    
-    logInfo('order saved');
-    response.success({added: orderAdded});
+  loadOrder(bcOrderId).then(function(res) {
+    response.success({added: res.added});
     
   }, function(error) {
     logError(error);
@@ -595,19 +293,9 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
   var bcOrder;
   var tabCounts;
   
-  logInfo('reloadOrder ' + orderId);
-
-  Parse.Cloud.httpRequest({
-    method: 'post',
-    url: process.env.SERVER_URL + '/functions/loadOrder',
-    headers: {
-      'X-Parse-Application-Id': process.env.APP_ID,
-      'X-Parse-Master-Key': process.env.MASTER_KEY
-    },
-    params: {
-      orderId: orderId
-    }
-  }).then(function(response) {
+  logInfo('reloadOrder ' + orderId + ' ------------------------');
+  
+  loadOrder(orderId).then(function(response) {
     logInfo('get order data');
     var ordersQuery = new Parse.Query(Order);
     ordersQuery.equalTo("orderId", orderId);
@@ -983,19 +671,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     var promise = Parse.Promise.as();
     _.each(allOrderIds, function(orderIdToLoad) {
       promise = promise.then(function() {
-        var orderRequest = '/orders/' + orderIdToLoad;
-        logInfo(orderRequest);
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadOrder',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            orderId: orderIdToLoad
-          }
-        });
+        return loadOrder(orderIdToLoad);
           
       }).then(function(response) {
         logInfo('get order data');
@@ -1303,6 +979,325 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
 //  UTILITY FUNCTIONS  //
 /////////////////////////
 
+var loadOrder = function(bcOrderId) {
+  var bcOrder;
+//   var bcOrderId = request.orderId;
+  var bcOrderShipments = [];
+  var orderObj;
+  var orderProducts = [];
+  var orderShipments = [];
+  var totalProductsAdded = 0;
+  var totalShipmentsAdded = 0;
+  var orderAdded = false;
+  var hd;
+  
+  var orderRequest = '/orders/' + bcOrderId;
+  logInfo(orderRequest);
+  
+  return bigCommerce.get(orderRequest).then(function(res) {
+    bcOrder = res;
+    logInfo('\nOrder ' + bcOrderId + ' is ' + bcOrder.status + ' ------------------------');
+    
+    var orderQuery = new Parse.Query(Order);
+    orderQuery.equalTo('orderId', parseInt(bcOrderId));
+    return orderQuery.first();
+    
+  }).then(function(orderResult) {
+//     hd = new memwatch.HeapDiff();
+    
+    if (orderResult) {
+      logInfo('Order exists.');
+      return createOrderObject(bcOrder, orderResult).save(null, {useMasterKey: true});
+    } else {
+      logInfo('Order is new.');
+      orderAdded = true;
+      return createOrderObject(bcOrder).save(null, {useMasterKey: true});
+    }
+    
+  }).then(function(result) {
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
+    
+    orderObj = result;
+    
+    // Load order shipments
+    var request = '/orders/' + bcOrderId + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
+    return bigCommerce.get(request);
+    
+  }).then(function(result) {
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
+    
+    if (result.length > 0) bcOrderShipments = result;
+    
+    // Load order products
+    var request = '/orders/' + bcOrderId + '/products?limit=' + BIGCOMMERCE_BATCH_SIZE;
+    return bigCommerce.get(request);
+    
+  }).then(function(bcOrderProducts) {
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+    
+    var promise = Parse.Promise.as();
+		_.each(bcOrderProducts, function(orderProduct) {
+//   		hd = new memwatch.HeapDiff();
+  		promise = promise.then(function() {
+    		logInfo('Process orderProduct id: ' + orderProduct.id);
+        var orderProductQuery = new Parse.Query(OrderProduct);
+        orderProductQuery.equalTo('orderProductId', parseInt(orderProduct.id));
+    		return orderProductQuery.first();
+    		
+  		}, function(error){
+    		logError(error);
+    		
+  		}).then(function(orderProductResult) {
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
+        if (orderProductResult) {
+          logInfo('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.');
+          return createOrderProductObject(orderProduct, orderObj, orderProductResult);
+        } else {
+          logInfo('OrderProduct ' + orderProduct.id + ' is new.');
+          totalProductsAdded++;
+          return createOrderProductObject(orderProduct, orderObj);
+        }
+    		
+  		}, function(error){
+    		logError(error);
+    		
+  		}).then(function(orderProductObject) {
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
+    		return getOrderProductVariant(orderProductObject);
+    		
+  		}, function(error){
+    		logError(error);
+    		
+  		}).then(function(orderProductObject) {
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
+    		return getOrderProductShippingAddress(orderProductObject);
+    		
+  		}, function(error){
+    		logError(error);
+    		
+  		}).then(function(orderProductObject) {
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
+    		// Set order product quantity shippped each time to update based on BC shipment changes
+    		if (bcOrderShipments <= 0) {
+      		orderProductObject.set('quantity_shipped', 0);
+      		logInfo('OrderProduct quantity shipped: 0');
+    		} else {
+      		var totalShipped = 0;
+      		_.each(bcOrderShipments, function(bcOrderShipment) {
+        		_.each(bcOrderShipment.items, function(item) {
+          		if (orderProduct.id == item.order_product_id) totalShipped += item.quantity;
+        		});
+      		});
+      		orderProductObject.set('quantity_shipped', totalShipped);
+      		logInfo('OrderProduct quantity shipped: ' + totalShipped);
+    		}
+    		
+    		return orderProductObject.save(null, {useMasterKey: true});
+    		
+  		}, function(error){
+    		logError(error);
+    		
+  		}).then(function(orderProductObject) {
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
+        logInfo('add OrderProduct ' + orderProductObject.get('orderProductId') + ' to orderProducts array');
+    		orderProducts.push(orderProductObject);
+    		return true;
+    		
+  		}, function(error){
+    		logError(error);
+    		
+  		});
+    });
+    return promise;
+    
+  }).then(function(result) {
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
+    
+    logInfo('total orderProducts: ' + orderProducts.length);
+    orderObj.set('orderProducts', orderProducts);
+    
+    // Check shippable and resize status of each OrderProduct
+    if (orderProducts.length > 0) {
+      return getOrderProductsStatus(orderProducts);
+    } else {
+      return true;
+    }
+    
+  }).then(function(result) {
+    if (result.length > 0) orderProducts = result;
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
+    
+    // Count the order's products shippable/resizable status
+    logInfo('Count the orders products shippable/resizable status');
+    var numShippable = 0;
+    var numResizable = 0;
+    var numShipped = 0;
+    _.each(orderProducts, function(orderProduct) {
+      if (orderProduct.has('shippable') && orderProduct.get('shippable') == true) numShippable++;
+      if (orderProduct.has('resizable') && orderProduct.get('resizable') == true) numResizable++;
+      if (orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) numShipped++;
+    });
+    
+    // Set order shippable status
+    if (numShippable == orderProducts.length || numShippable == (orderProducts.length - numShipped)) {
+      logInfo('set as fully shippable');
+      orderObj.set('fullyShippable', true);
+      orderObj.set('partiallyShippable', false);
+    } else if (numShippable > 0) {
+      logInfo('set as partially shippable');
+      orderObj.set('fullyShippable', false);
+      orderObj.set('partiallyShippable', true);
+    } else {
+      logInfo('set as cannot ship');
+      orderObj.set('fullyShippable', false);
+      orderObj.set('partiallyShippable', false);
+    }
+    
+    // Set order resizable status
+    if (numResizable > 0) {
+      logInfo('set as resizable');
+      orderObj.set('resizable', true);
+    } else {
+      orderObj.set('resizable', false);
+    }
+    
+    return true;
+    
+  }).then(function(result) {
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
+    
+    logInfo('Process order shipments');
+    
+    if (bcOrderShipments <= 0) {
+      logInfo('No shipments found');
+      if (bcOrder.status_id == 2) {
+        // Set the Bigcommerce order status to 'Awaiting Fulfillment' (resets order when shipments are deleted)
+        orderObj.set('status', 'Awaiting Fulfillment');
+        orderObj.set('status_id', 11);
+        var request = '/orders/' + bcOrderId;
+        return bigCommerce.put(request, {status_id: 11}); 
+      } else {
+        return true;
+      }
+    } else {      
+      logInfo(bcOrderShipments.length + ' shipments found');
+    }
+    
+    var promise = Parse.Promise.as();
+		_.each(bcOrderShipments, function(orderShipment) {
+//   		hd = new memwatch.HeapDiff();
+  		var orderShipmentObject;
+  		promise = promise.then(function() {
+    		logInfo('Process shipment id: ' + orderShipment.id);
+        var orderShipmentQuery = new Parse.Query(OrderShipment);
+        orderShipmentQuery.equalTo('shipmentId', parseInt(orderShipment.id));
+    		return orderShipmentQuery.first()
+    		
+  		}).then(function(orderShipmentResult) {
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
+        
+        if (orderShipmentResult) {
+          logInfo('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
+          return createOrderShipmentObject(orderShipment, null, orderShipmentResult);
+        } else {
+          logInfo('OrderShipment ' + orderShipment.id + ' is new.');
+          totalShipmentsAdded++;
+          return createOrderShipmentObject(orderShipment, null);
+        }
+    		
+  		}).then(function(result) {
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
+        
+    		orderShipmentObject = result;
+//     		if (orderShipmentObject.has('packingSlip')) return orderShipmentObject;
+    		return createOrderShipmentPackingSlip(orderObj, orderShipmentObject);
+    		
+  		}).then(function(result) {
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
+        
+    		orderShipmentObject = result;
+    		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url')) return false;
+    		return combinePdfs([orderShipmentObject.get('packingSlipUrl'), orderShipmentObject.get('shippo_label_url')]);
+    		
+  		}).then(function(result) {
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
+            		
+    		if (result) {
+          orderShipmentObject.set('labelWithPackingSlip', result);
+          orderShipmentObject.set('labelWithPackingSlipUrl', result.url());
+    		}
+    		return orderShipmentObject.save(null, {useMasterKey: true});
+    		
+  		}).then(function(result) {
+//         var diff = hd.end();
+//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//         hd = new memwatch.HeapDiff();
+        
+    		orderShipments.push(result);
+    		return true;
+  		});
+    });
+    return promise;
+    
+  }).then(function(result) {
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+//     hd = new memwatch.HeapDiff();
+    
+    if (orderShipments.length > 0) {
+      logInfo('set ' + orderShipments.length + ' shipments to the order');
+      orderObj.set('orderShipments', orderShipments);
+    } else {
+      logInfo('set no shipments to the order');
+      orderObj.unset('orderShipments');
+    }
+    logInfo('save order...');
+    return orderObj.save(null, {useMasterKey: true});
+    
+  }).then(function() {
+//     var diff = hd.end();
+//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
+    
+    logInfo('order saved');
+    return {added: orderAdded};
+    
+  }, function(error) {
+    logError(error);
+    return error;
+		
+	});
+
+}
+
 var getOrderSort = function(ordersQuery, currentSort) {
   switch (currentSort) {
     case 'date-added-desc':
@@ -1342,6 +1337,7 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
   var ordersSorted = ordersQuery;
   ordersSorted.ascending("date_created");
   var variantsOrderedCount = [];
+  var shippedOrderProducts = [];
   var shippableOrderProducts = [];
   var unshippableOrderProducts = [];
   var shippableOrders = [];
@@ -1355,33 +1351,36 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
     
   }).then(function(ordersResult) {
     _.each(ordersResult, function(order) {
-//       logInfo('getInventoryAwareShippableOrders order: ' + order.get('orderId'));
+//       logInfo('\ngetInventoryAwareShippableOrders order: ' + order.get('orderId'));
       var orderProducts = order.get('orderProducts');
       _.each(orderProducts, function(orderProduct) {
         var variant = orderProduct.get('variant');
-        if (variant) {
+        if (orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) {
+//           logInfo('orderProduct ' + orderProduct.id + ' is shipped');
+          shippedOrderProducts.push(orderProduct);
+        } else if (variant) {
           var counted = false;
           for (var i = 0; i < variantsOrderedCount.length; i++) {
             var item = variantsOrderedCount[i];
             if (variant && item.variantId == variant.id) {
               var totalOrdered = item.totalOrdered + orderProduct.get('quantity');
               if (totalOrdered <= variant.get('inventoryLevel')) {
-//                 logInfo('variant ' + variant.id + ' is shippable with ' + totalOrdered + ' total ordered');
+//                 logInfo('orderProduct ' + orderProduct.id + ' is shippable with ' + totalOrdered + ' total ordered');
                 variantsOrderedCount[i].totalOrdered = totalOrdered;
                 shippableOrderProducts.push(orderProduct);
               } else {
-//                 logInfo('variant ' + variant.id + ' is not shippable with ' + totalOrdered + ' total ordered');
+//                 logInfo('orderProduct ' + orderProduct.id + ' is not shippable with ' + totalOrdered + ' total ordered');
                 unshippableOrderProducts.push(orderProduct);
               }
               counted = true;
             }
           };
           if (!counted && orderProduct.get('quantity') <= variant.get('inventoryLevel')) {
-//             logInfo('new variant ' + variant.id + ' is shippable with ' + orderProduct.get('quantity') + ' total ordered');
+//             logInfo('new orderProduct ' + orderProduct.id + ' is shippable with ' + orderProduct.get('quantity') + ' total ordered');
             variantsOrderedCount.push({variantId: variant.id, totalOrdered: orderProduct.get('quantity')});
             shippableOrderProducts.push(orderProduct);
           } else if (!counted && orderProduct.get('quantity') > variant.get('inventoryLevel')) {
-//             logInfo('new variant ' + variant.id + ' is not shippable with ' + orderProduct.get('quantity') + ' total ordered');
+//             logInfo('new orderProduct ' + orderProduct.id + ' is not shippable with ' + orderProduct.get('quantity') + ' total ordered');
             unshippableOrderProducts.push(orderProduct);
           }
         } else {
@@ -1394,22 +1393,27 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
     return ordersQuery.find();
   
   }).then(function(ordersResult) {
+//     logInfo('- - -');
     _.each(ordersResult, function(order) {
       var orderProducts = order.get('orderProducts');
       var totalShippableOrderProducts = 0;
+      var totalShippedOrderProducts = 0;
       _.each(orderProducts, function(orderProduct) {
         _.each(shippableOrderProducts, function(shippableOrderProduct) {
           if (orderProduct.id == shippableOrderProduct.id) totalShippableOrderProducts++;
         });
+        _.each(shippedOrderProducts, function(shippedOrderProduct) {
+          if (orderProduct.id == shippedOrderProduct.id) totalShippedOrderProducts++;
+        });
       });
-      if (orderProducts.length == totalShippableOrderProducts) {
-//         logInfo('order ' + order.get('orderId') + ' is shippable. op:' + orderProducts.length + ', shippable:' + totalShippableOrderProducts);
+      if ((orderProducts.length - totalShippedOrderProducts) == totalShippableOrderProducts) {
+//         logInfo('order ' + order.get('orderId') + ' is shippable. op:' + orderProducts.length + ', shipped:' + totalShippedOrderProducts + ', shippable:' + totalShippableOrderProducts);
         shippableOrders.push(order);
       } else if (totalShippableOrderProducts > 0) {
-//         logInfo('order ' + order.get('orderId') + ' is partially shippable. op:' + orderProducts.length + ', shippable:' + totalShippableOrderProducts);
+//         logInfo('order ' + order.get('orderId') + ' is partially shippable. op:' + orderProducts.length + ', shipped:' + totalShippedOrderProducts + ', shippable:' + totalShippableOrderProducts);
         partiallyShippableOrders.push(order);
       } else {
-//         logInfo('order ' + order.get('orderId') + ' is unshippable. op:' + orderProducts.length + ', shippable:' + totalShippableOrderProducts);
+//         logInfo('order ' + order.get('orderId') + ' is unshippable. op:' + orderProducts.length + ', shipped:' + totalShippedOrderProducts + ', shippable:' + totalShippableOrderProducts);
         unshippableOrders.push(order);
       }
     });
@@ -1574,7 +1578,7 @@ var getOrderProductShippingAddress = function(orderProduct) {
     return orderProduct;
   }, function(error) {
     logError(error);
-    return false;
+    return orderProduct;
   });
   
   return promise;
