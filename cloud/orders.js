@@ -770,7 +770,9 @@ Parse.Cloud.define("createShipments", function(request, response) {
           return p;
         });
         
-        var shipmentExtra = {};
+        var shipmentExtra = {
+          bypass_address_validation: true
+        };
         if (totalPrice >= 1000) {
           shipmentExtra.signature_confirmation = 'STANDARD';
           logInfo('shipment: signature required');
@@ -839,9 +841,9 @@ Parse.Cloud.define("createShipments", function(request, response) {
           address_from: addressFrom,
           address_to: addressTo,
           parcel: parcel,
-          object_purpose: "PURCHASE"
+          object_purpose: "PURCHASE",
+          shipment.extra = shipmentExtra
         };
-        if (shipmentExtra.signature_confirmation) shipment.extra = shipmentExtra;
         
         console.log(shipment)
         console.log(carrier.object_id)
