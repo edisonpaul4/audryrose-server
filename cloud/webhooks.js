@@ -144,7 +144,7 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
     });
   }).then(function(httpResponse) {
     
-    logInfo('order successfully reloaded');
+    logInfo('ordersWebhook success');
 	  response.success();
 	  
   }, function(error) {
@@ -194,7 +194,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
 		
 	}).then(function(httpResponse) {
     logInfo('loadProductVariants success');
-    logInfo('product successfully reloaded');
+    logInfo('productsWebhook success');
 	  response.success();
 	  
   }, function(error) {
