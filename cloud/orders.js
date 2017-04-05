@@ -842,7 +842,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
           address_to: addressTo,
           parcel: parcel,
           object_purpose: "PURCHASE",
-          shipment.extra = shipmentExtra
+          extra: shipmentExtra
         };
         
         console.log(shipment)
