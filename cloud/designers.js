@@ -65,6 +65,36 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   });
 });
 
+Parse.Cloud.define("saveDesigner", function(request, response) {
+  var objectId = request.params.objectId;
+  var email = request.params.email;
+  var designerToUpdate;
+  
+  var designerQuery = new Parse.Query(Designer);
+  designerQuery.equalTo('objectId', objectId);
+  designerQuery.first().then(function(designer) {
+    if (designer) designerToUpdate = designer;
+    
+    if (designer) {
+      if (email && email != '') {
+        designerToUpdate.set('email', email);
+      } else {
+        designerToUpdate.unset('email');
+      }
+    }
+    return designerToUpdate.save(null, {useMasterKey: true});
+    
+  }).then(function(designerObject) {
+	  response.success(designerObject);
+    
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	});
+  
+});
+
 Parse.Cloud.define("loadDesigner", function(request, response) {
   var designer = request.params.designer;
   var added = false;
