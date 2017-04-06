@@ -868,6 +868,10 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 
 });
 
+/////////////////////////
+//  AFTER SAVE         //
+/////////////////////////
+
 Parse.Cloud.afterSave("Product", function(request) {
   var productId = request.object.get('productId');
   logInfo('Product afterSave triggered for ' + productId);
