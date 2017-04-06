@@ -7,6 +7,7 @@ var path = require('path');
 var exphbs = require('express-handlebars');
 var helpers = require('handlebars-helpers')();
 var bodyParser = require('body-parser');
+var compression = require('compression');
 var dotenv = require('dotenv').config({silent: true});
 var bugsnag = require("bugsnag");
 // var memwatch = require('memwatch-next');
@@ -61,6 +62,7 @@ var dashboard = new ParseDashboard({
 
 // Set up the app
 var app = express();
+app.use(compression());
 app.use(express.static(path.join(__dirname, '/public')));
 app.engine('handlebars', exphbs({defaultLayout: 'main'}));
 app.set('view engine', 'handlebars');
