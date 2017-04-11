@@ -529,7 +529,6 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
         });
     		
   		}).then(function(response) {
-    		logInfo(JSON.stringify(response));
     		if (response.data.result.added) totalDesignersAdded++;
         return true;
         

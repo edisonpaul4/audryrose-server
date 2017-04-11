@@ -5,6 +5,7 @@ var bugsnag = require("bugsnag");
 
 var Product = Parse.Object.extend('Product');
 var Designer = Parse.Object.extend('Designer');
+var Vendor = Parse.Object.extend('Vendor');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -48,6 +49,7 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   }
   
   designersQuery.limit(DESIGNERS_PER_PAGE);
+  designersQuery.include('vendors');
   
   designersQuery.count().then(function(count) {
     totalDesigners = count;
@@ -65,6 +67,7 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   });
 });
 
+/*
 Parse.Cloud.define("saveDesigner", function(request, response) {
   var objectId = request.params.objectId;
   var email = request.params.email;
@@ -94,13 +97,16 @@ Parse.Cloud.define("saveDesigner", function(request, response) {
 	});
   
 });
+*/
 
 Parse.Cloud.define("loadDesigner", function(request, response) {
   var designer = request.params.designer;
+  var designerObj;
   var added = false;
   
   var designerQuery = new Parse.Query(Designer);
   designerQuery.equalTo('designerId', parseInt(designer.id));
+  designerQuery.include('vendor');
   designerQuery.first().then(function(designerResult) {
     if (designerResult) {
       logInfo('designer ' + designerResult.get('designerId') + ' exists.');
@@ -112,6 +118,29 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
     }
     
   }).then(function(designerObject) {
+    designerObj = designerObject;
+    
+    if (designerObject.has('vendors')) {
+      logInfo('Designer has a vendor');
+      return designerObject.get('vendors');
+      
+    } else if (designerObject.get('designerId') == 47) {
+      logInfo('Designer is Antiques and has multiple vendors');
+      return [];
+      
+    } else {
+      logInfo('Designer is self vendor');
+      var vendor = new Vendor();
+      vendor.set('name', designerObject.get('name'));
+      vendor.set('designers', [designerObject]);
+      return [vendor];
+    }
+    
+  }).then(function(vendors) {
+      designerObj.set('vendors', vendors);
+      return designerObj.save(null, {useMasterKey: true});
+    
+  }).then(function(result) {
     response.success({added: added});
     
   }, function(error) {
@@ -119,6 +148,96 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
     response.error(error.message);
 		
 	});
+});
+
+Parse.Cloud.define("saveVendor", function(request, response) {
+  var designerId = request.params.data.designerId;
+  var vendorId = request.params.data.vendorId;
+  var name = request.params.data.name;
+  var firstName = request.params.data.firstName;
+  var lastName = request.params.data.lastName;
+  var email = request.params.data.email;
+  var designer;
+  
+  var designerQuery = new Parse.Query(Designer);
+  designerQuery.equalTo('objectId', designerId);
+  designerQuery.include('vendors');
+  designerQuery.first().then(function(result) {
+    designer = result;
+    
+    if (vendorId) {
+      var vendorQuery = new Parse.Query(Vendor);
+      vendorQuery.equalTo('objectId', vendorId);
+      vendorQuery.include('designers');
+      return vendorQuery.first();
+    } else {
+      var vendor = new Vendor();
+      return vendor.save(null, {useMasterKey: true});
+    }
+    
+  }).then(function(vendor) {
+    
+    if (name && name != '') {
+      vendor.set('name', name);
+    } else {
+      vendor.unset('name');
+    }
+    if (firstName && firstName != '') {
+      vendor.set('firstName', firstName);
+    } else {
+      vendor.unset('firstName');
+    }
+    if (lastName && lastName != '') {
+      vendor.set('lastName', lastName);
+    } else {
+      vendor.unset('lastName');
+    }
+    if (email && email != '') {
+      vendor.set('email', email);
+    } else {
+      vendor.unset('email');
+    }
+    if (name && name != '') {
+      vendor.set('email', email);
+    } else {
+      vendor.unset('email');
+    }
+    
+    if (vendor.has('designers')) {
+      vendor.addUnique('designers', designer);
+    } else {
+      vendor.set('designers', [designer]);
+    }
+    
+    return vendor.save(null, {useMasterKey: true});
+    
+    
+  }).then(function(vendorObject) {
+    
+    if (designer.has('vendors')) {
+      designer.addUnique('vendors', vendorObject);
+    } else {
+      designer.set('vendors', [vendorObject]);
+    }
+    
+    return designer.save(null, {useMasterKey: true});
+    
+  }).then(function(designerObject) {
+    
+    designerQuery = new Parse.Query(Designer);
+    designerQuery.equalTo('objectId', designerId);
+    designerQuery.include('vendors');
+    return designerQuery.first();
+    
+  }).then(function(designerObject) {
+    response.success(designerObject);
+    
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	});
+  
 });
 
 
