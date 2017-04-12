@@ -28,6 +28,7 @@ const DESIGNERS_PER_PAGE = 50;
 
 Parse.Cloud.define("getDesigners", function(request, response) {
   var totalDesigners;
+  var designers;
   var totalPages;
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
   var currentSort = (request.params.sort) ? request.params.sort : 'name-asc';
@@ -48,16 +49,19 @@ Parse.Cloud.define("getDesigners", function(request, response) {
       break; 
   }
   
-  designersQuery.limit(DESIGNERS_PER_PAGE);
+  designersQuery.limit(10000);
   designersQuery.include('vendors');
+  designersQuery.include('vendors.pendingOrder');
   
   designersQuery.count().then(function(count) {
     totalDesigners = count;
-    totalPages = Math.ceil(totalDesigners / DESIGNERS_PER_PAGE);
-    designersQuery.skip((currentPage - 1) * DESIGNERS_PER_PAGE);
+    totalPages = Math.ceil(totalDesigners / 10000);
+    designersQuery.skip((currentPage - 1) * 10000);
     return designersQuery.find({useMasterKey:true});
     
-  }).then(function(designers) {
+  }).then(function(results) {
+    designers = results;
+    
 	  response.success({designers: designers, totalPages: totalPages});
 	  
   }, function(error) {
