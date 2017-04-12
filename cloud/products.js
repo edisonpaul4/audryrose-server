@@ -323,13 +323,14 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     
   }).then(function(res) {
     bcProduct = res;
-    if (!bcProduct) return;
+    if (!bcProduct) response.error('Product ' + productId + ' not found in Bigcommerce.');
     var rulesRequest = '/products/' + productId + '/rules';
     return bigCommerce.get(rulesRequest);
   
   }, function(error) {
-  	logError(error);
-		response.error(error.message);
+  	logError('Error loading product ' + productId + ' from Bigcommerce.' + JSON.stringify(error));
+		response.error('Error loading product ' + productId + ' from Bigcommerce.');
+		
   }).then(function(res) {
     bcProductRules = res;
     if (!bcProduct.option_set) return;
