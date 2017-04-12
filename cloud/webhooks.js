@@ -134,6 +134,7 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
   var requestedOrderId = parseInt(webhookData.id);
   
   // Add order id to server orders queue
+  logInfo('orders queue: ' + ordersQueue.join(','));
   if (ordersQueue.indexOf(requestedOrderId) < 0) {
     ordersQueue.push(requestedOrderId);
     
@@ -142,8 +143,8 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
       
       var promise = Parse.Promise.as();
   		_.each(ordersQueueToProcess, function(orderId) {
-    		logInfo('webhook loadOrder id: ' + orderId);
     		promise = promise.then(function() {
+      		logInfo('webhook loadOrder id: ' + orderId);
           return Parse.Cloud.httpRequest({
             method: 'post',
             url: process.env.SERVER_URL + '/functions/loadOrder',
@@ -190,6 +191,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
   var requestedProductId = parseInt(webhookData.id);
   
   // Add product id to server products queue
+  logInfo('products queue: ' + productsQueue.join(','));
   if (productsQueue.indexOf(requestedProductId) < 0) {
     productsQueue.push(requestedProductId);
 
@@ -198,8 +200,8 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
       
       var promise = Parse.Promise.as();
     	_.each(productsQueueToProcess, function(productId) {
-    		logInfo('webhook loadProduct id: ' + productId);
     		promise = promise.then(function() {
+      		logInfo('webhook loadProduct id: ' + productId);
           return Parse.Cloud.httpRequest({
             method: 'post',
             url: process.env.SERVER_URL + '/functions/loadProduct',
