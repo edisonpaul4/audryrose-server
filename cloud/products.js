@@ -17,6 +17,8 @@ var Vendor = Parse.Object.extend('Vendor');
 var VendorOrder = Parse.Object.extend('VendorOrder');
 var VendorOrderVariant = Parse.Object.extend('VendorOrderVariant');
 
+var ordersQueue = [];
+
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 // Set up Bigcommerce API
@@ -1186,24 +1188,34 @@ Parse.Cloud.afterSave("Product", function(request) {
   var ordersQuery = new Parse.Query(Order);
   ordersQuery.equalTo('productIds', productId);
   ordersQuery.containedIn('status_id', [3, 7, 8, 9, 11, 12]);
-  
-  var debounceBuffer = moment().subtract(10, 'seconds');
-  ordersQuery.lessThan('updatedAt', debounceBuffer.toDate());
-  
-  delay(5000).then(function() {
-    return ordersQuery.count()
-    
-  }).then(function(count){
-    logInfo('total orders of product: ' + count);
+
+  ordersQuery.count().then(function(count){
+    logInfo('Product afterSave total orders of product: ' + count);
     return ordersQuery.find();
     
   }).then(function(orders) {
+    var newOrders = 0;
+		_.each(orders, function(order) {
+      // Add order id to server orders queue
+      if (ordersQueue.indexOf(order.get('orderId')) < 0) {
+        ordersQueue.push(order.get('orderId'));
+        newOrders++;
+      }
+    });
+    if (newOrders == 0) return;
+    
+    // Has new orders, continue
+    var ordersQueueToProcess = ordersQueue.slice(0); // clone array so original can remain editable
+    console.log('orders to process: ' + ordersQueueToProcess.join(','));
     
     var promise = Parse.Promise.as();
-		_.each(orders, function(order) {
-  		var orderId = order.get('orderId');
-  		logInfo('reload order id: ' + orderId);
+		_.each(ordersQueueToProcess, function(orderId) {
+  		logInfo('Product afterSave loadOrder id: ' + orderId);
   		promise = promise.then(function() {
+    		
+    		// Make sure order is still in queue (in case of concurrent afterSave calls)
+    		if (ordersQueue.indexOf(orderId) < 0) return;
+    		
         return Parse.Cloud.httpRequest({
           method: 'post',
           url: process.env.SERVER_URL + '/functions/loadOrder',
@@ -1215,16 +1227,19 @@ Parse.Cloud.afterSave("Product", function(request) {
             orderId: orderId
           }
         });
-    		
-  		}).then(function(response) {
-    		return true;
+      }).then(function(httpResponse) {
+        logInfo('Product afterSave loadOrder success for order ' + orderId);
         
-      }, function(error) {
-    		logError(error);
-  			
-  		});
-    });			
+        // Remove order id from server orders queue
+        var index = ordersQueue.indexOf(orderId);
+        if (index >= 0) ordersQueue.splice(index, 1);
+        
+      });
+    });
     return promise;
+    
+  }).then(function() {
+    logInfo('Product afterSave success for product ' + productId);
   });
 });
 
