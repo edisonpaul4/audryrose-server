@@ -949,7 +949,14 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
       logInfo('get product id: ' + productId);
       
       promise = promise.then(function() {
+        var productQuery = new Parse.Query(Product);
+        productQuery.equalTo('productId', productId);
+        return productQuery.first();
+      
+      }).then(function(product) {
+        return product.save(null, {useMasterKey: true});
         
+      }).then(function(product) {
         var productQuery = new Parse.Query(Product);
         productQuery.equalTo('productId', productId);
         productQuery.include('variants');
@@ -1114,14 +1121,16 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
         
       }
       
-    }).then(function(result) {
-      if (result) {
+    }).then(function(vendorOrder) {
+      if (vendorOrder && vendorOrder.get('receivedAll') == false) {
         logInfo('product has a pending vendor order');
-        // TODO: SET WHETHER IT'S A VENDOR ORDER OR A RESIZE REQUEST
-        product.set('hasVendorOrder', true);
+        product.set('hasVendorOrder', vendorOrder.get('hasOrder'));
+        product.set('hasResizeRequest', vendorOrder.get('hasResize'));
+
       } else {
         logInfo('product does not have pending vendor order');
         product.set('hasVendorOrder', false);
+        product.set('hasResizeRequest', false);
       }
       response.success();
     });
@@ -1202,6 +1211,32 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
     response.success();
   }
 
+});
+
+Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
+  var vendorOrder = request.object;
+  
+  if (vendorOrder.has('vendorOrderVariants')) {
+    var variants = vendorOrder.get('vendorOrderVariants');
+    Parse.Object.fetchAll(variants).then(function(variantObjects) {
+      var hasResize = false;
+      var hasOrder = false;
+      _.each(variantObjects, function(variant) {
+        var isResize = variant.get('isResize');
+        if (isResize) {
+          hasResize = true;
+        } else {
+          hasOrder = true;
+        }
+      });
+      vendorOrder.set('hasResize', hasResize);
+      vendorOrder.set('hasOrder', hasOrder);
+      response.success();
+    });
+  } else {
+    // TODO: DO SOMETHING HERE WHEN THERE ARE NO VARIANTS IN A VENDOR ORDER
+    response.success();
+  }
 });
 
 /////////////////////////
