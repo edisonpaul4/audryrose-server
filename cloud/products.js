@@ -113,7 +113,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
       productsQuery.lessThan('total_stock', 1);
       break;
     case 'waiting-to-receive':
-      productsQuery.equalTo('hasVendorBuy', true);
+      productsQuery.equalTo('hasVendorOrder', true);
       break;
     case 'being-resized':
       productsQuery.equalTo('hasResizeRequest', true);
@@ -165,7 +165,7 @@ Parse.Cloud.define("getProductTabCounts", function(request, response) {
   needToOrderQuery.lessThan('total_stock', 1);
   
   var waitingToReceiveQuery = new Parse.Query(Product);
-  waitingToReceiveQuery.equalTo('hasVendorBuy', true);
+  waitingToReceiveQuery.equalTo('hasVendorOrder', true);
   
   var beingResizedQuery = new Parse.Query(Product);
   beingResizedQuery.equalTo('hasResizeRequest', true);
@@ -1029,6 +1029,8 @@ Parse.Cloud.define("loadCategory", function(request, response) {
 
 Parse.Cloud.beforeSave("Product", function(request, response) {
   var product = request.object;
+  var designer;
+  var vendor;
 
   var toLowerCase = function(w) { return w.toLowerCase(); };
 
@@ -1068,35 +1070,60 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
       
       if (!product.has('designer')) {
         logInfo('product does not have designer');
-        response.success();
+        return;
       }
       
       logInfo('fetch designer');
-      var designer = product.get('designer');
-      return designer.fetch();
+      var designerObj = product.get('designer');
+      return designerObj.fetch();
       
-    }).then(function(designer) {
+    }).then(function(result) {
+      designer = result;
       
-      if (!designer.has('vendors')) {
-        logInfo('product does not have vendors');
-        response.success();
+      var vendorsArray = [];
+      if (product.has('vendor')) {
+        logInfo('product has vendor');
+        var vendorObj = product.get('vendor');
+        vendorsArray.push(vendorObj);
+      } else if (!designer.has('vendors')) {
+        logInfo('product designer does not have vendors');
+        vendorsArray = [];
+      } else {
+        logInfo('get vendors from product designer');
+        vendorsArray = designer.get('vendors');
       }
       
-      logInfo('fetch vendor');
-      var vendors = designer.get('vendors');
-      return Parse.Object.fetchAll(vendors);
+      return Parse.Object.fetchAll(vendorsArray);
       
     }).then(function(vendors) {
+      
       if (vendors.length > 1) {
         logInfo('multiple vendors found for product, needs to be manually selected');
+        return;
+        
       } else if (vendors.length == 1) {
         logInfo('single vendor found for product, automatically select');
         product.set('vendor', vendors[0]);
+        var vendorObj = product.get('vendor');
+        var pendingOrder = vendorObj.get('pendingOrder');
+        return pendingOrder.fetch();
+        
       } else {
         logInfo('no vendors found for product');
+        return;
+        
+      }
+      
+    }).then(function(result) {
+      if (result) {
+        logInfo('product has a pending vendor order');
+        // TODO: SET WHETHER IT'S A VENDOR ORDER OR A RESIZE REQUEST
+        product.set('hasVendorOrder', true);
+      } else {
+        logInfo('product does not have pending vendor order');
+        product.set('hasVendorOrder', false);
       }
       response.success();
-      
     });
     
   }
