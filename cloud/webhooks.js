@@ -134,7 +134,11 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
   var requestedOrderId = parseInt(webhookData.id);
   
   // Add order id to server orders queue
-  if (ordersQueue.indexOf(requestedOrderId) < 0) ordersQueue.push(requestedOrderId);
+  if (ordersQueue.indexOf(requestedOrderId) < 0) {
+    ordersQueue.push(requestedOrderId);
+  } else {
+    response.success();
+  }
   
   delay(1000).then(function() {
     var ordersQueueToProcess = ordersQueue.slice(0); // clone array so original can remain editable
@@ -184,7 +188,11 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
   var requestedProductId = parseInt(webhookData.id);
   
   // Add product id to server products queue
-  if (productsQueue.indexOf(requestedProductId) < 0) productsQueue.push(requestedProductId);
+  if (productsQueue.indexOf(requestedProductId) < 0) {
+    productsQueue.push(requestedProductId);
+  } else {
+    response.success();
+  }
   
   delay(1000).then(function() {
     var productsQueueToProcess = productsQueue.slice(0); // clone array so original can remain editable
