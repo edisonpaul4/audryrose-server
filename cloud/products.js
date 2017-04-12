@@ -99,6 +99,8 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include("designer");
   productsQuery.include("designer.vendors");
   productsQuery.include("vendor");
+  productsQuery.include("vendor.pendingOrder");
+  productsQuery.include("vendor.pendingOrder.vendorOrderVariants");
   productsQuery.limit(PRODUCTS_PER_PAGE);
   
   switch (subpage) {
@@ -321,6 +323,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     
   }).then(function(res) {
     bcProduct = res;
+    if (!bcProduct) return;
     var rulesRequest = '/products/' + productId + '/rules';
     return bigCommerce.get(rulesRequest);
   
@@ -329,7 +332,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
 		response.error(error.message);
   }).then(function(res) {
     bcProductRules = res;
-    if (!bcProduct.option_set) return null;
+    if (!bcProduct.option_set) return;
     var optionSetsRequest = '/optionsets/' + bcProduct.option_set_id + '/options';
     return bigCommerce.get(optionSetsRequest);
   
@@ -546,6 +549,8 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
     productsQuery.include("classification");
     productsQuery.include("designer");
     productsQuery.include("vendor");
+    productsQuery.include("vendor.pendingOrder");
+    productsQuery.include("vendor.pendingOrder.vendorOrderVariants");
     return productsQuery.first();
     
   }).then(function(result) {
@@ -863,11 +868,17 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
           logInfo('VendorOrderVariant found, adjust number of units');
           vendorOrderVariant = result;
           vendorOrderVariant.increment('units', units);
-          var updatedNotes = vendorOrderVariant.get('notes') + '<br/>' + notes;
-          
+          if (vendorOrderVariant.has('notes') && vendorOrderVariant.get('notes') != '') {
+            var updatedNotes = vendorOrderVariant.get('notes') + '<br/>' + notes;
+            vendorOrderVariant.set('notes', updatedNotes);
+          } else {
+            vendorOrderVariant.set('notes', notes);
+          }
+           
         } else {
           logInfo('VendorOrderVariant is new');
           vendorOrderVariant = new VendorOrderVariant();
+          vendorOrderVariant.set('variant', variant);
           vendorOrderVariant.set('units', units);
           vendorOrderVariant.set('notes', notes);
           vendorOrderVariant.set('ordered', false);
@@ -880,8 +891,9 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         logInfo('VendorOrderVariant saved');
         
         // Find a VendorOrder containing the VendorOrderVariant
-        var vendorOrderQuery = new Parse.Query(VendorOrderVariant);
-        vendorOrderQuery.containedIn('vendorOrderVariants', result);
+        var vendorOrderQuery = new Parse.Query(VendorOrder);
+        vendorOrderQuery.equalTo('orderedAll', false);
+        vendorOrderQuery.equalTo('receivedAll', false);
         return vendorOrderQuery.first();
         
       }).then(function(result) {
@@ -895,6 +907,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
           logInfo('VendorOrder is new');
           isNewOrder = true;
           vendorOrder = new VendorOrder();
+          vendorOrder.set('vendor', vendor);
           vendorOrder.set('vendorOrderVariants', [vendorOrderVariant]);
           vendorOrder.set('orderedAll', false);
           vendorOrder.set('receivedAll', false);
@@ -906,6 +919,12 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
       }).then(function(result) {
         if (isNewOrder) vendorOrders.push(result);
         logInfo('VendorOrder saved');
+        
+        vendor.set('pendingOrder', result);
+        return vendor.save(null, {useMasterKey:true});
+        
+      }).then(function(result) {
+        logInfo('Vendor saved');
         return true;
         
       }, function(error) {
@@ -924,7 +943,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
     var promise = Parse.Promise.as();
     
     _.each(productIds, function(productId) {
-      logInfo('save product id: ' + productId);
+      logInfo('get product id: ' + productId);
       
       promise = promise.then(function() {
         
@@ -937,14 +956,12 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         productQuery.include("classification");
         productQuery.include("designer");
         productQuery.include('vendor');
+        productQuery.include("vendor.pendingOrder");
+        productQuery.include("vendor.pendingOrder.vendorOrderVariants");
         return productQuery.first();
       
       }).then(function(product) {
-        return product.save(null, {useMasterKey: true});
-        
-      }).then(function(productObject) {
-        logInfo(productId + ' saved');
-        updatedProducts.push(productObject);
+        updatedProducts.push(product);
         return true;
         
       }, function(error) {
