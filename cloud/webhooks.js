@@ -136,48 +136,50 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
   // Add order id to server orders queue
   if (ordersQueue.indexOf(requestedOrderId) < 0) {
     ordersQueue.push(requestedOrderId);
+    
+    delay(1000).then(function() {
+      var ordersQueueToProcess = ordersQueue.slice(0); // clone array so original can remain editable
+      
+      var promise = Parse.Promise.as();
+  		_.each(ordersQueueToProcess, function(orderId) {
+    		logInfo('webhook loadOrder id: ' + orderId);
+    		promise = promise.then(function() {
+          return Parse.Cloud.httpRequest({
+            method: 'post',
+            url: process.env.SERVER_URL + '/functions/loadOrder',
+            headers: {
+              'X-Parse-Application-Id': process.env.APP_ID,
+              'X-Parse-Master-Key': process.env.MASTER_KEY
+            },
+            params: {
+              orderId: orderId
+            }
+          });
+        }).then(function(httpResponse) {
+          logInfo('webhook loadOrder success id: ' + orderId);
+          
+          // Remove order id from server orders queue
+          var index = ordersQueue.indexOf(orderId);
+          ordersQueue.splice(index, 1);
+          
+        });
+      });
+      return promise;
+      
+    }).then(function() {
+      logInfo('ordersWebhook success');
+  	  response.success();
+  	  
+    }, function(error) {
+  		logError(error);
+  		response.error(error);
+  		
+  	});
+  	
   } else {
     response.success();
   }
   
-  delay(1000).then(function() {
-    var ordersQueueToProcess = ordersQueue.slice(0); // clone array so original can remain editable
-    
-    var promise = Parse.Promise.as();
-		_.each(ordersQueueToProcess, function(orderId) {
-  		logInfo('webhook loadOrder id: ' + orderId);
-  		promise = promise.then(function() {
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadOrder',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            orderId: orderId
-          }
-        });
-      }).then(function(httpResponse) {
-        logInfo('webhook loadOrder success id: ' + orderId);
-        
-        // Remove order id from server orders queue
-        var index = ordersQueue.indexOf(orderId);
-        ordersQueue.splice(index, 1);
-        
-      });
-    });
-    return promise;
-    
-  }).then(function() {
-    logInfo('ordersWebhook success');
-	  response.success();
-	  
-  }, function(error) {
-		logError(error);
-		response.error(error);
-		
-	});
 });
 
 Parse.Cloud.define("productsWebhook", function(request, response) {
@@ -190,67 +192,69 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
   // Add product id to server products queue
   if (productsQueue.indexOf(requestedProductId) < 0) {
     productsQueue.push(requestedProductId);
+
+    delay(1000).then(function() {
+      var productsQueueToProcess = productsQueue.slice(0); // clone array so original can remain editable
+      
+      var promise = Parse.Promise.as();
+    	_.each(productsQueueToProcess, function(productId) {
+    		logInfo('webhook loadProduct id: ' + productId);
+    		promise = promise.then(function() {
+          return Parse.Cloud.httpRequest({
+            method: 'post',
+            url: process.env.SERVER_URL + '/functions/loadProduct',
+            headers: {
+              'X-Parse-Application-Id': process.env.APP_ID,
+              'X-Parse-Master-Key': process.env.MASTER_KEY
+            },
+            params: {
+              productId: productId
+            }
+          });
+        }).then(function(httpResponse) {
+          logInfo('webhook loadProduct success id: ' + productId);
+          
+          return Parse.Cloud.httpRequest({
+            method: 'post',
+            url: process.env.SERVER_URL + '/functions/loadProductVariants',
+            headers: {
+              'X-Parse-Application-Id': process.env.APP_ID,
+              'X-Parse-Master-Key': process.env.MASTER_KEY
+            },
+            params: {
+              productId: productId
+            }
+          });
+          
+        }, function(error) {
+      		logError(error);
+      		response.error(error);
+    		
+      	}).then(function(httpResponse) {
+          logInfo('loadProductVariants success id: ' + productId);
+          
+          // Remove product id from server orders queue
+          var index = productsQueue.indexOf(productId);
+          productsQueue.splice(index, 1);
+          
+        });
+      });
+      return promise;
+      
+    }).then(function() {
+      logInfo('productsWebhook success');
+      response.success();
+  	  
+    }, function(error) {
+  		logError(error);
+  		response.error(error);
+  		
+  	});
+  	
   } else {
     response.success();
   }
   
-  delay(1000).then(function() {
-    var productsQueueToProcess = productsQueue.slice(0); // clone array so original can remain editable
-    
-    var promise = Parse.Promise.as();
-  	_.each(productsQueueToProcess, function(productId) {
-  		logInfo('webhook loadProduct id: ' + productId);
-  		promise = promise.then(function() {
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadProduct',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            productId: productId
-          }
-        });
-      }).then(function(httpResponse) {
-        logInfo('webhook loadProduct success id: ' + productId);
-        
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadProductVariants',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            productId: productId
-          }
-        });
-        
-      }, function(error) {
-    		logError(error);
-    		response.error(error);
-  		
-    	}).then(function(httpResponse) {
-        logInfo('loadProductVariants success id: ' + productId);
-        
-        // Remove product id from server orders queue
-        var index = productsQueue.indexOf(productId);
-        productsQueue.splice(index, 1);
-        
-      });
-    });
-    return promise;
-    
-  }).then(function() {
-    logInfo('productsWebhook success');
-    response.success();
-	  
-  }, function(error) {
-		logError(error);
-		response.error(error);
-		
-	});
 });
 
 
