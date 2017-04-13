@@ -1311,11 +1311,13 @@ Parse.Cloud.afterSave("Product", function(request) {
     
     var promise = Parse.Promise.as();
 		_.each(ordersQueueToProcess, function(orderId) {
-  		logInfo('Product afterSave loadOrder id: ' + orderId);
+      
+      // Remove order id from server orders queue
+      var index = ordersQueue.indexOf(orderId);
+      if (index >= 0) ordersQueue.splice(index, 1);
+  		
   		promise = promise.then(function() {
-    		
-    		// Make sure order is still in queue (in case of concurrent afterSave calls)
-    		if (ordersQueue.indexOf(orderId) < 0) return;
+    		logInfo('Product afterSave loadOrder id: ' + orderId);
     		
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -1330,10 +1332,6 @@ Parse.Cloud.afterSave("Product", function(request) {
         });
       }).then(function(httpResponse) {
         logInfo('Product afterSave loadOrder success for order ' + orderId);
-        
-        // Remove order id from server orders queue
-        var index = ordersQueue.indexOf(orderId);
-        if (index >= 0) ordersQueue.splice(index, 1);
         
       });
     });
