@@ -120,7 +120,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     message += products.length + ' products loaded. ';
     message += totalProductsAdded + ' products added. ';
     message += 'Job time: ' + jobTime;
-    logInfo(message);
+    logInfo(message, true);
     status.success(message);
   }, function(error) {
   	logError(error);
@@ -188,7 +188,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     message += totalProductsProcessed + ' products processed. ';
     message += totalVariantsAdded + ' variants added. ';
     message += 'Job time: ' + jobTime;
-    logInfo(message);
+    logInfo(message, true);
     status.success(message);
     
   }, function(error) {
@@ -272,7 +272,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     message += categories.length + ' categories loaded. ';
     message += totalCategoriesAdded + ' categories added. ';
     message += 'Job time: ' + jobTime;
-    logInfo(message);
+    logInfo(message, true);
     status.success(message);
   }, function(error) {
   	logError(error);
@@ -360,7 +360,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     message += orderIds.length + ' orders loaded. ';
     message += totalOrdersAdded + ' orders added. ';
     message += 'Job time: ' + jobTime;
-    logInfo(message);
+    logInfo(message, true);
     status.success(message);
   }, function(error) {
   	logError(error);
@@ -465,7 +465,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     message += orderIds.length + ' orders loaded. ';
     message += totalOrdersAdded + ' orders added. ';
     message += 'Job time: ' + jobTime;
-    logInfo(message);
+    logInfo(message, true);
     status.success(message);
     
   }, function(error) {
@@ -547,7 +547,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
     message += designers.length + ' designers loaded. ';
     message += totalDesignersAdded + ' designers added. ';
     message += 'Job time: ' + jobTime;
-    logInfo(message);
+    logInfo(message, true);
     status.success(message);
   }, function(error) {
   	logError(error);
@@ -670,7 +670,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
     var jobTime = moment.duration(now.diff(startTime)).humanize();
     message = totalOptionsAdded + ' options added. ';
     message += 'Job time: ' + jobTime;
-    logInfo(message);
+    logInfo(message, true);
     status.success(message);
     
   }, function(error) {
@@ -771,8 +771,8 @@ var getOptionCode = function(type, label) {
   }
 }
 
-var logInfo = function(i) {
-  console.info(i);
+var logInfo = function(i, alwaysLog) {
+  if (process.env.NODE_ENV == 'development' || alwaysLog) console.info(i);
 }
 
 var logError = function(e) {

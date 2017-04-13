@@ -73,8 +73,8 @@ var getShipmentSort = function(shipmentsQuery, currentSort) {
   return shipmentsQuery;
 }
 
-var logInfo = function(i) {
-  console.info(i);
+var logInfo = function(i, alwaysLog) {
+  if (process.env.NODE_ENV == 'development' || alwaysLog) console.info(i);
 }
 
 var logError = function(e) {
