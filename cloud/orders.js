@@ -1577,7 +1577,6 @@ var getOrderProductShippingAddress = function(orderProduct) {
     orderProduct.set('shippingAddress', shippingAddress);
     return orderProduct;
   }, function(error) {
-    logError(error);
     return orderProduct;
   });
   
