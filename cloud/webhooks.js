@@ -191,7 +191,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
   var requestedProductId = parseInt(webhookData.id);
   
   // Add product id to server products queue
-  logInfo('products queue: ' + productsQueue.join(','));
+  logInfo('products queue: ' + productsQueue.join(','), true);
   if (productsQueue.indexOf(requestedProductId) < 0) {
     productsQueue.push(requestedProductId);
 
@@ -239,7 +239,11 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
           var index = productsQueue.indexOf(productId);
           productsQueue.splice(index, 1);
           
-        });
+        }, function(error) {
+      		logError(error);
+      		response.error(error);
+    		
+      	});
       });
       return promise;
       
