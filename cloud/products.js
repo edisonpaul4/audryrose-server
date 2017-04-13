@@ -1108,6 +1108,9 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
       var designerObj = product.get('designer');
       return designerObj.fetch();
       
+    }, function(error) {
+    	logError(error);
+  		response.error(error.message);
     }).then(function(result) {
       designer = result;
       
@@ -1126,6 +1129,9 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
       
       return Parse.Object.fetchAll(vendorsArray);
       
+    }, function(error) {
+    	logError(error);
+  		response.error(error.message);
     }).then(function(vendors) {
       
       if (vendors.length > 1) {
@@ -1148,6 +1154,9 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
         
       }
       
+    }, function(error) {
+    	logError(error);
+  		response.error(error.message);
     }).then(function(vendorOrder) {
       if (vendorOrder && vendorOrder.get('receivedAll') == false) {
         logInfo('product has a pending vendor order');
@@ -1160,6 +1169,9 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
         product.set('hasResizeRequest', false);
       }
       response.success();
+    }, function(error) {
+    	logError(error);
+  		response.error(error.message);
     });
     
   }
