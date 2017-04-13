@@ -1099,7 +1099,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
       product.set('total_stock', totalStock);
       product.set('variantsOutOfStock', variantsOutOfStock);
       
-      if (!product.has('designer')) {
+      if (product && !product.has('designer')) {
         logInfo('product does not have designer');
         return;
       }
@@ -1115,16 +1115,16 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
       designer = result;
       
       var vendorsArray = [];
-      if (product.has('vendor')) {
+      if (product && product.has('vendor')) {
         logInfo('product has vendor');
         var vendorObj = product.get('vendor');
         vendorsArray.push(vendorObj);
-      } else if (!designer.has('vendors')) {
-        logInfo('product designer does not have vendors');
-        vendorsArray = [];
-      } else {
+      } else if (designer && designer.has('vendors')) {
         logInfo('get vendors from product designer');
         vendorsArray = designer.get('vendors');
+      } else {
+        logInfo('product does not have vendors');
+        vendorsArray = [];
       }
       
       return Parse.Object.fetchAll(vendorsArray);
