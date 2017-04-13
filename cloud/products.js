@@ -1136,8 +1136,11 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
         logInfo('single vendor found for product, automatically select');
         product.set('vendor', vendors[0]);
         var vendorObj = product.get('vendor');
-        var pendingOrder = vendorObj.get('pendingOrder');
-        return pendingOrder.fetch();
+        var vendorOrderQuery = new Parse.Query(VendorOrder);
+        vendorOrderQuery.equalTo('vendor', vendorObj);
+        vendorOrderQuery.equalTo('orderedAll', false);
+        vendorOrderQuery.equalTo('receivedAll', false);
+        return vendorOrderQuery.first();
         
       } else {
         logInfo('no vendors found for product');
