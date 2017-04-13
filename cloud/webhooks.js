@@ -108,7 +108,7 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
   
   var request = '/hooks/' + id;
   bigCommerce.delete(request).then(function() {
-    console.log('deleted ' + id);
+    logInfo('deleted ' + id);
     return bigCommerce.get('/hooks');
     
   }).then(function(webhooks) {
@@ -127,8 +127,8 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.define("ordersWebhook", function(request, response) {
-  logInfo('ordersWebhook ---------------------------------------');
-  logInfo('endpoint: ' + request.params.scope);
+  logInfo('ordersWebhook ---------------------------------------', true);
+  logInfo('endpoint: ' + request.params.scope, true);
   
   var webhookData = request.params.data;
   var requestedOrderId = parseInt(webhookData.id);
@@ -184,8 +184,8 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
 });
 
 Parse.Cloud.define("productsWebhook", function(request, response) {
-  logInfo('productsWebhook ---------------------------------------');
-  logInfo('endpoint: ' + request.params.scope);
+  logInfo('productsWebhook ---------------------------------------', true);
+  logInfo('endpoint: ' + request.params.scope, true);
   
   var webhookData = request.params.data;
   var requestedProductId = parseInt(webhookData.id);
@@ -214,7 +214,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
             }
           });
         }).then(function(httpResponse) {
-          logInfo('webhook loadProduct success id: ' + productId);
+          logInfo('webhook loadProduct success id: ' + productId, true);
           
           return Parse.Cloud.httpRequest({
             method: 'post',
@@ -233,7 +233,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
       		response.error(error);
     		
       	}).then(function(httpResponse) {
-          logInfo('loadProductVariants success id: ' + productId);
+          logInfo('loadProductVariants success id: ' + productId, true);
           
           // Remove product id from server orders queue
           var index = productsQueue.indexOf(productId);
@@ -244,7 +244,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
       return promise;
       
     }).then(function() {
-      logInfo('productsWebhook success');
+      logInfo('productsWebhook success', true);
       response.success();
   	  
     }, function(error) {

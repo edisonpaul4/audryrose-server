@@ -533,9 +533,9 @@ Parse.Cloud.define("createShipments", function(request, response) {
           extra: shipmentExtra
         };
         
-        console.log(shipment)
-        console.log(carrier.object_id)
-        console.log(serviceLevel)
+        logInfo(shipment)
+        logInfo(carrier.object_id)
+        logInfo(serviceLevel)
         
         logInfo('do the shippo');
         
@@ -1841,7 +1841,7 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
 	
 	if (orderProducts) {
 		orderProducts.map(function(orderProduct, i) {
-  		console.log('\nop:' + orderProduct.orderProductId + ' oa:' + orderProduct.order_address_id);
+  		logInfo('\nop:' + orderProduct.orderProductId + ' oa:' + orderProduct.order_address_id);
   		
   		// Check if product is in a shipment
   		var isShipped = false;
@@ -1872,7 +1872,7 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
   		
   		// Set whether product is added to shippable, shipped or unshippable groups
   		if (isShipped) {
-    		console.log('product is shipped');
+    		logInfo('product is shipped');
     		// Check whether product is being added to an existing shipment group
     		
     		shippedGroups.map(function(shippedGroup, j) {
@@ -1880,15 +1880,15 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
       		return shippedGroups;
     		});
         if (shipmentIndex < 0) {
-          console.log('not in shippedGroups')
+          logInfo('not in shippedGroups')
           shippedGroups.push(group);
         } else {
-          console.log('found in shippedGroups')
+          logInfo('found in shippedGroups')
           shippedGroups[shipmentIndex].orderProducts.push(orderProduct);
         }
     		
   		} else if (orderProduct.shippable && orderProduct.quantity_shipped !== orderProduct.quantity && orderProduct.variant.inventoryLevel >= orderProduct.quantity) { 
-    		console.log('product is shippable');
+    		logInfo('product is shippable');
     		
     		// Check whether product is being shipped to a unique address
     		shippableGroups.map(function(shippableGroup, j) {
@@ -1896,27 +1896,27 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
       		return shippableGroups;
     		});
         if (shipmentIndex < 0) {
-          console.log('not in shippableGroups')
+          logInfo('not in shippableGroups')
           shippableGroups.push(group);
         } else {
-          console.log('found in shippableGroups')
+          logInfo('found in shippableGroups')
           var groupProducts = shippableGroups[shipmentIndex].orderProducts;
           groupProducts.push(orderProduct);
           shippableGroups[shipmentIndex].orderProducts = groupProducts;
         }
     		
   		} else {
-    		console.log('product is not shippable');
+    		logInfo('product is not shippable');
     		// Check whether product is being shipped to a unique address
     		unshippableGroups.map(function(unshippableGroup, j) {
       		if (orderProduct.order_address_id === unshippableGroup.orderAddressId) shipmentIndex = j;
       		return unshippableGroup;
     		});
         if (shipmentIndex < 0) {
-          console.log('not in shippableGroups')
+          logInfo('not in shippableGroups')
           unshippableGroups.push(group);
         } else {
-          console.log('found in shippableGroups')
+          logInfo('found in shippableGroups')
           unshippableGroups[shipmentIndex].orderProducts.push(orderProduct);
         }
     		

@@ -1292,7 +1292,7 @@ Parse.Cloud.afterSave("Product", function(request) {
     
     // Has new orders, continue
     var ordersQueueToProcess = ordersQueue.slice(0); // clone array so original can remain editable
-    console.log('orders to process: ' + ordersQueueToProcess.join(','));
+    logInfo('orders to process: ' + ordersQueueToProcess.join(','));
     
     var promise = Parse.Promise.as();
 		_.each(ordersQueueToProcess, function(orderId) {
