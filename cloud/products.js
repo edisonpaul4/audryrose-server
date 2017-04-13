@@ -245,21 +245,33 @@ Parse.Cloud.define("loadProduct", function(request, response) {
     departmentsQuery.limit(10000);
     return departmentsQuery.find();
     
-  }).then(function(result) {
+  }, function(error) {
+		logError(error);
+		response.error(error);
+		
+	}).then(function(result) {
     departments = result;
     
     var designersQuery = new Parse.Query(Designer);
     designersQuery.limit(10000);
     return designersQuery.find();
     
-  }).then(function(result) {
+  }, function(error) {
+		logError(error);
+		response.error(error);
+		
+	}).then(function(result) {
     designers = result;
     
     var request = '/products/' + productId;
     logInfo(request)
     return bigCommerce.get(request);
     
-  }).then(function(result) {
+  }, function(error) {
+		logError(error);
+		response.error(error);
+		
+	}).then(function(result) {
     product = result;
     
     var productQuery = new Parse.Query(Product);
@@ -270,7 +282,11 @@ Parse.Cloud.define("loadProduct", function(request, response) {
     productQuery.include('classification');
     return productQuery.first();
     
-  }).then(function(productResult) {
+  }, function(error) {
+		logError(error);
+		response.error(error);
+		
+	}).then(function(productResult) {
     if (productResult) {
       logInfo('Product ' + productResult.get('productId') + ' exists.');
       return createProductObject(product, classes, departments, designers, productResult);
@@ -280,7 +296,11 @@ Parse.Cloud.define("loadProduct", function(request, response) {
       return createProductObject(product, classes, departments, designers);
     }
     
-  }).then(function(productObject) {
+  }, function(error) {
+		logError(error);
+		response.error(error);
+		
+	}).then(function(productObject) {
 //     if (productObject.classification) updatedClassification = productObject.classification;
     return productObject.save(null, {useMasterKey: true});
     
@@ -293,12 +313,16 @@ Parse.Cloud.define("loadProduct", function(request, response) {
     }
 */
     
-  }).then(function(result) {
+  }, function(error) {
+		logError(error);
+		response.error(error);
+		
+	}).then(function(result) {
     response.success({added: added});
     
   }, function(error) {
 		logError(error);
-		response.error(error.message);
+		response.error(error);
 		
 	});
 });
