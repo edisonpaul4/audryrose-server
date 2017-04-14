@@ -623,10 +623,16 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
   }).then(function(productObject) {
     var productQuery = new Parse.Query(Product);
     productQuery.equalTo("productId", productId);
-    productQuery.include("variants");
+    productQuery.include('variants');
+    productQuery.include('variants.colorCode');
+    productQuery.include('variants.stoneCode');
     productQuery.include("department");
     productQuery.include("classification");
     productQuery.include("designer");
+    productQuery.include("designer.vendors");
+    productQuery.include("vendor");
+    productQuery.include("vendor.pendingOrder");
+    productQuery.include("vendor.pendingOrder.vendorOrderVariants");
     return productQuery.first();
     
   }).then(function(result) {
@@ -679,11 +685,72 @@ Parse.Cloud.define("saveProductVendor", function(request, response) {
   }).then(function(productObject) {
     var productQuery = new Parse.Query(Product);
     productQuery.equalTo("productId", productId);
-    productQuery.include("variants");
+    productQuery.include('variants');
+    productQuery.include('variants.colorCode');
+    productQuery.include('variants.stoneCode');
     productQuery.include("department");
     productQuery.include("classification");
     productQuery.include("designer");
+    productQuery.include("designer.vendors");
     productQuery.include("vendor");
+    productQuery.include("vendor.pendingOrder");
+    productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    return productQuery.first();
+    
+  }).then(function(result) {
+    updatedProduct = result;
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/getProductTabCounts',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      }
+    });
+    
+  }).then(function(httpResponse) {
+    tabCounts = httpResponse.data.result;
+	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
+    
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	});
+  
+});
+
+Parse.Cloud.define("saveProductType", function(request, response) {
+  var productId = parseInt(request.params.productId);
+  var isBundle = request.params.isBundle == 'true' ? true : false;
+  var updatedProduct;
+  
+  console.log(isBundle)
+    
+  var productQuery = new Parse.Query(Product);
+  productQuery.equalTo('productId', productId);
+  return productQuery.first().then(function(productResult) {
+    if (productResult) {
+      productResult.set('isBundle', isBundle);
+      return productResult.save(null, {useMasterKey: true});
+    } else {
+      logError(error);
+      response.error(error.message);
+    }
+    
+  }).then(function(productObject) {
+    var productQuery = new Parse.Query(Product);
+    productQuery.equalTo("productId", productId);
+    productQuery.include('variants');
+    productQuery.include('variants.colorCode');
+    productQuery.include('variants.stoneCode');
+    productQuery.include("department");
+    productQuery.include("classification");
+    productQuery.include("designer");
+    productQuery.include("designer.vendors");
+    productQuery.include("vendor");
+    productQuery.include("vendor.pendingOrder");
+    productQuery.include("vendor.pendingOrder.vendorOrderVariants");
     return productQuery.first();
     
   }).then(function(result) {
@@ -782,7 +849,10 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         productQuery.include("department");
         productQuery.include("classification");
         productQuery.include("designer");
-        productQuery.include('vendor');
+        productQuery.include("designer.vendors");
+        productQuery.include("vendor");
+        productQuery.include("vendor.pendingOrder");
+        productQuery.include("vendor.pendingOrder.vendorOrderVariants");
         return productQuery.first();
       
       }).then(function(product) {
