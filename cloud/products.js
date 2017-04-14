@@ -359,9 +359,12 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
 		
   }).then(function(res) {
     bcProductRules = res;
-    if (!bcProduct.option_set) return;
-    var optionSetsRequest = '/optionsets/' + bcProduct.option_set_id + '/options';
-    return bigCommerce.get(optionSetsRequest);
+    if (bcProduct && bcProduct.option_set) {
+      var optionSetsRequest = '/optionsets/' + bcProduct.option_set_id + '/options';
+      return bigCommerce.get(optionSetsRequest);
+    } else {
+      return;
+    }
   
   }, function(error) {
   	logError(error);
