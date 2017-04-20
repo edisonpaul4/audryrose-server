@@ -103,6 +103,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include("vendor");
   productsQuery.include("vendor.pendingOrder");
   productsQuery.include("vendor.pendingOrder.vendorOrderVariants");
+  productsQuery.include("bundleVariants");
   productsQuery.limit(PRODUCTS_PER_PAGE);
   
   switch (subpage) {
@@ -581,6 +582,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
     productsQuery.include("vendor");
     productsQuery.include("vendor.pendingOrder");
     productsQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productsQuery.include("bundleVariants");
     return productsQuery.first();
     
   }).then(function(result) {
@@ -636,6 +638,7 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
     productQuery.include("vendor");
     productQuery.include("vendor.pendingOrder");
     productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productQuery.include("bundleVariants");
     return productQuery.first();
     
   }).then(function(result) {
@@ -698,6 +701,7 @@ Parse.Cloud.define("saveProductVendor", function(request, response) {
     productQuery.include("vendor");
     productQuery.include("vendor.pendingOrder");
     productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productQuery.include("bundleVariants");
     return productQuery.first();
     
   }).then(function(result) {
@@ -754,6 +758,7 @@ Parse.Cloud.define("saveProductType", function(request, response) {
     productQuery.include("vendor");
     productQuery.include("vendor.pendingOrder");
     productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productQuery.include("bundleVariants");
     return productQuery.first();
     
   }).then(function(result) {
@@ -856,6 +861,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         productQuery.include("vendor");
         productQuery.include("vendor.pendingOrder");
         productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+        productQuery.include("bundleVariants");
         return productQuery.first();
       
       }).then(function(product) {
@@ -1065,6 +1071,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         productQuery.include('vendor');
         productQuery.include("vendor.pendingOrder");
         productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+        productQuery.include("bundleVariants");
         return productQuery.first();
       
       }).then(function(product) {
@@ -1124,6 +1131,112 @@ Parse.Cloud.define("loadCategory", function(request, response) {
 		response.error(error.message);
 		
 	});
+});
+
+Parse.Cloud.define("getBundleFormData", function(request, response) {
+  var productId = request.params.productId;
+  
+  var productsQuery = new Parse.Query(Product);
+  productsQuery.include('variants');
+  productsQuery.limit(10000);
+  productsQuery.ascending('productId');
+  productsQuery.notEqualTo('isBundle', true);
+  productsQuery.find().then(function(results) {
+//     var products = queryResultsToJSON(results);
+    var products = [];
+    _.each(results, function(result) {
+      var product = result.toJSON();
+      if (result.has('variants')) {
+        var variants = result.get('variants');
+        var variantsJSON = [];
+        _.each(variants, function(variant) {
+          variantsJSON.push(variant.toJSON());
+        });
+        product.variants = variantsJSON;
+      }
+      products.push(product);
+    });
+    response.success(products);
+    
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	});
+});
+
+Parse.Cloud.define("productBundleSave", function(request, response) {
+  var bundleProductId = request.params.data.bundleProductId;
+  var bundleVariantIds = request.params.data.bundleVariants;
+  var bundleProduct;
+  var bundleVariants = [];
+  var updatedProducts = [];
+  
+  var productQuery = new Parse.Query(Product);
+  productQuery.equalTo('productId', bundleProductId);
+  productQuery.first().then(function(result) {
+    bundleProduct = result;
+    
+    logInfo(bundleVariantIds.length + ' bundle variants to save');
+    
+    var promise = Parse.Promise.as();
+    
+    _.each(bundleVariantIds, function(bundleVariantId) {
+      promise = promise.then(function() {
+        logInfo('getting variant: ' + bundleVariantId);
+        
+        var variantQuery = new Parse.Query(ProductVariant);
+        variantQuery.equalTo('objectId', bundleVariantId);
+        return variantQuery.first();
+        
+      }).then(function(variant) {
+        if (variant) {
+          logInfo('variant found');
+          bundleVariants.push(variant);
+        } else {
+          logInfo('no variant found');
+        }
+        
+      });
+    	
+  	});
+  	return promise;
+  	
+	}).then(function() {
+  	bundleProduct.set('bundleVariants', bundleVariants);
+  	var isBundle = bundleVariants.length > 0 ? true : false;
+  	if (isBundle) bundleProduct.set('isBundle', isBundle);
+  	return bundleProduct.save(null, {useMasterKey: true});
+  	
+	}).then(function(result) {
+  	
+//     var productQuery = new Parse.Query(Product);
+//     productQuery.equalTo('objectId', bundleProductId);
+    productQuery.include('variants');
+    productQuery.include('variants.colorCode');
+    productQuery.include('variants.stoneCode');
+    productQuery.include("department");
+    productQuery.include("classification");
+    productQuery.include("designer");
+    productQuery.include("designer.vendors");
+    productQuery.include("vendor");
+    productQuery.include("vendor.pendingOrder");
+    productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productQuery.include("bundleVariants");
+    return productQuery.first();
+        
+    
+  }).then(function(result) {
+    updatedProducts.push(result);
+    logInfo('success');
+	  response.success({updatedProducts: updatedProducts});
+    
+	}, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	});
+  
 });
 
 
@@ -1611,6 +1724,7 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
   var variantObj = (currentVariant) ? currentVariant : new ProductVariant();
   
   variantObj.set('productId', product.get('productId'));
+  variantObj.set('productName', product.get('name'));
   
   if (!currentVariant) {
     variantObj.set('variantId', variantId);
