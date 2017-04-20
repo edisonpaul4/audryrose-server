@@ -342,6 +342,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   productQuery.include('department');
   productQuery.include('classification');
   productQuery.include('designer');
+  productQuery.include('bundleVariants');
   
   productQuery.first().then(function(result) {
     product = result;
@@ -376,9 +377,39 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     var promise = Parse.Promise.as();
     
     ////////////////////////////////////////////////////////
+    // If bundle, get all variants of child products
+    ////////////////////////////////////////////////////////
+    if (product.has('isBundle') && product.get('isBundle') == true) {
+      logInfo('Product is a bundle');
+      if (product.has('bundleVariants')) {
+        logInfo('Product has bundle variants');
+        _.each(product.get('bundleVariants'), function(bundleVariant) {
+          promise = promise.then(function() {
+            var bundleVariantProductId = bundleVariant.get('productId');
+            var productQuery = new Parse.Query(Product);
+            productQuery.equalTo('productId', bundleVariantProductId);
+            productQuery.include('variants');
+            return productQuery.first();
+              
+          }).then(function(result) {
+            var productVariants = result.get('variants');
+            allVariants = allVariants.concat(result.get('variants'));
+            return;
+            
+          });
+        });
+        return promise;
+        
+      } else {
+        logInfo('Product does not have bundle variants');
+        return true;
+      }
+    
+    
+    ////////////////////////////////////////////////////////
     // Create a single variant if product has no options
     ////////////////////////////////////////////////////////
-    if (!bcProductOptions) {
+    } else if (!bcProductOptions) {
       var variantId = productId;
       promise = promise.then(function() {
         var variantQuery = new Parse.Query(ProductVariant);
@@ -518,6 +549,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   }).then(function() {
 		var now = new Date();
 		product.set("variantsUpdatedAt", now);
+		logInfo('set ' + allVariants.length + ' total variants to product');
     product.set('variants', allVariants);
     return product.save(null, {useMasterKey: true});
     
@@ -1209,6 +1241,20 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
   	return bundleProduct.save(null, {useMasterKey: true});
   	
 	}).then(function(result) {
+  	
+  	return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/loadProductVariants',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      },
+      params: {
+        productId: bundleProductId
+      }
+    });
+    
+  }).then(function(httpResponse) {
   	
 //     var productQuery = new Parse.Query(Product);
 //     productQuery.equalTo('objectId', bundleProductId);
