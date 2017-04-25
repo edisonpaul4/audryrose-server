@@ -811,6 +811,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
 });
 
 Parse.Cloud.define("batchPrintShipments", function(request, response) {
+  logInfo('\nbatchPrintShipments');
   var ordersToPrint = request.params.ordersToPrint;
   var generatedFile;
   var errors = [];
@@ -825,15 +826,25 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
     var pdfsToCombine = [];
     _.each(orders, function(order) {
       var orderShipments = order.get('orderShipments');
+      
+      // Get the most recent shipment
+      var mostRecentShipment;
       _.each(orderShipments, function(orderShipment) {
-        if (orderShipment.has('labelWithPackingSlipUrl')) {
-          logInfo('add to batch pdf: ' + orderShipment.get('labelWithPackingSlipUrl'));
-          pdfsToCombine.push(orderShipment.get('labelWithPackingSlipUrl'));
-        } else {
-          var msg = 'Error: Order #' + orderShipment.get('order_id') + ' shipping label not added to combined print file.';
-          errors.push(msg);
+        logInfo(orderShipment.get('shipmentId'));
+        if (!mostRecentShipment) {
+          mostRecentShipment = orderShipment;
+        } else if (orderShipment.get('shipmentId') > mostRecentShipment.get('shipmentId')) {
+          mostRecentShipment = orderShipment;
         }
       });
+      logInfo('most recent: ' + mostRecentShipment.get('shipmentId'));
+      if (mostRecentShipment.has('labelWithPackingSlipUrl')) {
+        logInfo('add to batch pdf: ' + mostRecentShipment.get('labelWithPackingSlipUrl'));
+        pdfsToCombine.push(mostRecentShipment.get('labelWithPackingSlipUrl'));
+      } else {
+        var msg = 'Error: Order #' + mostRecentShipment.get('order_id') + ' shipping label not added to combined print file.';
+        errors.push(msg);
+      }
     });
     return combinePdfs(pdfsToCombine);
     
