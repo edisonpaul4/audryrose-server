@@ -337,7 +337,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 });
 
 Parse.Cloud.define("createShipments", function(request, response) {
-  logInfo('createShipments --------------------------');
+  logInfo('createShipments --------------------------', true);
   
   var shipmentGroups = request.params.shipmentGroups ? request.params.shipmentGroups : null;
   var ordersToShip = request.params.ordersToShip ? request.params.ordersToShip : null;
@@ -361,7 +361,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
   }).then(function(httpResponse) {
     carriers = httpResponse.data.results;
-    logInfo('total carriers ' + carriers.length);
+    logInfo('total carriers ' + carriers.length, true);
     
     if (!shipmentGroups && ordersToShip) {
       logInfo('create shipment groups from order ids');
@@ -397,7 +397,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     }
     
   }).then(function(httpResponse) {
-    logInfo(shipmentGroups.length + ' shipment groups');
+    logInfo(shipmentGroups.length + ' shipment groups', true);
     
     var promise = Parse.Promise.as();
     _.each(shipmentGroups, function(shipmentGroup) {
@@ -410,7 +410,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       var bcShipment;
       var shippoLabel;
       
-      logInfo('Process order address: ' + orderAddressId);
+      logInfo('Process order address: ' + orderAddressId, true);
       
       promise = promise.then(function() {
 
@@ -422,9 +422,9 @@ Parse.Cloud.define("createShipments", function(request, response) {
       }).then(function(bcOrderShipments) {
         
         if (bcOrderShipments.length > 0) {
-          logInfo('There are ' + bcOrderShipments.length + ' bigcommerce shipments for order id ' + orderId);
+          logInfo('There are ' + bcOrderShipments.length + ' bigcommerce shipments for order id ' + orderId, true);
         } else {
-          logInfo('There are no bigcommerce shipments for order id ' + orderId);
+          logInfo('There are no bigcommerce shipments for order id ' + orderId, true);
         }
 
         var addressFrom  = {
@@ -441,7 +441,6 @@ Parse.Cloud.define("createShipments", function(request, response) {
           email: "hello@loveaudryrose.com"
         };
         
-        logInfo(shippingAddress)
         var name = shippingAddress.first_name + ' ' + shippingAddress.last_name;
         var email = shippingAddress.email ? shippingAddress.email : billingAddress.email;
         var addressTo = {
@@ -471,7 +470,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         };
         if (totalPrice >= 1000) {
           shipmentExtra.signature_confirmation = 'STANDARD';
-          logInfo('shipment: signature required');
+          logInfo('shipment: signature required', true);
         } else {
           logInfo('shipment: no signature required');
         }
@@ -568,7 +567,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         if (httpResponse.data.object_status == 'SUCCESS') {
           
           shippoLabel = httpResponse.data;
-          logInfo('Shippo label status: ' + shippoLabel.object_status);
+          logInfo('Shippo label status: ' + shippoLabel.object_status, true);
           
           // Create the Bigcommerce shipment
           var request = '/orders/' + orderId + '/shipments';
@@ -590,7 +589,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
           _.each(httpResponse.data.messages, function(message) { 
             
             var msg = 'Error with Order #' + orderId + ': ' + message.text;
-            logInfo(msg);
+            logInfo(msg, true);
             errors.push(msg);
           });
         }
@@ -603,14 +602,14 @@ Parse.Cloud.define("createShipments", function(request, response) {
         if (bcShipmentResult) {
           bcShipment = bcShipmentResult;
           
-          logInfo('Bigcommerce shipment ' + bcShipment.id + ' created');
+          logInfo('Bigcommerce shipment ' + bcShipment.id + ' created', true);
           
           var orderShipmentQuery = new Parse.Query(OrderShipment);
           orderShipmentQuery.equalTo('shipmentId', parseInt(bcShipment.id));
       		return orderShipmentQuery.first();
     		
     		} else {
-      		logInfo('No BC shipment created for order ' + orderId);
+      		logInfo('No BC shipment created for order ' + orderId, true);
     		}
     		
   		}, function(error) {
@@ -746,7 +745,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
   }).then(function(result) {
     var newFiles = result ? [result] : null;
-    logInfo('Created ' + newShipments.length + ' shipments. ' + shipmentGroupsFailed.length + ' shipment groups failed.');
+    logInfo('Created ' + newShipments.length + ' shipments. ' + shipmentGroupsFailed.length + ' shipment groups failed.', true);
     response.success({updatedOrders: updatedOrdersArray, errors: errors, generatedFile: generatedFile, newFiles: newFiles});
     
   }, function(error) {
@@ -1926,8 +1925,9 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
   		var shipment;
   		if (shippedShipments) {
     		shippedShipments.map(function(shippedShipment, j) {
-      		shippedShipment.items.map(function(item, k) {
-        		if (orderProduct.get('order_address_id') === shippedShipment.get('order_address_id') && orderProduct.get('orderProductId') === item.get('order_product_id')) {
+      		var items = shippedShipment.get('items');
+      		items.map(function(item, k) {
+        		if (orderProduct.get('order_address_id') === shippedShipment.get('order_address_id') && orderProduct.get('orderProductId') === item.order_product_id) {
           		isShipped = true;
           		shippedShipmentId = shippedShipment.get('shipmentId');
           		shipment = shippedShipment;

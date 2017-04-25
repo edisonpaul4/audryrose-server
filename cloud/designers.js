@@ -62,7 +62,25 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   }).then(function(results) {
     designers = results;
     
-	  response.success({designers: designers, totalPages: totalPages});
+    var productsQuery = new Parse.Query(Product);
+    productsQuery.equalTo('hasVendorOrder', true);
+    productsQuery.include('variants');
+    productsQuery.include("department");
+    productsQuery.include("classification");
+    productsQuery.include("designer");
+    productsQuery.include("designer.vendors");
+    productsQuery.include("vendor");
+    productsQuery.include("vendor.pendingOrder");
+    productsQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productsQuery.include("bundleVariants");
+    productsQuery.limit(10000);
+    
+    return productsQuery.find();
+    
+  }).then(function(results) {
+    products = results;
+    
+	  response.success({designers: designers, products: products, totalPages: totalPages});
 	  
   }, function(error) {
 	  logError(error);
