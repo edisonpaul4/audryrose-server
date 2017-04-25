@@ -379,8 +379,8 @@ Parse.Cloud.define("createShipments", function(request, response) {
           return orderQuery.first();
           
         }).then(function(order) {
-          var orderJSON = order.toJSON();
-          var groups = createShipmentGroups(orderJSON, orderJSON.orderProducts, orderJSON.orderShipments);
+//           var orderJSON = order.toJSON();
+          var groups = createShipmentGroups(order, order.get('orderProducts'), order.get('orderShipments'));
           shipmentGroups = shipmentGroups.concat(groups.shippableGroups);
           return true;
           
@@ -404,7 +404,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       
       var orderId = shipmentGroup.orderId;
       var orderAddressId = shipmentGroup.orderAddressId;
-      var shippingAddress = shipmentGroup.orderProducts[0].shippingAddress;
+      var shippingAddress = shipmentGroup.orderProducts[0].get('shippingAddress');
       var billingAddress = shipmentGroup.orderBillingAddress;
       var customShipment = shipmentGroup.customShipment;
       var bcShipment;
@@ -441,6 +441,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
           email: "hello@loveaudryrose.com"
         };
         
+        logInfo(shippingAddress)
         var name = shippingAddress.first_name + ' ' + shippingAddress.last_name;
         var email = shippingAddress.email ? shippingAddress.email : billingAddress.email;
         var addressTo = {
@@ -460,8 +461,8 @@ Parse.Cloud.define("createShipments", function(request, response) {
         var totalWeight = 0;
         var totalPrice = 0;
         _.map(shipmentGroup.orderProducts, function(p){
-          totalPrice += parseFloat(p.total_inc_tax);
-          totalWeight += parseFloat(p.weight * p.quantity); 
+          totalPrice += parseFloat(p.get('total_inc_tax'));
+          totalWeight += parseFloat(p.get('weight') * p.get('quantity')); 
           return p;
         });
         
@@ -573,8 +574,8 @@ Parse.Cloud.define("createShipments", function(request, response) {
           var request = '/orders/' + orderId + '/shipments';
           var items = [];
           _.each(shipmentGroup.orderProducts, function(orderProduct) { 
-            logInfo('Adding order product ' + orderProduct.orderProductId + ' to shipment');
-            items.push({order_product_id: orderProduct.orderProductId, quantity: orderProduct.quantity});
+            logInfo('Adding order product ' + orderProduct.get('orderProductId') + ' to shipment');
+            items.push({order_product_id: orderProduct.get('orderProductId'), quantity: orderProduct.get('quantity')});
           });
           var bcShipmentData = {
             tracking_number: shippoLabel.tracking_number,
@@ -686,7 +687,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         ordersQuery.equalTo('orderId', parseInt(orderIdToLoad));
         ordersQuery.include('orderProducts');
 //         ordersQuery.include('orderProducts.variant');
-        ordersQuery.include('orderProducts.variant.designer');
+//         ordersQuery.include('orderProducts.variant.designer');
         ordersQuery.include('orderProducts.variants');
         ordersQuery.include('orderProducts.variants.designer');
         ordersQuery.include('orderShipments');
@@ -934,19 +935,21 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
       logInfo('get product ' + item.order_product_id);
       var orderProductQuery = new Parse.Query(OrderProduct);
       orderProductQuery.equalTo('orderProductId', parseInt(item.order_product_id));
-      orderProductQuery.include('variant');
+      orderProductQuery.include('variants');
       orderProductQuery.first().then(function(result) {
         if (result) {
           logInfo('order product ' + result.get('orderProductId') + ' exists');
-          if (result.has('variant')) {
-            var variant = result.get('variant');
-            logInfo('matches variant ' + variant.get('variantId'));
-            var totalToSubtract = parseInt(item.quantity) * -1;
-            if (!variant.has('inventoryLevel')) variant.set('inventoryLevel', 0);
-            variant.increment('inventoryLevel', totalToSubtract);
-            variantsToSave.push(variant);
+          if (result.has('variants')) {
+            var variants = result.get('variants');
+            _.each(variants, function(variant) {
+              logInfo('matches variant ' + variant.get('variantId'));
+              var totalToSubtract = parseInt(item.quantity) * -1;
+              if (!variant.has('inventoryLevel')) variant.set('inventoryLevel', 0);
+              variant.increment('inventoryLevel', totalToSubtract);
+              variantsToSave.push(variant);
+            });
           } else {
-            logInfo('no variant for order product ' + result.get('orderProductId'));
+            logInfo('no variants for order product ' + result.get('orderProductId'));
           }
 
         } else {
@@ -1369,12 +1372,13 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
           shippedOrderProducts.push(orderProduct);
         } else if (variants) {
           var counted = false;
+          var orderProductShippable = true;
           for (var i = 0; i < variantsOrderedCount.length; i++) {
             var item = variantsOrderedCount[i];
-            var orderProductShippable = true;
             _.each(variants, function(variant) {
               if (item.variantId == variant.id) {
                 var totalOrdered = item.totalOrdered + orderProduct.get('quantity');
+//                 logInfo('totalOrdered:' + totalOrdered + ' inventory:' + variant.get('inventoryLevel'))
                 if (totalOrdered <= variant.get('inventoryLevel')) {
                   variantsOrderedCount[i].totalOrdered = totalOrdered;
                 } else {
@@ -1383,15 +1387,14 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
                 counted = true;
               }
             });
-            if (orderProductShippable) {
-//               logInfo('orderProduct ' + orderProduct.id + ' is shippable');
-              shippableOrderProducts.push(orderProduct);
-            } else {
-//               logInfo('orderProduct ' + orderProduct.id + ' is not shippable');
-              unshippableOrderProducts.push(orderProduct);
-            }
-          };
-          if (!counted && orderProduct.get('quantity') <= getInventoryLevel(variants)) {
+          }
+          if (counted && orderProductShippable) {
+//             logInfo('orderProduct ' + orderProduct.id + ' is shippable');
+            shippableOrderProducts.push(orderProduct);
+          } else if (counted) {
+//             logInfo('orderProduct ' + orderProduct.id + ' is not shippable');
+            unshippableOrderProducts.push(orderProduct);
+          } else if (!counted && orderProduct.get('quantity') <= getInventoryLevel(variants)) {
 //             logInfo('new orderProduct ' + orderProduct.id + ' is shippable with ' + orderProduct.get('quantity') + ' total ordered');
             _.each(variants, function(variant) {
               variantsOrderedCount.push({variantId: variant.id, totalOrdered: orderProduct.get('quantity')});
@@ -1904,7 +1907,7 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
 	
 	if (orderProducts) {
 		orderProducts.map(function(orderProduct, i) {
-  		logInfo('\nop:' + orderProduct.orderProductId + ' oa:' + orderProduct.order_address_id);
+  		logInfo('\nop:' + orderProduct.get('orderProductId') + ' oa:' + orderProduct.get('order_address_id'));
   		
   		// Check if product is in a shipment
   		var isShipped = false;
@@ -1913,9 +1916,9 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
   		if (shippedShipments) {
     		shippedShipments.map(function(shippedShipment, j) {
       		shippedShipment.items.map(function(item, k) {
-        		if (orderProduct.order_address_id === shippedShipment.order_address_id && orderProduct.orderProductId === item.order_product_id) {
+        		if (orderProduct.get('order_address_id') === shippedShipment.get('order_address_id') && orderProduct.get('orderProductId') === item.get('order_product_id')) {
           		isShipped = true;
-          		shippedShipmentId = shippedShipment.shipmentId;
+          		shippedShipmentId = shippedShipment.get('shipmentId');
           		shipment = shippedShipment;
         		}
         		return item;
@@ -1924,9 +1927,9 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
     		});
   		}
       var group = {
-        orderId: orderProduct.order_id, 
-        orderAddressId: orderProduct.order_address_id, 
-        orderBillingAddress: order.billing_address,
+        orderId: orderProduct.get('order_id'), 
+        orderAddressId: orderProduct.get('order_address_id'), 
+        orderBillingAddress: order.get('billing_address'),
         shippedShipmentId: shippedShipmentId, 
         orderProducts: [orderProduct],
         shipment: shipment
@@ -1950,12 +1953,12 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
           shippedGroups[shipmentIndex].orderProducts.push(orderProduct);
         }
     		
-  		} else if (orderProduct.shippable && orderProduct.quantity_shipped !== orderProduct.quantity && getInventoryLevel(orderProduct.variants) >= orderProduct.quantity) { 
+  		} else if (orderProduct.get('shippable') && orderProduct.get('quantity_shipped') !== orderProduct.get('quantity') && getInventoryLevel(orderProduct.get('variants')) >= orderProduct.get('quantity')) { 
     		logInfo('product is shippable');
     		
     		// Check whether product is being shipped to a unique address
     		shippableGroups.map(function(shippableGroup, j) {
-      		if (orderProduct.order_address_id === shippableGroup.orderAddressId) shipmentIndex = j;
+      		if (orderProduct.get('order_address_id') === shippableGroup.orderAddressId) shipmentIndex = j;
       		return shippableGroups;
     		});
         if (shipmentIndex < 0) {
@@ -1972,7 +1975,7 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
     		logInfo('product is not shippable');
     		// Check whether product is being shipped to a unique address
     		unshippableGroups.map(function(unshippableGroup, j) {
-      		if (orderProduct.order_address_id === unshippableGroup.orderAddressId) shipmentIndex = j;
+      		if (orderProduct.get('order_address_id') === unshippableGroup.orderAddressId) shipmentIndex = j;
       		return unshippableGroup;
     		});
         if (shipmentIndex < 0) {
