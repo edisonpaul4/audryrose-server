@@ -335,6 +335,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   var bcProduct;
   var bcProductRules;
   var bcProductOptions;
+  var allVariantIds = [];
   var allVariants = [];
   var productId = request.params.productId;
   var productQuery = new Parse.Query(Product);
@@ -393,7 +394,13 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
               
           }).then(function(result) {
             var productVariants = result.get('variants');
-            allVariants = allVariants.concat(result.get('variants'));
+            _.each(productVariants, function(productVariant) {
+              if (allVariantIds.indexOf(productVariant.id) < 0) {
+                allVariantIds.push(productVariant.id);
+                allVariants.push(productVariant);
+              }
+              return productVariant;
+            });
             return;
             
           });
