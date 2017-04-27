@@ -2152,6 +2152,7 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   });
   
 	// Line
+/*
 	lineYPos = rowY - padding;
 	cxt.drawPath(margin, lineYPos, pageWidth - margin, lineYPos, {color:'lightgray', width:1});
 	
@@ -2174,6 +2175,7 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
 	// Total
 	var totalLabel = writePdfText(cxt, 'Grand Total:', boldFont, 9, 0x000000, 'right', margin + 80, taxLabel.y, 10, pageWidth, pageHeight);
 	var totalText = writePdfText(cxt, numeral(order.get('total_inc_tax')).format('$0,0.00'), boldFont, 9, 0x000000, 'right', margin, taxLabel.y, 10, pageWidth, pageHeight);
+*/
   
   pdfWriter.writePage(page);
   pdfWriter.end();
