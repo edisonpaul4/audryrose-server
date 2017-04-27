@@ -1256,7 +1256,7 @@ var loadOrder = function(bcOrderId) {
 //         hd = new memwatch.HeapDiff();
         
     		orderShipmentObject = result;
-//     		if (orderShipmentObject.has('packingSlip')) return orderShipmentObject;
+    		if (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('packingSlip')) return orderShipmentObject;
     		return createOrderShipmentPackingSlip(orderObj, orderShipmentObject);
     		
   		}).then(function(result) {
@@ -1265,7 +1265,7 @@ var loadOrder = function(bcOrderId) {
 //         hd = new memwatch.HeapDiff();
         
     		orderShipmentObject = result;
-    		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url')) return false;
+    		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url') || (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('packingSlip'))) return false;
     		return combinePdfs([orderShipmentObject.get('packingSlipUrl'), orderShipmentObject.get('shippo_label_url')]);
     		
   		}).then(function(result) {
