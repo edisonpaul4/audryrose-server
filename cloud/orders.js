@@ -1780,8 +1780,8 @@ var getOrderProductsStatus = function(orderProducts) {
 
 var getOrderProductResizable = function(orderProduct) {
   var variants = orderProduct.get('variants');
-  if (variants.length > 0) {
-    logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' has multiple variants and si not resizable');
+  if (variants.length > 1) {
+    logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' has multiple variants and is not resizable');
     orderProduct.set('resizable', false);
     return orderProduct;
   } else {
