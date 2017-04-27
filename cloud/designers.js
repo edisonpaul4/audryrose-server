@@ -52,6 +52,8 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   designersQuery.limit(10000);
   designersQuery.include('vendors');
   designersQuery.include('vendors.pendingOrder');
+  designersQuery.include('vendors.pendingOrder.vendorOrderVariants');
+  designersQuery.include('vendors.pendingOrder.vendorOrderVariants.variant');
   
   designersQuery.count().then(function(count) {
     totalDesigners = count;
@@ -63,12 +65,10 @@ Parse.Cloud.define("getDesigners", function(request, response) {
     designers = results;
     
     var productsQuery = new Parse.Query(Product);
-    productsQuery.equalTo('hasVendorOrder', true);
     productsQuery.include('variants');
     productsQuery.include("department");
     productsQuery.include("classification");
     productsQuery.include("designer");
-    productsQuery.include("designer.vendors");
     productsQuery.include("vendor");
     productsQuery.include("vendor.pendingOrder");
     productsQuery.include("vendor.pendingOrder.vendorOrderVariants");
