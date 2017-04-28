@@ -25,6 +25,7 @@
     "hummus": "^1.0.75",
     "jquery": "^3.1.1",
     "mailchimp": "^1.1.4",
+    "mailgun-js": "^0.10.1",
     "memory-streams": "^0.1.2",
     "memwatch-next": "^0.3.0",
     "moment": "^2.17.1",
@@ -33,7 +34,7 @@
     "numeral": "^2.0.4",
     "parse": "latest",
     "parse-dashboard": "^1.0.21",
-    "parse-server": "*",
+    "parse-server": "^2.3.8",
     "request": "^2.79.0",
     "underscore": "^1.8.3",
     "xmlreader": "^0.2.3"
