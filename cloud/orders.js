@@ -717,6 +717,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
               pdfsToCombine.push(orderShipment.get('labelWithPackingSlipUrl'));
             } else {
               var msg = 'Error: Order #' + orderShipment.get('order_id') + ' shipping label not added to combined print pdf file.';
+              logInfo(msg);
               errors.push(msg);
             }
           }
@@ -842,6 +843,7 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
         pdfsToCombine.push(mostRecentShipment.get('labelWithPackingSlipUrl'));
       } else {
         var msg = 'Error: Order #' + mostRecentShipment.get('order_id') + ' shipping label not added to combined print file.';
+        logInfo(msg);
         errors.push(msg);
       }
     });
@@ -1256,7 +1258,10 @@ var loadOrder = function(bcOrderId) {
 //         hd = new memwatch.HeapDiff();
         
     		orderShipmentObject = result;
-    		if (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('packingSlip')) return orderShipmentObject;
+    		if (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('packingSlip')) {
+      		logInfo('Do not create packing slip pdf');
+      		return orderShipmentObject;
+    		}
     		return createOrderShipmentPackingSlip(orderObj, orderShipmentObject);
     		
   		}).then(function(result) {
@@ -1265,7 +1270,10 @@ var loadOrder = function(bcOrderId) {
 //         hd = new memwatch.HeapDiff();
         
     		orderShipmentObject = result;
-    		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url') || (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('packingSlip'))) return false;
+    		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url') || (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('labelWithPackingSlip'))) {
+      		logInfo('Do not create label with packing slip pdf')
+      		return false;
+    		}
     		return combinePdfs([orderShipmentObject.get('packingSlipUrl'), orderShipmentObject.get('shippo_label_url')]);
     		
   		}).then(function(result) {
@@ -1274,6 +1282,7 @@ var loadOrder = function(bcOrderId) {
 //         hd = new memwatch.HeapDiff();
             		
     		if (result) {
+      		logInfo('Save labelWithPackingSlip');
           orderShipmentObject.set('labelWithPackingSlip', result);
           orderShipmentObject.set('labelWithPackingSlipUrl', result.url());
     		}
