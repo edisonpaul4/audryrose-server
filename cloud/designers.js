@@ -397,11 +397,9 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
     designerQuery.equalTo('objectId', designerId);
     designerQuery.include('vendors');
     designerQuery.include('vendors.pendingOrder');
-    designerQuery.include('vendors.pendingOrder.vendor');
     designerQuery.include('vendors.pendingOrder.vendorOrderVariants');
     designerQuery.include('vendors.pendingOrder.vendorOrderVariants.variant');
     designerQuery.include('vendors.sentOrders');
-    designerQuery.include('vendors.sentOrders.vendor');
     designerQuery.include('vendors.sentOrders.vendorOrderVariants');
     designerQuery.include('vendors.sentOrders.vendorOrderVariants.variant');
     return designerQuery.first();
@@ -429,6 +427,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
   var emailId;
   var productIds = [];
   var successMessage;
+  var errors = [];
    
   var vendorOrderQuery = new Parse.Query(VendorOrder);
   vendorOrderQuery.equalTo('objectId', orderId);
@@ -447,7 +446,11 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     });
     messageProductsHTML = convertVendorOrderMessage(messageProductsHTML, vendorOrderVariants);
     
-    
+    if (!vendor.has('email')) {
+      errors.push('Error sending order: ' + vendor.get('name') + ' needs an email address.');
+      response.success({errors: errors});
+      return false;
+    }
     var data = {
       from: 'Jaclyn <jaclyn@loveaudryrose.com>',
       to: vendor.get('email'),
@@ -508,22 +511,24 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
   	
   }).then(function(result) {
     logInfo('products saved');
+    return delay(1000);
+    
+  }).then(function() {
     
     var designerQuery = new Parse.Query(Designer);
     designerQuery.equalTo('objectId', designerId);
     designerQuery.include('vendors');
     designerQuery.include('vendors.pendingOrder');
-    designerQuery.include('vendors.pendingOrder.vendor');
     designerQuery.include('vendors.pendingOrder.vendorOrderVariants');
     designerQuery.include('vendors.pendingOrder.vendorOrderVariants.variant');
     designerQuery.include('vendors.sentOrders');
-    designerQuery.include('vendors.sentOrders.vendor');
     designerQuery.include('vendors.sentOrders.vendorOrderVariants');
     designerQuery.include('vendors.sentOrders.vendorOrderVariants.variant');
     return designerQuery.first();
     
   }).then(function(designerObject) {
-    response.success({updatedDesigner: designerObject, successMessage: successMessage});
+    logInfo('sendVendorOrder complete');
+    response.success({updatedDesigner: designerObject, successMessage: successMessage, errors: errors});
     
   }, function(error) {
 		logError(error);
@@ -612,6 +617,12 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
 /*   message = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>Billing e.g. invoices and receipts</title></head><body itemscope="" itemtype="http://schema.org/EmailMessage" style="-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:none;box-sizing:border-box;font-family:\'Helvetica Neue\',Helvetica,Arial,sans-serif;height:100%;line-height:1.6em;width:100%!important" margin: 0; padding: 0;><style>@media only screen and (max-width:640px){h1,h2,h3,h4{font-weight:800!important;margin:20px 0 5px!important}h1{font-size:22px!important}h2{font-size:18px!important}h3{font-size:16px!important}.order{width:100%!important}}</style>' + message + '</body></html>'; */
   
   return message;
+}
+
+var delay = function(t) {
+  return new Promise(function(resolve) { 
+    setTimeout(resolve, t)
+  });
 }
 
 var logInfo = function(i, alwaysLog) {
