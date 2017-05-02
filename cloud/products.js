@@ -674,143 +674,49 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   });
 });
 
-Parse.Cloud.define("saveProductStatus", function(request, response) {
-  var productId = parseInt(request.params.productId);
-  var status = request.params.status;
+Parse.Cloud.define("saveProduct", function(request, response) {
+  var productId = parseInt(request.params.data.productId);
+  var isActive = request.params.data.isActive !== undefined ? (request.params.data.isActive == true || request.params.data.isActive == 'true') ? true : false : undefined;
+  var vendorId = request.params.data.vendorId;
+  var isBundle = request.params.data.isBundle !== undefined ? (request.params.data.isBundle == true || request.params.data.isBundle == 'true') ? true : false : undefined;
+  var designerProductName = request.params.data.designerProductName;
+  var product;
+  var vendor;
   var updatedProduct;
   
-  var isActive = (status == 'active') ? true : false;
+  logInfo('saveProduct ' + productId + ' ------------------------')
+  if (isActive !== undefined) logInfo('set isActive: ' + isActive);
+  if (vendorId !== undefined) logInfo('set vendorId: ' + vendorId);
+  if (isBundle !== undefined) logInfo('set isBundle: ' + isBundle);
+  if (designerProductName !== undefined) logInfo('set designerProductName: ' + designerProductName);
   
   var productQuery = new Parse.Query(Product);
   productQuery.equalTo('productId', productId);
   productQuery.first().then(function(productResult) {
-    if (productResult) {
-      productResult.set('is_active', isActive);
-      return productResult.save(null, {useMasterKey: true});
+    product = productResult;
+    if (product) {
+      if (isActive !== undefined) product.set('is_active', isActive);
+      if (isBundle !== undefined) product.set('isBundle', isBundle);
+      if (isBundle !== undefined) product.set('designerProductName', designerProductName);
     } else {
       logError(error);
       response.error(error.message);
     }
     
-  }).then(function(productObject) {
-    var productQuery = new Parse.Query(Product);
-    productQuery.equalTo("productId", productId);
-    productQuery.include('variants');
-    productQuery.include('variants.colorCode');
-    productQuery.include('variants.stoneCode');
-    productQuery.include("department");
-    productQuery.include("classification");
-    productQuery.include("designer");
-    productQuery.include("designer.vendors");
-    productQuery.include("vendor");
-    productQuery.include("vendor.vendorOrders");
-    productQuery.include("vendor.vendorOrders.vendorOrderVariants");
-    productQuery.include("bundleVariants");
-    return productQuery.first();
-    
-  }).then(function(result) {
-    updatedProduct = result;
-    return Parse.Cloud.httpRequest({
-      method: 'post',
-      url: process.env.SERVER_URL + '/functions/getProductTabCounts',
-      headers: {
-        'X-Parse-Application-Id': process.env.APP_ID,
-        'X-Parse-Master-Key': process.env.MASTER_KEY
-      }
-    });
-    
-  }).then(function(httpResponse) {
-    tabCounts = httpResponse.data.result;
-	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
-    
-  }, function(error) {
-		logError(error);
-		response.error(error.message);
-		
-	});
-  
-});
-
-Parse.Cloud.define("saveProductVendor", function(request, response) {
-  var productId = parseInt(request.params.productId);
-  var vendorId = request.params.vendorId;
-  var vendor;
-  var updatedProduct;
-  
-  var vendorQuery = new Parse.Query(Vendor);
-  vendorQuery.equalTo('objectId', vendorId);
-  vendorQuery.first().then(function(result) {
-    vendor = result;
-    
-    var productQuery = new Parse.Query(Product);
-    productQuery.equalTo('productId', productId);
-    return productQuery.first()
-  
-  }).then(function(productResult) {
-    if (productResult) {
-      productResult.set('vendor', vendor);
-      return productResult.save(null, {useMasterKey: true});
+    if (vendorId !== undefined) {
+      var vendorQuery = new Parse.Query(Vendor);
+      vendorQuery.equalTo('objectId', vendorId);
+      return vendorQuery.first();
     } else {
-      logError(error);
-      response.error(error.message);
+      return;
     }
     
-  }).then(function(productObject) {
-    var productQuery = new Parse.Query(Product);
-    productQuery.equalTo("productId", productId);
-    productQuery.include('variants');
-    productQuery.include('variants.colorCode');
-    productQuery.include('variants.stoneCode');
-    productQuery.include("department");
-    productQuery.include("classification");
-    productQuery.include("designer");
-    productQuery.include("designer.vendors");
-    productQuery.include("vendor");
-    productQuery.include("vendor.vendorOrders");
-    productQuery.include("vendor.vendorOrders.vendorOrderVariants");
-    productQuery.include("bundleVariants");
-    return productQuery.first();
-    
-  }).then(function(result) {
-    updatedProduct = result;
-    return Parse.Cloud.httpRequest({
-      method: 'post',
-      url: process.env.SERVER_URL + '/functions/getProductTabCounts',
-      headers: {
-        'X-Parse-Application-Id': process.env.APP_ID,
-        'X-Parse-Master-Key': process.env.MASTER_KEY
-      }
-    });
-    
-  }).then(function(httpResponse) {
-    tabCounts = httpResponse.data.result;
-	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
-    
-  }, function(error) {
-		logError(error);
-		response.error(error.message);
-		
-	});
-  
-});
-
-Parse.Cloud.define("saveProductType", function(request, response) {
-  var productId = parseInt(request.params.productId);
-  var isBundle = request.params.isBundle == 'true' ? true : false;
-  var updatedProduct;
-  
-  console.log(isBundle)
-    
-  var productQuery = new Parse.Query(Product);
-  productQuery.equalTo('productId', productId);
-  return productQuery.first().then(function(productResult) {
-    if (productResult) {
-      productResult.set('isBundle', isBundle);
-      return productResult.save(null, {useMasterKey: true});
-    } else {
-      logError(error);
-      response.error(error.message);
+  }).then(function(vendorResult) {
+    if (vendorResult) {
+      vendor = vendorResult;
+      product.set('vendor', vendor);
     }
+    return product.save(null, {useMasterKey: true});
     
   }).then(function(productObject) {
     var productQuery = new Parse.Query(Product);
@@ -1724,6 +1630,8 @@ var createProductObject = function(productData, classes, departments, designers,
   productObj.set('primary_image', productData.primary_image);
   productObj.set('availability', productData.availability);
   
+  if (!productObj.has('wholesalePrice')) productObj.set('wholesalePrice', parseFloat(productData.price) / 2.2);
+  
   if (!productObj.has('is_active')) productObj.set('is_active', true);
   
   _.each(classes, function(classObj) {
@@ -1820,12 +1728,15 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
   
   variantObj.set('productId', product.get('productId'));
   variantObj.set('productName', product.get('name'));
+  if (product.has('designerProductName')) variantObj.set('designerProductName', product.get('designerProductName'));
+  var adjustedPrice = product.get('price');
   
   if (!currentVariant) {
     variantObj.set('variantId', variantId);
   }
   
   var optionValueIds = [];
+  console.log(variantOptions)
 	if (variantOptions) {
 		variantOptions.map(function(variantOption, i) {
   		optionValueIds.push(variantOption.option_value_id);
@@ -1857,12 +1768,16 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
     		variantObj.set('singlepair_label', variantOption.label);
     		variantObj.set('singlepair_value', variantOption.value);
   		}
+  		if (variantOption.adjuster && variantOption.adjuster === 'absolute') adjustedPrice = variantOption.adjusterValue;
+  		if (variantOption.adjuster && variantOption.adjuster === 'relative') adjustedPrice += variantOption.adjusterValue;	
+  		
   		return variantOption;
 		});
 		
 		variantObj.set('variantOptions', variantOptions);
 	}
 	variantObj.set('optionValueIds', optionValueIds);
+	variantObj.set('adjustedPrice', adjustedPrice);
 	
 	// Duplicate some properties from parent product
 	if (product.has('designer')) variantObj.set('designer', product.get('designer'));
