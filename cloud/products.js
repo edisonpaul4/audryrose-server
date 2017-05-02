@@ -120,8 +120,8 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include("designer");
   productsQuery.include("designer.vendors");
   productsQuery.include("vendor");
-  productsQuery.include("vendor.pendingOrder");
-  productsQuery.include("vendor.pendingOrder.vendorOrderVariants");
+  productsQuery.include("vendor.vendorOrders");
+  productsQuery.include("vendor.vendorOrders.vendorOrderVariants");
   productsQuery.include("bundleVariants");
   productsQuery.limit(PRODUCTS_PER_PAGE);
   
@@ -195,6 +195,34 @@ Parse.Cloud.define("getProductTabCounts", function(request, response) {
 	  
   }, function(error) {
 	  logError(error);
+	  response.error(error.message);
+	  
+  });
+});
+
+Parse.Cloud.define("getProduct", function(request, response) {
+  var productId = request.params.productId;
+  logInfo('getProduct for ' + productId);
+  
+  var productQuery = new Parse.Query(Product);
+  productQuery.equalTo('productId', parseFloat(productId)); 
+  productQuery.include('variants');
+  productQuery.include('variants.colorCode');
+  productQuery.include('variants.stoneCode');
+  productQuery.include("department");
+  productQuery.include("classification");
+  productQuery.include("designer");
+  productQuery.include("designer.vendors");
+  productQuery.include("vendor");
+  productQuery.include("vendor.vendorOrders");
+  productQuery.include("vendor.vendorOrders.vendorOrderVariants");
+  productQuery.include("bundleVariants");
+
+  productQuery.first().then(function(product) {
+	  response.success({product: product});
+	  
+  }, function(error) {
+    logError(error);
 	  response.error(error.message);
 	  
   });
@@ -619,8 +647,8 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
     productsQuery.include("classification");
     productsQuery.include("designer");
     productsQuery.include("vendor");
-    productsQuery.include("vendor.pendingOrder");
-    productsQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productsQuery.include("vendor.vendorOrders");
+    productsQuery.include("vendor.vendorOrders.vendorOrderVariants");
     productsQuery.include("bundleVariants");
     return productsQuery.first();
     
@@ -675,8 +703,8 @@ Parse.Cloud.define("saveProductStatus", function(request, response) {
     productQuery.include("designer");
     productQuery.include("designer.vendors");
     productQuery.include("vendor");
-    productQuery.include("vendor.pendingOrder");
-    productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productQuery.include("vendor.vendorOrders");
+    productQuery.include("vendor.vendorOrders.vendorOrderVariants");
     productQuery.include("bundleVariants");
     return productQuery.first();
     
@@ -738,8 +766,8 @@ Parse.Cloud.define("saveProductVendor", function(request, response) {
     productQuery.include("designer");
     productQuery.include("designer.vendors");
     productQuery.include("vendor");
-    productQuery.include("vendor.pendingOrder");
-    productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productQuery.include("vendor.vendorOrders");
+    productQuery.include("vendor.vendorOrders.vendorOrderVariants");
     productQuery.include("bundleVariants");
     return productQuery.first();
     
@@ -795,8 +823,8 @@ Parse.Cloud.define("saveProductType", function(request, response) {
     productQuery.include("designer");
     productQuery.include("designer.vendors");
     productQuery.include("vendor");
-    productQuery.include("vendor.pendingOrder");
-    productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productQuery.include("vendor.vendorOrders");
+    productQuery.include("vendor.vendorOrders.vendorOrderVariants");
     productQuery.include("bundleVariants");
     return productQuery.first();
     
@@ -898,8 +926,8 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         productQuery.include("designer");
         productQuery.include("designer.vendors");
         productQuery.include("vendor");
-        productQuery.include("vendor.pendingOrder");
-        productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+        productQuery.include("vendor.vendorOrders");
+        productQuery.include("vendor.vendorOrders.vendorOrderVariants");
         productQuery.include("bundleVariants");
         return productQuery.first();
       
@@ -1058,7 +1086,6 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
           vendorOrder.set('vendorOrderVariants', [vendorOrderVariant]);
           vendorOrder.set('orderedAll', false);
           vendorOrder.set('receivedAll', false);
-          // ADD OTHER SETUP STUFF HERE???????
           
         }
         return vendorOrder.save(null, {useMasterKey:true});
@@ -1067,7 +1094,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         if (isNewOrder) vendorOrders.push(result);
         logInfo('VendorOrder saved');
         
-        vendor.set('pendingOrder', result);
+        vendor.addUnique('vendorOrders', result);
         return vendor.save(null, {useMasterKey:true});
         
       }).then(function(result) {
@@ -1110,8 +1137,8 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         productQuery.include("classification");
         productQuery.include("designer");
         productQuery.include('vendor');
-        productQuery.include("vendor.pendingOrder");
-        productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+        productQuery.include("vendor.vendorOrders");
+        productQuery.include("vendor.vendorOrders.vendorOrderVariants");
         productQuery.include("bundleVariants");
         return productQuery.first();
       
@@ -1275,8 +1302,8 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
     productQuery.include("designer");
     productQuery.include("designer.vendors");
     productQuery.include("vendor");
-    productQuery.include("vendor.pendingOrder");
-    productQuery.include("vendor.pendingOrder.vendorOrderVariants");
+    productQuery.include("vendor.vendorOrders");
+    productQuery.include("vendor.vendorOrders.vendorOrderVariants");
     productQuery.include("bundleVariants");
     return productQuery.first();
         

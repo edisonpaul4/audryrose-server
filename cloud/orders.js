@@ -107,10 +107,11 @@ Parse.Cloud.define("getOrders", function(request, response) {
   
   ordersQuery = getOrderSort(ordersQuery, currentSort);
   ordersQuery.include('orderProducts');
-//   ordersQuery.include('orderProducts.variant');
-//   ordersQuery.include('orderProducts.variant.designer');
   ordersQuery.include('orderProducts.variants');
   ordersQuery.include('orderProducts.variants.designer');
+  ordersQuery.include('orderProducts.variants.designer.vendors');
+  ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders');
+  ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders.vendorOrderVariants');
   ordersQuery.include('orderShipments');
   
   if (paginate) {
@@ -308,6 +309,9 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 //     ordersQuery.include('orderProducts.variant.designer');
     ordersQuery.include('orderProducts.variants');
     ordersQuery.include('orderProducts.variants.designer');
+    ordersQuery.include('orderProducts.variants.designer.vendors');
+    ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders');
+    ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders.vendorOrderVariants');
     ordersQuery.include('orderShipments');
     return ordersQuery.first();
     
@@ -689,6 +693,9 @@ Parse.Cloud.define("createShipments", function(request, response) {
 //         ordersQuery.include('orderProducts.variant.designer');
         ordersQuery.include('orderProducts.variants');
         ordersQuery.include('orderProducts.variants.designer');
+        ordersQuery.include('orderProducts.variants.designer.vendors');
+        ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders');
+        ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders.vendorOrderVariants');
         ordersQuery.include('orderShipments');
         return ordersQuery.first();
       
@@ -875,6 +882,65 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
   }, function(error) {
 	  logError(error);
 	  response.error(error);
+	  
+  });
+});
+
+Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
+  var orders = request.params.orders;
+  var orderId = request.params.orderId;
+  var updatedProducts;
+  var updatedOrder;
+  var tabCounts;
+  
+  logInfo('addOrderProductToVendorOrder ' + orderId + ' ------------------------');
+  
+  Parse.Cloud.httpRequest({
+    method: 'post',
+    url: process.env.SERVER_URL + '/functions/addToVendorOrder',
+    headers: {
+      'X-Parse-Application-Id': process.env.APP_ID,
+      'X-Parse-Master-Key': process.env.MASTER_KEY
+    },
+    params: {
+      orders: orders
+    }
+  }).then(function(response) {
+    if (response.updatedProducts) updatedProducts = response.updatedProducts;
+    
+    logInfo('get order data');
+    var ordersQuery = new Parse.Query(Order);
+    ordersQuery.equalTo('orderId', orderId);
+    ordersQuery.include('orderProducts');
+    ordersQuery.include('orderProducts.variants');
+    ordersQuery.include('orderProducts.variants.designer');
+    ordersQuery.include('orderProducts.variants.designer.vendors');
+    ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders');
+    ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders.vendorOrderVariants');
+    ordersQuery.include('orderShipments');
+    return ordersQuery.first();
+    
+  }).then(function(result) {
+    updatedOrder = result;
+    
+    return Parse.Cloud.httpRequest({
+      method: 'post',
+      url: process.env.SERVER_URL + '/functions/getOrderTabCounts',
+      headers: {
+        'X-Parse-Application-Id': process.env.APP_ID,
+        'X-Parse-Master-Key': process.env.MASTER_KEY
+      }
+    });
+    
+  }).then(function(httpResponse) {
+    tabCounts = httpResponse.data.result;
+    
+    logInfo('order successfully reloaded');
+	  response.success({updatedOrders: [updatedOrder], tabCounts: tabCounts});
+	  
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
 	  
   });
 });
