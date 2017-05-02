@@ -649,7 +649,9 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
   _.each(vendorOrderVariants, function(vendorOrderVariant) {
     productsTable += trTag;
     var variant = vendorOrderVariant.get('variant');
-    productsTable += tdTag + variant.get('productName') + '</td>';
+    productsTable += tdTag;
+    productsTable += variant.has('designerProductName') ? variant.get('designerProductName') : variant.get('productName');
+    productsTable += '</td>';
     var optionsList = '';
     _.each(variant.get('variantOptions'), function(option) {
       optionsList += option.display_name + ': ' + option.label + '<br/>';
