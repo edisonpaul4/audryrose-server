@@ -172,6 +172,7 @@ Parse.Cloud.define("saveVendor", function(request, response) {
   var firstName = request.params.data.firstName;
   var lastName = request.params.data.lastName;
   var email = request.params.data.email;
+  var waitTime = parseFloat(request.params.data.waitTime);
   var designer;
   
   var designerQuery = new Parse.Query(Designer);
@@ -212,10 +213,10 @@ Parse.Cloud.define("saveVendor", function(request, response) {
     } else {
       vendor.unset('email');
     }
-    if (name && name != '') {
-      vendor.set('email', email);
+    if (waitTime && waitTime != '') {
+      vendor.set('waitTime', waitTime);
     } else {
-      vendor.unset('email');
+      vendor.unset('waitTime');
     }
     
     if (vendor.has('designers')) {
@@ -353,6 +354,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
       vendorOrder.set('hasOrder', hasOrder);
       if (numReceived >= vendorOrderVariants.length) {
         vendorOrder.set('receivedAll', true);
+        vendorOrder.set('dateReceived', moment().toDate());
         vendor.remove('vendorOrders', vendorOrder);
       }
       return vendorOrder.save(null, {useMasterKey:true});
@@ -452,7 +454,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
       return false;
     }
     var data = {
-      from: 'Jaclyn <jaclyn@loveaudryrose.com>',
+      from: 'orders@loveaudryrose.com',
       to: vendor.get('email'),
       subject: 'Audry Rose Order ' + moment().format('M.D.YY'),
       text: messageProductsText,
@@ -473,6 +475,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     logInfo(vendorOrderVariants.length + ' vendorOrderVariants saved');
     vendorOrder.set('orderedAll', true);
     vendorOrder.set('emailId', emailId);
+    vendorOrder.set('dateOrdered', moment().toDate());
     return vendorOrder.save(null, {useMasterKey: true});
     
   }).then(function() {
@@ -643,6 +646,7 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
   productsTable += '<thead>';
   productsTable += thTag + 'Style Name</th>';
   productsTable += thTag + 'Options</th>';
+  productsTable += thTag + 'Notes</th>';
   productsTable += thRightTag + 'Units</th>';
   productsTable += '</thead>';
   productsTable += '<tbody>';
@@ -657,6 +661,7 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
       optionsList += option.display_name + ': ' + option.label + '<br/>';
     });
     productsTable += tdTag + optionsList + '</td>';
+    productsTable += tdTag + vendorOrderVariant.get('notes') + '</td>';
     productsTable += tdRightTag + vendorOrderVariant.get('units') + '</td>';
     productsTable += '</tr>';
   });
