@@ -2372,8 +2372,6 @@ var combinePdfs = function(pdfs) {
 }
 
 var validatePhoneNumber = function(string) {
-  console.log('validatePhoneNumber')
-  console.log(string.match(/\d/g).length)
   return string.match(/\d/g).length >= 10;
 }
 
