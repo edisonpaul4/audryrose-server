@@ -1666,19 +1666,22 @@ var getOrderProductVariants = function(orderProduct) {
         orderProduct.set('isBundle', true);
         var variantsToMatch = parentProduct.has('bundleVariants') ? parentProduct.get('bundleVariants') : [];
         var bundleVariantMatches = getOrderProductVariantMatches(orderProduct, variants);
-        _.each(variantsToMatch, function(variant) {
+        for (var i = 0; i < variantsToMatch.length; i++) {
+          var variant = variantsToMatch[i];
           if (bundleVariantMatches && bundleVariantMatches.length > 0) {
-            _.each(bundleVariantMatches, function(bundleVariant) {
+            for (var j = 0; j < bundleVariantMatches.length; j++) {
+              var bundleVariant = bundleVariantMatches[j];
               if (variant.get('productId') == bundleVariant.get('productId')) {
                 logInfo('add ' + bundleVariant.get('productId') + ' to bundle');
                 variantMatches.push(bundleVariant);
                 bundleVariantMatches.splice(j, 1);
+                break;
               }
-            });          
+            }       
           } else {
             variantMatches.push(variant);
           }
-        });
+        }
       } else {
         orderProduct.set('isBundle', false);
         variantMatches = getOrderProductVariantMatches(orderProduct, variants);
