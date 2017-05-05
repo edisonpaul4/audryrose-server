@@ -344,7 +344,11 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
     return promise;
     
     
-  }).then(function() {
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	}).then(function() {
     vendorOrder.set('vendorOrderVariants', vendorOrderVariants);
     logInfo('Total ' + vendorOrderVariants.length + ' vendorOrderVariants');
     if (vendorOrderVariants.length > 0) {
@@ -364,10 +368,18 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
       return vendorOrder.destroy();
     }
     
-  }).then(function() {
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	}).then(function() {
     return vendor.save(null, {useMasterKey:true})
     
-  }).then(function() {
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	}).then(function() {
     logInfo('vendor saved');
   	logInfo(productIds.length + ' product ids to save');
   	
@@ -395,7 +407,11 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
   	
   	return promise;
   	
-  }).then(function(result) {
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	}).then(function(result) {
     logInfo('products saved');
     
     var designerQuery = new Parse.Query(Designer);
@@ -406,7 +422,11 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
     designerQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
     return designerQuery.first();
     
-  }).then(function(designerObject) {
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+		
+	}).then(function(designerObject) {
     response.success(designerObject);
     
   }, function(error) {
