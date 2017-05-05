@@ -1656,16 +1656,16 @@ var getOrderProductVariants = function(orderProduct) {
     parentProduct = result;
     
     if (parentProduct && parentProduct.has('variants')) {
-      var variants = parentProduct.get('variants')
+      var variants = parentProduct.has('variants') ? parentProduct.get('variants') : [];
       
       var variantMatches = [];
       if (parentProduct.has('isBundle') && parentProduct.get('isBundle') == true) {
         orderProduct.set('isBundle', true);
-        var variantsToMatch = parentProduct.get('bundleVariants');
+        var variantsToMatch = parentProduct.has('bundleVariants') ? parentProduct.get('bundleVariants') : [];
         var bundleVariantMatches = getOrderProductVariantMatches(orderProduct, variants);
         for (var i = 0; i < variantsToMatch.length; i++) {
           var variant = variantsToMatch[i];
-          if (bundleVariantMatches.length > 0) {
+          if (bundleVariantMatches && bundleVariantMatches.length > 0) {
             for (var j = 0; j < bundleVariantMatches.length; j++) {
               var bundleVariant = bundleVariantMatches[j];
               if (variant.get('productId') == bundleVariant.get('productId')) {
@@ -1709,9 +1709,11 @@ var getOrderProductShippingAddress = function(orderProduct) {
     return bigCommerce.get(request);
     
   }).then(function(address) {
-    logInfo('adding OrderProduct shipping address: ' + address.id);
-    var shippingAddress = address;
-    orderProduct.set('shippingAddress', shippingAddress);
+    if (address && address.id) {
+      logInfo('adding OrderProduct shipping address: ' + address.id);
+      var shippingAddress = address;
+      orderProduct.set('shippingAddress', shippingAddress);
+    }
     return orderProduct;
   }, function(error) {
     return orderProduct;
@@ -1721,13 +1723,14 @@ var getOrderProductShippingAddress = function(orderProduct) {
 }
 
 var getOrderProductVariantMatches = function(orderProduct, variants) {
-  logInfo(variants.length + ' variants found for product ' + orderProduct.get('product_id'));
+  var totalVariants = variants ? variants.length : 0;
+  logInfo(totalVariants + ' variants found for product ' + orderProduct.get('product_id'));
   var productOptions = orderProduct.get('product_options');
-  var totalProductOptions = productOptions.length;
+  var totalProductOptions = productOptions ? productOptions.length : 0;
   logInfo('product has ' + totalProductOptions + ' options');
   
-  if (variants.length == 1 && productOptions.length == 0) {
-    logInfo('Matched ' + variants.length + ' variant');
+  if (totalVariants == 1 && totalProductOptions == 0) {
+    logInfo('Matched ' + totalVariants + ' variant');
     return variants;
     
   } else {
@@ -1737,7 +1740,7 @@ var getOrderProductVariantMatches = function(orderProduct, variants) {
       var variantOptions = variant.has('variantOptions') ? variant.get('variantOptions') : [];
       
       var matchesProductOptions = false;
-      var totalOptionsToCheck = productOptions.length;
+      var totalOptionsToCheck = totalProductOptions;
       var optionsChecked = 0;
       var optionMatches = 0;
       
