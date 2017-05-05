@@ -568,10 +568,10 @@ Parse.Cloud.define("createShipments", function(request, response) {
         logError(error);
     
       }).then(function(httpResponse) {
+        logInfo('Order #' + orderId + ' Shippo label status: ' + httpResponse.data.object_status, true);
         if (httpResponse.data.object_status == 'SUCCESS') {
           
           shippoLabel = httpResponse.data;
-          logInfo('Shippo label status: ' + shippoLabel.object_status, true);
           
           // Create the Bigcommerce shipment
           var request = '/orders/' + orderId + '/shipments';
@@ -593,7 +593,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
           _.each(httpResponse.data.messages, function(message) { 
             
             var msg = 'Error with Order #' + orderId + ': ' + message.text;
-            logInfo(msg, true);
+            logError(msg, true);
             errors.push(msg);
           });
         }
@@ -1664,7 +1664,6 @@ var getOrderProductVariants = function(orderProduct) {
           if (bundleVariantMatches.length > 0) {
             for (var j = 0; j < bundleVariantMatches.length; j++) {
               var bundleVariant = bundleVariantMatches[j];
-              console.log(variant.get('productId') + ' : ' + bundleVariant.get('productId'))
               if (variant.get('productId') == bundleVariant.get('productId')) {
                 logInfo('add ' + bundleVariant.get('productId') + ' to bundle');
                 variantMatches.push(bundleVariant);

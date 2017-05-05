@@ -460,11 +460,9 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
       text: messageProductsText,
       html: messageProductsHTML
     }
-//     console.log(data)
     return mailgun.messages().send(data);
     
   }).then(function(body) {
-    console.log(body);
     emailId = body.id;
     successMessage = 'Order successfully sent to ' + vendor.get('email');
     logInfo(successMessage);

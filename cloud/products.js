@@ -1636,14 +1636,14 @@ var createProductObject = function(productData, classes, departments, designers,
   
   _.each(classes, function(classObj) {
     if (classObj.get('category_id') && (productData.categories.indexOf(classObj.get('category_id').toString()) >= 0 || productData.categories.indexOf(parseFloat(classObj.get('category_id'))) >= 0)) {
-      console.log('set classification to ' + classObj.get('category_id'));
+      logInfo('set classification to ' + classObj.get('category_id'));
       productObj.set('classification', classObj);
     }
   });
   
   _.each(departments, function(departmentObj) {
     if (departmentObj.get('category_id') && (productData.categories.indexOf(departmentObj.get('category_id').toString()) >= 0 || productData.categories.indexOf(parseFloat(departmentObj.get('category_id'))) >= 0)) {
-      console.log('set department to ' + departmentObj.get('category_id'));
+      logInfo('set department to ' + departmentObj.get('category_id'));
       productObj.set('department', departmentObj);
     }
   });
@@ -1736,7 +1736,6 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
   }
   
   var optionValueIds = [];
-  console.log(variantOptions)
 	if (variantOptions) {
 		variantOptions.map(function(variantOption, i) {
   		optionValueIds.push(variantOption.option_value_id);
