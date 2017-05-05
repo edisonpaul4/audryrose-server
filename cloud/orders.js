@@ -405,15 +405,16 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
     var promise = Parse.Promise.as();
     _.each(shipmentGroups, function(shipmentGroup) {
+      logInfo('Process order address: ' + shipmentGroup.orderAddressId, true);
+      
       var orderId = shipmentGroup.orderId;
       var orderAddressId = shipmentGroup.orderAddressId;
+      logInfo('Order address ' + shipmentGroup.orderAddressId + ' has ' + shipmentGroup.orderProducts.length + ' orderProducts', true);
       var shippingAddress = shipmentGroup.orderProducts[0].shippingAddress;
       var billingAddress = shipmentGroup.orderBillingAddress;
       var customShipment = shipmentGroup.customShipment;
       var bcShipment;
       var shippoLabel;
-      
-      logInfo('Process order address: ' + orderAddressId, true);
       
       promise = promise.then(function() {
 
@@ -776,7 +777,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
   var generatedFile;
   var newFiles = [];
   
-  logInfo('\nbatchCreateShipments -----------------------------');
+  logInfo('\nbatchCreateShipments -----------------------------', true);
   
   // Create shipment groups
   Parse.Cloud.httpRequest({
@@ -1151,7 +1152,7 @@ var loadOrder = function(bcOrderId) {
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
         if (orderProductResult) {
-          logInfo('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.', true);
+          logInfo('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.');
           return createOrderProductObject(orderProduct, orderObj, orderProductResult);
         } else {
           logInfo('OrderProduct ' + orderProduct.id + ' is new.');
@@ -1166,7 +1167,7 @@ var loadOrder = function(bcOrderId) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
-        logInfo('getOrderProductVariants for OrderProduct ' + orderProductObject.get('orderProductId'), true);
+        logInfo('getOrderProductVariants for OrderProduct ' + orderProductObject.get('orderProductId'));
     		return getOrderProductVariants(orderProductObject);
     		
   		}, function(error){
@@ -1176,7 +1177,7 @@ var loadOrder = function(bcOrderId) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
-        logInfo('getOrderProductShippingAddress for OrderProduct ' + orderProductObject.get('orderProductId'), true);
+        logInfo('getOrderProductShippingAddress for OrderProduct ' + orderProductObject.get('orderProductId'));
     		return getOrderProductShippingAddress(orderProductObject);
     		
   		}, function(error){
@@ -1188,7 +1189,7 @@ var loadOrder = function(bcOrderId) {
 //         hd = new memwatch.HeapDiff();
     		// Set order product quantity shippped each time to update based on BC shipment changes
     		if (bcOrderShipments <= 0) {
-      		logInfo('Set OrderProduct quantity shipped: 0', true);
+      		logInfo('Set OrderProduct quantity shipped: 0');
       		orderProductObject.set('quantity_shipped', 0);
     		} else {
       		var totalShipped = 0;
@@ -1197,7 +1198,7 @@ var loadOrder = function(bcOrderId) {
           		if (orderProduct.id == item.order_product_id) totalShipped += item.quantity;
         		});
       		});
-      		logInfo('Set OrderProduct quantity shipped: ' + totalShipped, true);
+      		logInfo('Set OrderProduct quantity shipped: ' + totalShipped);
       		orderProductObject.set('quantity_shipped', totalShipped);
     		}
     		
@@ -1665,22 +1666,19 @@ var getOrderProductVariants = function(orderProduct) {
         orderProduct.set('isBundle', true);
         var variantsToMatch = parentProduct.has('bundleVariants') ? parentProduct.get('bundleVariants') : [];
         var bundleVariantMatches = getOrderProductVariantMatches(orderProduct, variants);
-        for (var i = 0; i < variantsToMatch.length; i++) {
-          var variant = variantsToMatch[i];
+        _.each(variantsToMatch, function(variant) {
           if (bundleVariantMatches && bundleVariantMatches.length > 0) {
-            for (var j = 0; j < bundleVariantMatches.length; j++) {
-              var bundleVariant = bundleVariantMatches[j];
+            _.each(bundleVariantMatches, function(bundleVariant) {
               if (variant.get('productId') == bundleVariant.get('productId')) {
                 logInfo('add ' + bundleVariant.get('productId') + ' to bundle');
                 variantMatches.push(bundleVariant);
                 bundleVariantMatches.splice(j, 1);
-                break;
               }
-            }            
+            });          
           } else {
             variantMatches.push(variant);
           }
-        };
+        });
       } else {
         orderProduct.set('isBundle', false);
         variantMatches = getOrderProductVariantMatches(orderProduct, variants);
@@ -1708,12 +1706,12 @@ var getOrderProductShippingAddress = function(orderProduct) {
   // Get the OrderProduct's shipping address from Bigcommerce   
   promise = promise.then(function() {
     var request = '/orders/' + orderProduct.get('order_id') + '/shipping_addresses/' + orderProduct.get('order_address_id');
-    logInfo(request, true);
+    logInfo(request);
     return bigCommerce.get(request);
     
   }).then(function(address) {
     if (address && address.id) {
-      logInfo('adding OrderProduct shipping address: ' + address.id, true);
+      logInfo('adding OrderProduct shipping address: ' + address.id);
       var shippingAddress = address;
       orderProduct.set('shippingAddress', shippingAddress);
     } else {
@@ -2028,7 +2026,7 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
         orderAddressId: orderProduct.get('order_address_id'), 
         orderBillingAddress: order.get('billing_address'),
         shippedShipmentId: shippedShipmentId, 
-        orderProducts: [orderProduct],
+        orderProducts: [orderProduct.toJSON()],
         shipment: shipment
       };
       var shipmentIndex = -1;
@@ -2047,7 +2045,7 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
           shippedGroups.push(group);
         } else {
           logInfo('found in shippedGroups')
-          shippedGroups[shipmentIndex].orderProducts.push(orderProduct);
+          shippedGroups[shipmentIndex].orderProducts.push(orderProduct.toJSON());
         }
     		
   		} else if (orderProduct.get('shippable') && orderProduct.get('quantity_shipped') !== orderProduct.get('quantity') && getInventoryLevel(orderProduct.get('variants')) >= orderProduct.get('quantity')) { 
@@ -2064,7 +2062,7 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
         } else {
           logInfo('found in shippableGroups')
           var groupProducts = shippableGroups[shipmentIndex].orderProducts;
-          groupProducts.push(orderProduct);
+          groupProducts.push(orderProduct.toJSON());
           shippableGroups[shipmentIndex].orderProducts = groupProducts;
         }
     		
@@ -2080,7 +2078,7 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
           unshippableGroups.push(group);
         } else {
           logInfo('found in shippableGroups')
-          unshippableGroups[shipmentIndex].orderProducts.push(orderProduct);
+          unshippableGroups[shipmentIndex].orderProducts.push(orderProduct.toJSON());
         }
     		
   		}
