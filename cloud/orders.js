@@ -1166,6 +1166,7 @@ var loadOrder = function(bcOrderId) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
+        logInfo('getOrderProductVariants for OrderProduct ' + orderProductResult.get('orderProductId'), true);
     		return getOrderProductVariants(orderProductObject);
     		
   		}, function(error){
@@ -1175,6 +1176,7 @@ var loadOrder = function(bcOrderId) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
+        logInfo('getOrderProductShippingAddress for OrderProduct ' + orderProductResult.get('orderProductId'), true);
     		return getOrderProductShippingAddress(orderProductObject);
     		
   		}, function(error){
@@ -1186,8 +1188,8 @@ var loadOrder = function(bcOrderId) {
 //         hd = new memwatch.HeapDiff();
     		// Set order product quantity shippped each time to update based on BC shipment changes
     		if (bcOrderShipments <= 0) {
+      		logInfo('Set OrderProduct quantity shipped: 0', true);
       		orderProductObject.set('quantity_shipped', 0);
-      		logInfo('OrderProduct quantity shipped: 0', true);
     		} else {
       		var totalShipped = 0;
       		_.each(bcOrderShipments, function(bcOrderShipment) {
@@ -1195,8 +1197,8 @@ var loadOrder = function(bcOrderId) {
           		if (orderProduct.id == item.order_product_id) totalShipped += item.quantity;
         		});
       		});
+      		logInfo('Set OrderProduct quantity shipped: ' + totalShipped, true);
       		orderProductObject.set('quantity_shipped', totalShipped);
-      		logInfo('OrderProduct quantity shipped: ' + totalShipped, true);
     		}
     		
     		return orderProductObject.save(null, {useMasterKey: true});
