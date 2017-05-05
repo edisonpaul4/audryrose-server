@@ -226,8 +226,8 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
         
         return delay(1000);
         
-      }).then(function(httpResponse) {
-        logInfo('webhook loadProductVariants id: ' + productId);
+      }).then(function() {
+        logInfo('webhook loadProductVariants id: ' + productId, true);
         
         return Parse.Cloud.httpRequest({
           method: 'post',
