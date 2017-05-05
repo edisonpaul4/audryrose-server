@@ -405,10 +405,9 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
     var promise = Parse.Promise.as();
     _.each(shipmentGroups, function(shipmentGroup) {
-      
       var orderId = shipmentGroup.orderId;
       var orderAddressId = shipmentGroup.orderAddressId;
-      var shippingAddress = shipmentGroup.orderProducts[0].get('shippingAddress');
+      var shippingAddress = shipmentGroup.orderProducts[0].shippingAddress;
       var billingAddress = shipmentGroup.orderBillingAddress;
       var customShipment = shipmentGroup.customShipment;
       var bcShipment;
@@ -425,11 +424,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         
       }).then(function(bcOrderShipments) {
         
-        if (bcOrderShipments.length > 0) {
-          logInfo('There are ' + bcOrderShipments.length + ' bigcommerce shipments for order id ' + orderId, true);
-        } else {
-          logInfo('There are no bigcommerce shipments for order id ' + orderId, true);
-        }
+        logInfo('There are ' + bcOrderShipments.length > 0 ? bcOrderShipments.length > 0 : '0' + ' bigcommerce shipments for order id ' + orderId, true);
 
         var addressFrom  = {
           object_purpose: "PURCHASE",
@@ -457,15 +452,20 @@ Parse.Cloud.define("createShipments", function(request, response) {
           country: shippingAddress.country_iso2,
           email: email
         };
-        if (shippingAddress.phone) addressTo.phone = shippingAddress.phone;
+        
+        if (shippingAddress.phone && validatePhoneNumber(shippingAddress.phone)) {
+          addressTo.phone = shippingAddress.phone;
+        } else {
+          addressTo.phone = '14243878000';
+        }
         if (shippingAddress.company) addressTo.company = shippingAddress.company;
         if (shippingAddress.street_2) addressTo.street2 = shippingAddress.street_2;
         
         var totalWeight = 0;
         var totalPrice = 0;
         _.map(shipmentGroup.orderProducts, function(p){
-          totalPrice += parseFloat(p.get('total_inc_tax'));
-          totalWeight += parseFloat(p.get('weight') * p.get('quantity')); 
+          totalPrice += parseFloat(p.total_inc_tax);
+          totalWeight += parseFloat(p.weight * p.quantity); 
           return p;
         });
         
@@ -577,8 +577,8 @@ Parse.Cloud.define("createShipments", function(request, response) {
           var request = '/orders/' + orderId + '/shipments';
           var items = [];
           _.each(shipmentGroup.orderProducts, function(orderProduct) { 
-            logInfo('Adding order product ' + orderProduct.get('orderProductId') + ' to shipment');
-            items.push({order_product_id: orderProduct.get('orderProductId'), quantity: orderProduct.get('quantity')});
+            logInfo('Adding order product ' + orderProduct.orderProductId + ' to shipment');
+            items.push({order_product_id: orderProduct.orderProductId, quantity: orderProduct.quantity});
           });
           var bcShipmentData = {
             tracking_number: shippoLabel.tracking_number,
@@ -599,7 +599,11 @@ Parse.Cloud.define("createShipments", function(request, response) {
         }
         
       }, function(error) {
-        logError('Error status: ' + error.status + ', Message: ' + error.text);
+        if (error.status) {
+          logError('Error status: ' + error.status + ', Message: ' + error.text);
+        } else {
+          logError(error);
+        }
     
       }).then(function(bcShipmentResult) {
         //if (!isNew) return true; // Skip if Bigcommerce shipment exists
@@ -2362,6 +2366,12 @@ var combinePdfs = function(pdfs) {
 	
 	return promise;
   
+}
+
+var validatePhoneNumber = function(string) {
+  console.log('validatePhoneNumber')
+  console.log(string.match(/\d/g).length)
+  return string.match(/\d/g).length >= 10;
 }
 
 var logInfo = function(i, alwaysLog) {
