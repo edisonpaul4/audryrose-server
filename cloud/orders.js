@@ -1151,7 +1151,7 @@ var loadOrder = function(bcOrderId) {
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
         if (orderProductResult) {
-          logInfo('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.');
+          logInfo('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.', true);
           return createOrderProductObject(orderProduct, orderObj, orderProductResult);
         } else {
           logInfo('OrderProduct ' + orderProduct.id + ' is new.');
@@ -1166,7 +1166,7 @@ var loadOrder = function(bcOrderId) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
-        logInfo('getOrderProductVariants for OrderProduct ' + orderProductResult.get('orderProductId'), true);
+        logInfo('getOrderProductVariants for OrderProduct ' + orderProductObject.get('orderProductId'), true);
     		return getOrderProductVariants(orderProductObject);
     		
   		}, function(error){
@@ -1176,7 +1176,7 @@ var loadOrder = function(bcOrderId) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
-        logInfo('getOrderProductShippingAddress for OrderProduct ' + orderProductResult.get('orderProductId'), true);
+        logInfo('getOrderProductShippingAddress for OrderProduct ' + orderProductObject.get('orderProductId'), true);
     		return getOrderProductShippingAddress(orderProductObject);
     		
   		}, function(error){
