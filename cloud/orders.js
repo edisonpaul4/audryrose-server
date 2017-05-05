@@ -1187,7 +1187,7 @@ var loadOrder = function(bcOrderId) {
     		// Set order product quantity shippped each time to update based on BC shipment changes
     		if (bcOrderShipments <= 0) {
       		orderProductObject.set('quantity_shipped', 0);
-      		logInfo('OrderProduct quantity shipped: 0');
+      		logInfo('OrderProduct quantity shipped: 0', true);
     		} else {
       		var totalShipped = 0;
       		_.each(bcOrderShipments, function(bcOrderShipment) {
@@ -1196,7 +1196,7 @@ var loadOrder = function(bcOrderId) {
         		});
       		});
       		orderProductObject.set('quantity_shipped', totalShipped);
-      		logInfo('OrderProduct quantity shipped: ' + totalShipped);
+      		logInfo('OrderProduct quantity shipped: ' + totalShipped, true);
     		}
     		
     		return orderProductObject.save(null, {useMasterKey: true});
@@ -1706,13 +1706,16 @@ var getOrderProductShippingAddress = function(orderProduct) {
   // Get the OrderProduct's shipping address from Bigcommerce   
   promise = promise.then(function() {
     var request = '/orders/' + orderProduct.get('order_id') + '/shipping_addresses/' + orderProduct.get('order_address_id');
+    logInfo(request, true);
     return bigCommerce.get(request);
     
   }).then(function(address) {
     if (address && address.id) {
-      logInfo('adding OrderProduct shipping address: ' + address.id);
+      logInfo('adding OrderProduct shipping address: ' + address.id, true);
       var shippingAddress = address;
       orderProduct.set('shippingAddress', shippingAddress);
+    } else {
+      logInfo('Order product shipping address not found', true)
     }
     return orderProduct;
   }, function(error) {
