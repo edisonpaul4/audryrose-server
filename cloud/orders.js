@@ -1672,7 +1672,7 @@ var getOrderProductVariants = function(orderProduct) {
             for (var j = 0; j < bundleVariantMatches.length; j++) {
               var bundleVariant = bundleVariantMatches[j];
               if (variant.get('productId') == bundleVariant.get('productId')) {
-                logInfo('add ' + bundleVariant.get('productId') + ' to bundle');
+                logInfo('getOrderProductVariants: add ' + bundleVariant.get('productId') + ' to bundle');
                 variantMatches.push(bundleVariant);
                 bundleVariantMatches.splice(j, 1);
                 break;
@@ -1686,14 +1686,14 @@ var getOrderProductVariants = function(orderProduct) {
         orderProduct.set('isBundle', false);
         variantMatches = getOrderProductVariantMatches(orderProduct, variants);
       }
-      logInfo('set ' + variantMatches.length + ' variants to product');
+      logInfo('getOrderProductVariants: set ' + variantMatches.length + ' variants to product');
       if (variantMatches) orderProduct.set('variants', variantMatches);
       
     } else if (result) {
-      logInfo('product ordered has no variants');
+      logInfo('getOrderProductVariants: product ordered has no variants');
       return false;
     } else {
-      logInfo('custom product ordered without variants');
+      logInfo('getOrderProductVariants: custom product ordered without variants');
       orderProduct.set('isCustom', true);
     }
     return orderProduct;
@@ -1709,16 +1709,16 @@ var getOrderProductShippingAddress = function(orderProduct) {
   // Get the OrderProduct's shipping address from Bigcommerce   
   promise = promise.then(function() {
     var request = '/orders/' + orderProduct.get('order_id') + '/shipping_addresses/' + orderProduct.get('order_address_id');
-    logInfo(request);
+    logInfo('getOrderProductShippingAddress: ' + request);
     return bigCommerce.get(request);
     
   }).then(function(address) {
     if (address && address.id) {
-      logInfo('adding OrderProduct shipping address: ' + address.id);
+      logInfo('getOrderProductShippingAddress: adding OrderProduct shipping address: ' + address.id);
       var shippingAddress = address;
       orderProduct.set('shippingAddress', shippingAddress);
     } else {
-      logInfo('Order product shipping address not found', true)
+      logInfo('getOrderProductShippingAddress: Order product shipping address not found', true)
     }
     return orderProduct;
   }, function(error) {
@@ -1730,13 +1730,13 @@ var getOrderProductShippingAddress = function(orderProduct) {
 
 var getOrderProductVariantMatches = function(orderProduct, variants) {
   var totalVariants = variants ? variants.length : 0;
-  logInfo(totalVariants + ' variants found for product ' + orderProduct.get('product_id'));
+  logInfo('getOrderProductVariantMatches: ' + totalVariants + ' variants found for product ' + orderProduct.get('product_id'));
   var productOptions = orderProduct.get('product_options');
   var totalProductOptions = productOptions ? productOptions.length : 0;
-  logInfo('product has ' + totalProductOptions + ' options');
+  logInfo('getOrderProductVariantMatches: product has ' + totalProductOptions + ' options');
   
   if (totalVariants == 1 && totalProductOptions == 0) {
-    logInfo('Matched ' + totalVariants + ' variant');
+    logInfo('getOrderProductVariantMatches: Matched 1 variant');
     return variants;
     
   } else {
@@ -1750,13 +1750,13 @@ var getOrderProductVariantMatches = function(orderProduct, variants) {
       var optionsChecked = 0;
       var optionMatches = 0;
       
-//       logInfo('variant ' + variant.get('variantId') + ' ' + ' totalOptionsToCheck:' + totalOptionsToCheck);
+//       logInfo('getOrderProductVariantMatches: variant ' + variant.get('variantId') + ' ' + ' totalOptionsToCheck:' + totalOptionsToCheck);
 
       _.each(productOptions, function(productOption) {
         optionsChecked++;
         _.each(variantOptions, function(variantOption) {
           if (productOption.option_id == variantOption.option_id && productOption.value == variantOption.option_value_id) {
-            //logInfo('matched option_id:' + productOption.option_id + ' option_value_id:' + productOption.value);
+//             logInfo('getOrderProductVariantMatches: matched option_id:' + productOption.option_id + ' option_value_id:' + productOption.value);
             optionMatches++;
           }
         });
@@ -1771,23 +1771,23 @@ var getOrderProductVariantMatches = function(orderProduct, variants) {
       });
       
       if (matchesProductOptions) {
-        //logInfo('Matched variant ' + variant.id);
+        logInfo('getOrderProductVariantMatches: Matched variant ' + variant.id);
         matchingVariants.push(variant);
       }
     });
-    logInfo(matchingVariants.length + ' variants match');
+    logInfo('getOrderProductVariantMatches: ' + matchingVariants.length + ' variants match');
     
     if (matchingVariants.length > 0 && orderProduct.has('isBundle') && orderProduct.get('isBundle') == true) {
-      logInfo('Is bundle, matched multiple variants');
+      logInfo('getOrderProductVariantMatches: Is bundle, matched multiple variants');
       return matchingVariants; // TODO: MAKE SURE VARIANTS MATCH DEFAULT PRODUCT OPTIONS
       
     } else if (matchingVariants.length > 0) {
       matchedVariant = matchingVariants[0];
-      logInfo('Matched variant ' + matchedVariant.get('variantId'));
+      logInfo('getOrderProductVariantMatches: Matched variant ' + matchedVariant.get('variantId'));
       return [matchedVariant];
     } else {
-      logInfo('Matched ' + matchingVariants.length + ' variants');
-      return null;
+      logInfo('getOrderProductVariantMatches: Matched no variants');
+      return matchingVariants;
     }
   }
 
