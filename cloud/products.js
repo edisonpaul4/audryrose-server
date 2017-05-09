@@ -122,6 +122,8 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include("vendor");
   productsQuery.include("vendor.vendorOrders");
   productsQuery.include("vendor.vendorOrders.vendorOrderVariants");
+  productsQuery.include("vendor.vendorOrders.vendorOrderVariants.variant");
+  productsQuery.include("vendor.vendorOrders.vendorOrderVariants.resizeVariant");  
   productsQuery.include("bundleVariants");
   productsQuery.limit(PRODUCTS_PER_PAGE);
   
@@ -649,6 +651,8 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
     productsQuery.include("vendor");
     productsQuery.include("vendor.vendorOrders");
     productsQuery.include("vendor.vendorOrders.vendorOrderVariants");
+    productsQuery.include("vendor.vendorOrders.vendorOrderVariants.variant");
+    productsQuery.include("vendor.vendorOrders.vendorOrderVariants.resizeVariant");  
     productsQuery.include("bundleVariants");
     return productsQuery.first();
     
@@ -891,11 +895,14 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
     var promise = Parse.Promise.as();
     
     _.each(orders, function(order) {
+      var resize = order.resize;
       var variantId = order.variant;
+      var resizeVariantId = order.resizeVariant;
       var vendorId = order.vendor;
       var units = parseFloat(order.units);
       var notes = order.notes;
       var variant;
+      var resizeVariant;
       var vendor;
       var vendorOrder;
       var vendorOrderVariant;
@@ -915,15 +922,30 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
           updatedVariants.push(variant);
           if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
           
-          // Get the requested Vendor
-          var vendorQuery = new Parse.Query(Vendor);
-          vendorQuery.equalTo('objectId', vendorId);
-          return vendorQuery.first();
+          if (resize) {
+            // Get the resize ProductVariant
+            var variantQuery = new Parse.Query(ProductVariant);
+            variantQuery.equalTo('objectId', resizeVariantId);
+            return variantQuery.first();
+          } else {
+            return;
+          }
           
         } else {
           logError('Product variant not found');
           response.error('Product variant not found');
         }
+        
+      }).then(function(result) {
+        if (result) {
+          logInfo('Resize ProductVariant found');
+          resizeVariant = result;
+        }
+                  
+        // Get the requested Vendor
+        var vendorQuery = new Parse.Query(Vendor);
+        vendorQuery.equalTo('objectId', vendorId);
+        return vendorQuery.first();
         
       }).then(function(result) {
         if (result) {
@@ -933,6 +955,8 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
           // Find a pending VendorOrderVariant
           var vendorOrderVariantQuery = new Parse.Query(VendorOrderVariant);
           vendorOrderVariantQuery.equalTo('variant', variant);
+          if (resize) vendorOrderVariantQuery.equalTo('resizeVariant', resizeVariant);
+          vendorOrderVariantQuery.equalTo('isResize', resize);
           vendorOrderVariantQuery.equalTo('ordered', false);
           vendorOrderVariantQuery.equalTo('done', false);
           return vendorOrderVariantQuery.first();
@@ -946,7 +970,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         if (result) {
           logInfo('VendorOrderVariant found, adjust number of units');
           vendorOrderVariant = result;
-          vendorOrderVariant.increment('units', units);
+          vendorOrderVariant.increment('units', units); //TODO: PREVENT INCREMENT MORE THAN RESIZE INVENTORY
           if (vendorOrderVariant.has('notes') && vendorOrderVariant.get('notes') != '') {
             var updatedNotes = vendorOrderVariant.get('notes') + '<br/>' + notes;
             vendorOrderVariant.set('notes', updatedNotes);
@@ -958,7 +982,9 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
           logInfo('VendorOrderVariant is new');
           vendorOrderVariant = new VendorOrderVariant();
           vendorOrderVariant.set('variant', variant);
-          vendorOrderVariant.set('units', units);
+          if (resize) vendorOrderVariant.set('resizeVariant', resizeVariant);
+          vendorOrderVariant.set('isResize', resize);
+          vendorOrderVariant.set('units', units); //TODO: PREVENT UNITS MORE THAN RESIZE INVENTORY
           vendorOrderVariant.set('notes', notes);
           vendorOrderVariant.set('ordered', false);
           vendorOrderVariant.set('received', 0);
@@ -1045,6 +1071,8 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         productQuery.include('vendor');
         productQuery.include("vendor.vendorOrders");
         productQuery.include("vendor.vendorOrders.vendorOrderVariants");
+        productQuery.include("vendor.vendorOrders.vendorOrderVariants.variant");
+        productQuery.include("vendor.vendorOrders.vendorOrderVariants.resizeVariant");
         productQuery.include("bundleVariants");
         return productQuery.first();
       

@@ -63,6 +63,7 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   designersQuery.include('vendors.vendorOrders');
   designersQuery.include('vendors.vendorOrders.vendorOrderVariants');
   designersQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
+  designersQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
   
   designersQuery.count().then(function(count) {
     totalDesigners = count;
@@ -288,6 +289,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
         vendorOrderVariantQuery.equalTo('objectId', variantData.objectId);
         vendorOrderVariantQuery.equalTo('done', false);
         vendorOrderVariantQuery.include('variant');
+        vendorOrderVariantQuery.include('resizeVariant');
         return vendorOrderVariantQuery.first();
         
       }).then(function(vendorOrderVariant) {
@@ -420,6 +422,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
     designerQuery.include('vendors.vendorOrders');
     designerQuery.include('vendors.vendorOrders.vendorOrderVariants');
     designerQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
+    designerQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
     return designerQuery.first();
     
   }, function(error) {
@@ -444,6 +447,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
   var vendorOrder;
   var vendorOrderVariants;
   var vendor;
+  var resizeVariants = [];
   var messageProductsText = message;
   var messageProductsHTML = message;
   var emailId;
@@ -456,6 +460,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
   vendorOrderQuery.include('vendor');
   vendorOrderQuery.include('vendorOrderVariants');
   vendorOrderQuery.include('vendorOrderVariants.variant');
+  vendorOrderQuery.include('vendorOrderVariants.resizeVariant');
   vendorOrderQuery.first().then(function(result) {
     vendorOrder = result;
     vendor = vendorOrder.get('vendor');
@@ -464,6 +469,12 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     _.each(vendorOrderVariants, function(vendorOrderVariant) {
       vendorOrderVariant.set('ordered', true);
       var variant = vendorOrderVariant.get('variant');
+      if (vendorOrderVariant.get('isResize') == true) {
+        var resizeVariant = vendorOrderVariant.get('resizeVariant');
+        var subtractForResize = parseFloat(vendorOrderVariant.get('units')) * -1;
+        resizeVariant.increment('inventoryLevel', subtractForResize);
+        resizeVariants.push(resizeVariant);
+      }
       if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
     });
     messageProductsHTML = convertVendorOrderMessage(messageProductsHTML, vendorOrderVariants);
@@ -503,7 +514,14 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     
   }).then(function() {
     logInfo('vendor saved');
-  	logInfo(productIds.length + ' product ids to save');
+    
+  	logInfo(resizeVariants.length + ' resize variants to save');
+  	return Parse.Object.saveAll(vendorOrderVariants, {useMasterKey: true});
+  	
+	}).then(function() {
+    logInfo(resizeVariants.length + ' resize variants saved');
+    
+    logInfo(productIds.length + ' product ids to save');
   	
     var promise = Parse.Promise.as();
     
@@ -541,6 +559,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     designerQuery.include('vendors.vendorOrders');
     designerQuery.include('vendors.vendorOrders.vendorOrderVariants');
     designerQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
+    designerQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
     return designerQuery.first();
     
   }).then(function(designerObject) {
@@ -679,7 +698,12 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
       optionsList += option.display_name + ': ' + option.label + '<br/>';
     });
     productsTable += tdTag + optionsList + '</td>';
-    productsTable += tdTag + vendorOrderVariant.get('notes') + '</td>';
+    var notes = vendorOrderVariant.get('notes');
+    if (vendorOrderVariant.get('isResize') == true && vendorOrderVariant.has('resizeVariant')) {
+      var resizeVariant = vendorOrderVariant.get('resizeVariant');
+      notes = 'Resize from size ' + resizeVariant.get('size_value') + '<br/>' + notes;
+    }
+    productsTable += tdTag + notes + '</td>';
     productsTable += tdRightTag + vendorOrderVariant.get('units') + '</td>';
     productsTable += '</tr>';
   });
