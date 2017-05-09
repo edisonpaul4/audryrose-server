@@ -687,6 +687,7 @@ Parse.Cloud.define("saveProduct", function(request, response) {
   var product;
   var vendor;
   var updatedProduct;
+  var variants;
   
   logInfo('saveProduct ' + productId + ' ------------------------')
   if (isActive !== undefined) logInfo('set isActive: ' + isActive);
@@ -696,12 +697,21 @@ Parse.Cloud.define("saveProduct", function(request, response) {
   
   var productQuery = new Parse.Query(Product);
   productQuery.equalTo('productId', productId);
+  productQuery.include('variants');
   productQuery.first().then(function(productResult) {
     product = productResult;
+    variants = product.get('variants');
     if (product) {
       if (isActive !== undefined) product.set('is_active', isActive);
       if (isBundle !== undefined) product.set('isBundle', isBundle);
-      if (isBundle !== undefined) product.set('designerProductName', designerProductName);
+      if (designerProductName !== undefined) {
+        product.set('designerProductName', designerProductName);
+        if (variants.length > 0) {
+          _.each(variants, function(variant) {
+            variant.set('designerProductName', designerProductName);
+          });
+        }
+      }
     } else {
       logError(error);
       response.error(error.message);
@@ -723,6 +733,10 @@ Parse.Cloud.define("saveProduct", function(request, response) {
     return product.save(null, {useMasterKey: true});
     
   }).then(function(productObject) {
+    if (variants.length <= 0) return true;
+    return Parse.Object.saveAll(variants, {useMasterKey: true});
+    
+  }).then(function() {
     var productQuery = new Parse.Query(Product);
     productQuery.equalTo("productId", productId);
     productQuery.include('variants');
