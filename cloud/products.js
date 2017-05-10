@@ -895,7 +895,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
     var promise = Parse.Promise.as();
     
     _.each(orders, function(order) {
-      var resize = order.resize;
+      var resize = (order.resize == true || order.resize == 'true') ? true : false;
       var variantId = order.variant;
       var resizeVariantId = order.resizeVariant;
       var vendorId = order.vendor;
