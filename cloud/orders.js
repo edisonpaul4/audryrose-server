@@ -411,8 +411,14 @@ Parse.Cloud.define("createShipments", function(request, response) {
       var orderAddressId = shipmentGroup.orderAddressId;
       logInfo('Order address ' + shipmentGroup.orderAddressId + ' has ' + shipmentGroup.orderProducts.length + ' orderProducts', true);
       var shippingAddress = shipmentGroup.orderProducts[0].shippingAddress;
+      logInfo('shippingAddress: ' + shippingAddress.id, true);
       var billingAddress = shipmentGroup.orderBillingAddress;
-      var customShipment = shipmentGroup.customShipment;
+      var customShipment = shipmentGroup.customShipment ? shipmentGroup.customShipment : null;
+      if (customShipment) {
+        logInfo('customShipment: ' + JSON.stringify(customShipment), true);
+      } else {
+        logInfo('no customShipment');
+      }
       var bcShipment;
       var shippoLabel;
       
@@ -420,7 +426,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
 
         // Load order shipments
         var request = '/orders/' + orderId + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
-        logInfo(request);
+        logInfo(request, true);
         return bigCommerce.get(request);
         
       }).then(function(bcOrderShipments) {
@@ -477,7 +483,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
           shipmentExtra.signature_confirmation = 'STANDARD';
           logInfo('shipment: signature required', true);
         } else {
-          logInfo('shipment: no signature required');
+          logInfo('shipment: no signature required', true);
         }
         
         // Set default parcel to USPS_SmallFlatRateBox
@@ -545,11 +551,11 @@ Parse.Cloud.define("createShipments", function(request, response) {
           extra: shipmentExtra
         };
         
-        logInfo(shipment)
-        logInfo(carrier.object_id)
-        logInfo(serviceLevel)
+        logInfo(shipment, true)
+        logInfo(carrier.object_id, true)
+        logInfo(serviceLevel, true)
         
-        logInfo('do the shippo');
+        logInfo('do the shippo', true);
         
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -578,7 +584,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
           var request = '/orders/' + orderId + '/shipments';
           var items = [];
           _.each(shipmentGroup.orderProducts, function(orderProduct) { 
-            logInfo('Adding order product ' + orderProduct.orderProductId + ' to shipment');
+            logInfo('Adding order product ' + orderProduct.orderProductId + ' to shipment', true);
             items.push({order_product_id: orderProduct.orderProductId, quantity: orderProduct.quantity});
           });
           var bcShipmentData = {
@@ -626,10 +632,10 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
       }).then(function(orderShipmentResult) {
         if (orderShipmentResult) {
-          logInfo('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
+          logInfo('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.', true);
           return createOrderShipmentObject(bcShipment, shippoLabel, orderShipmentResult).save(null, {useMasterKey: true});
         } else if (bcShipment) {
-          logInfo('OrderShipment is new.');
+          logInfo('OrderShipment is new.', true);
           totalShipmentsAdded++;
           return createOrderShipmentObject(bcShipment, shippoLabel).save(null, {useMasterKey: true});
         }
@@ -658,7 +664,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     		}
     		
   		}).then(function(orderResult) {
-    		logInfo('Order shipment saved to order');
+    		logInfo('Order shipment saved to order', true);
     		return true;
     		
       }, function(error) {
@@ -681,7 +687,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       var index = allOrderIds.indexOf(s.orderId);
       if (index < 0) allOrderIds.push(s.orderId);
     });
-    logInfo('orderIds to save: ' + allOrderIds.join(','));
+    logInfo('orderIds to save: ' + allOrderIds.join(','), true);
     
     // Load each order into updatedOrdersArray with pointers
     var promise = Parse.Promise.as();
@@ -690,7 +696,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         return loadOrder(orderIdToLoad);
           
       }).then(function(response) {
-        logInfo('get order data');
+        logInfo('get order data', true);
         var ordersQuery = new Parse.Query(Order);
         ordersQuery.equalTo('orderId', parseInt(orderIdToLoad));
         ordersQuery.include('orderProducts');
@@ -725,11 +731,11 @@ Parse.Cloud.define("createShipments", function(request, response) {
         _.each(orderShipments, function(orderShipment) {
           if (newShipmentId == orderShipment.get('shipmentId')) {
             if (orderShipment.has('labelWithPackingSlipUrl')) {
-              logInfo('add to batch pdf: ' + orderShipment.get('labelWithPackingSlipUrl'));
+              logInfo('add to batch pdf: ' + orderShipment.get('labelWithPackingSlipUrl'), true);
               pdfsToCombine.push(orderShipment.get('labelWithPackingSlipUrl'));
             } else {
               var msg = 'Error: Order #' + orderShipment.get('order_id') + ' shipping label not added to combined print pdf file.';
-              logInfo(msg);
+              logInfo(msg, true);
               errors.push(msg);
             }
           }
@@ -744,7 +750,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
   }).then(function(result) {
     if (result) {
-      logInfo('batch pdf generated');
+      logInfo('batch pdf generated', true);
       generatedFile = result.url();
       var batchPdf = new BatchPdf();
       batchPdf.set('file', result);
@@ -752,7 +758,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       batchPdf.set('name', pdfName);
       return batchPdf.save(null, {useMasterKey: true});
     } else {
-      logInfo('no batch pdf generated');
+      logInfo('no batch pdf generated', true);
       return;
     }
     
@@ -812,7 +818,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
   }).then(function(httpResponse) {
     tabCounts = httpResponse.data.result;
     
-    logInfo('order successfully reloaded');
+    logInfo('order successfully reloaded', true);
 	  response.success({updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors, generatedFile: generatedFile, newFiles: newFiles});
 	  
   }, function(error) {
