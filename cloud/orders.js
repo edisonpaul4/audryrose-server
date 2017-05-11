@@ -431,7 +431,11 @@ Parse.Cloud.define("createShipments", function(request, response) {
         
       }).then(function(bcOrderShipments) {
         
-        logInfo('There are ' + bcOrderShipments.length > 0 ? bcOrderShipments.length > 0 : '0' + ' bigcommerce shipments for order id ' + orderId, true);
+        if (bcOrderShipments && bcOrderShipments.length > 0) {
+          logInfo('There are ' + bcOrderShipments.length + ' bigcommerce shipments for order id ' + orderId, true);
+        } else {
+          logInfo('There are 0 bigcommerce shipments for order id ' + orderId, true);
+        }        
 
         var addressFrom  = {
           object_purpose: "PURCHASE",
