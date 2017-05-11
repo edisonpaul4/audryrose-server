@@ -127,8 +127,8 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.define("ordersWebhook", function(request, response) {
-  logInfo('ordersWebhook ---------------------------------------', true);
-  logInfo('endpoint: ' + request.params.scope, true);
+  logInfo('ordersWebhook ---------------------------------------');
+  logInfo('endpoint: ' + request.params.scope);
   
   var webhookData = request.params.data;
   var requestedOrderId = parseInt(webhookData.id);
@@ -183,14 +183,14 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
 });
 
 Parse.Cloud.define("productsWebhook", function(request, response) {
-  logInfo('productsWebhook ---------------------------------------', true);
-  logInfo('endpoint: ' + request.params.scope, true);
+  logInfo('productsWebhook ---------------------------------------');
+  logInfo('endpoint: ' + request.params.scope);
   
   var webhookData = request.params.data;
   var requestedProductId = parseInt(webhookData.id);
   
   
-  logInfo('products queue: ' + productsQueue.join(','), true);
+  logInfo('products queue: ' + productsQueue.join(','));
   var addToQueue = productsQueue.indexOf(requestedProductId) < 0;
   if (addToQueue) {
     // Add product id to server products queue
@@ -222,12 +222,12 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
           }
         });
       }).then(function(httpResponse) {
-        logInfo('webhook loadProduct success id: ' + productId, true);
+        logInfo('webhook loadProduct success id: ' + productId);
         
         return delay(1000);
         
       }).then(function() {
-        logInfo('webhook loadProductVariants id: ' + productId, true);
+        logInfo('webhook loadProductVariants id: ' + productId);
         
         return Parse.Cloud.httpRequest({
           method: 'post',
@@ -246,7 +246,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
     		response.error(error);
   		
     	}).then(function(httpResponse) {
-        logInfo('loadProductVariants success id: ' + productId, true);
+        logInfo('loadProductVariants success id: ' + productId);
                 
       }, function(error) {
     		logError(error);
@@ -257,7 +257,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
     return promise;
     
   }).then(function() {
-    logInfo('productsWebhook success', true);
+    logInfo('productsWebhook success');
     response.success();
 	  
   }, function(error) {
