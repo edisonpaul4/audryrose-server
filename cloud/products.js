@@ -134,19 +134,16 @@ Parse.Cloud.define("getProducts", function(request, response) {
   
   Parse.Cloud.run('getProductTabCounts').then(function(result) {
     tabCounts = result;
-    console.log(tabCounts)
     
     return productsQuery.count();
     
   }).then(function(count) {
     totalProducts = count;
-    console.log(totalProducts)
     totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
     productsQuery.skip((currentPage - 1) * PRODUCTS_PER_PAGE);
     return productsQuery.find({useMasterKey:true});
     
   }).then(function(products) {
-    console.log(products.length + ' products loaded');
 	  response.success({products: products, totalPages: totalPages, totalProducts: totalProducts, tabCounts: tabCounts});
 	  
   }, function(error) {
@@ -1085,9 +1082,13 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
 
 Parse.Cloud.define("createResize", function(request, response) {
   var resizes = request.params.resizes;
+  console.log(resizes)
+  var orderId = parseFloat(request.params.orderId);
   var updatedProductIds = [];
   var updatedProducts = [];
+  var updatedOrders = [];
   var productIds = [];
+  var errors = [];
   var tabCounts;
   
   var query = new Parse.Query(Product);
@@ -1133,7 +1134,8 @@ Parse.Cloud.define("createResize", function(request, response) {
           
         } else {
           logError('Product variant not found');
-          response.error('Product variant not found');
+          errors.push('Product variant not found');
+          return false;
         }
         
       }).then(function(result) {
@@ -1148,24 +1150,30 @@ Parse.Cloud.define("createResize", function(request, response) {
           
         } else {
           logError('Resize source product variant not found');
-          response.error('Resize source product variant not found');
+          errors.push('Resize source product variant not found');
+          return false;
         }
         
       }).then(function(result) {
         if (result) {
           logInfo('Product found');
           product = result;
-        }
           
-        // Find a pending Resize
-        var resizeQuery = new Parse.Query(Resize);
-        resizeQuery.equalTo('variant', variant);
-        resizeQuery.equalTo('resizeSourceVariant', resizeSourceVariant);
-        resizeQuery.equalTo('done', false);
-        return resizeQuery.first();
+          // Find a pending Resize
+          var resizeQuery = new Parse.Query(Resize);
+          resizeQuery.equalTo('variant', variant);
+          resizeQuery.equalTo('resizeSourceVariant', resizeSourceVariant);
+          resizeQuery.equalTo('done', false);
+          return resizeQuery.first();
+        
+        } else {
+          logError('Product not found');
+          errors.push('Product not found');
+          return false;
+        }
         
       }).then(function(result) {
-        if (result) {
+        if (result && product) {
           logInfo('Resize found, adjust number of units');
           resizeObj = result;
           resizeObj.increment('units', units); //TODO: PREVENT INCREMENT MORE THAN RESIZE INVENTORY
@@ -1176,7 +1184,7 @@ Parse.Cloud.define("createResize", function(request, response) {
             resizeObj.set('notes', notes);
           }
             
-        } else {
+        } else if (product) {
           logInfo('Resize is new');
           resizeObj = new Resize();
           resizeObj.set('variant', variant);
@@ -1186,42 +1194,55 @@ Parse.Cloud.define("createResize", function(request, response) {
           resizeObj.set('received', 0);
           resizeObj.set('done', false);
           
+        } else {
+          return false;
         }
         
         resizeObj.set('dateSent', moment().toDate());
         
         if (resizeSourceVariant.has('inventoryLevel') && resizeSourceVariant.get('inventoryLevel') < resizeObj.get('units')) {
-          logInfo('Requested units total is more than are available.')
-          response.error('Requested units total is more than are available.');
+          logInfo('resizeSourceVariant:' + resizeSourceVariant.get('inventoryLevel') + ', resizeObj:' + resizeObj.get('units'));
+          logInfo('Requested units total is more than are available.', true);
+          errors.push('Requested units total is more than are available.');
+        } else {
+          return resizeObj.save(null, {useMasterKey:true});
         }
         
-        return resizeObj.save(null, {useMasterKey:true});
+      }).then(function(result) {
+        if (result) {
+          logInfo('Resize saved');
+          variant.addUnique('resizes', result);
+          return variant.save(null, {useMasterKey:true});
+          
+        } else {
+          return false;
+        }
         
       }).then(function(result) {
-        logInfo('Resize saved');
-        
-        variant.addUnique('resizes', result);
-        return variant.save(null, {useMasterKey:true});
-        
-      }).then(function(result) {
-        logInfo('ProductVariant saved');
-        
-        resizeSourceVariant.increment('inventoryLevel', units * -1);
-        return resizeSourceVariant.save(null, {useMasterKey:true});
+        if (result) {
+          logInfo('ProductVariant saved');
+          resizeSourceVariant.increment('inventoryLevel', units * -1);
+          return resizeSourceVariant.save(null, {useMasterKey:true});
+          
+        } else {
+          return false;
+        }
         
       }).then(function(result) {
-        logInfo('Source ProductVariant saved');
-        
-        product.set('hasResizeRequest', true);
-        return product.save(null, {useMasterKey:true});
+        if (result) {
+          logInfo('Source ProductVariant saved');
+          product.set('hasResizeRequest', true);
+          return product.save(null, {useMasterKey:true});
+        } else {
+          return false;
+        }
         
       }).then(function(result) {
-        logInfo('Product saved');
+        if (result) logInfo('Product saved');
         return true;
         
       }, function(error) {
     		logError(error);
-    		response.error(error.message);
     		
     	});
     	
@@ -1270,14 +1291,36 @@ Parse.Cloud.define("createResize", function(request, response) {
   	
   }).then(function(result) {
     logInfo('get product tab counts');
-    
     return Parse.Cloud.run('getProductTabCounts');
     
   }).then(function(result) {
-    logInfo('success');
     tabCounts = result;
-	  response.success({updatedProducts: updatedProducts, tabCounts: tabCounts});
     
+    if (orderId) {
+      var orderQuery = new Parse.Query(Order);
+      orderQuery.equalTo('orderId', orderId);
+      orderQuery.include('orderProducts');
+      orderQuery.include('orderProducts.variants');
+      orderQuery.include('orderProducts.variants.designer');
+      orderQuery.include('orderProducts.variants.designer.vendors');
+      orderQuery.include('orderProducts.variants.designer.vendors.vendorOrders');
+      orderQuery.include('orderProducts.variants.designer.vendors.vendorOrders.vendorOrderVariants');
+      orderQuery.include('orderProducts.variants.resizes');
+      orderQuery.include('orderShipments');
+      return orderQuery.find();
+    } else {
+      return;
+    }
+    
+  }).then(function(results) {
+    if (results) updatedOrders = results;
+    
+    logInfo('success');
+	  response.success({updatedProducts: updatedProducts, updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors});
+    
+	}, function(error) {
+		logError(error);
+		response.error(error.message);
 	});
   
 });
