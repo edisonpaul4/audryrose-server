@@ -133,25 +133,21 @@ Parse.Cloud.define("getProducts", function(request, response) {
   
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
-  
-  Parse.Cloud.httpRequest({
-    method: 'post',
-    url: process.env.SERVER_URL + '/functions/getProductTabCounts',
-    headers: {
-      'X-Parse-Application-Id': process.env.APP_ID,
-      'X-Parse-Master-Key': process.env.MASTER_KEY
-    }
-  }).then(function(httpResponse) {
-    tabCounts = httpResponse.data.result;
+  Parse.Cloud.run('getProductTabCounts').then(function(result) {
+    tabCounts = result;
+    console.log(tabCounts)
+    
     return productsQuery.count();
     
   }).then(function(count) {
     totalProducts = count;
+    console.log(totalProducts)
     totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
     productsQuery.skip((currentPage - 1) * PRODUCTS_PER_PAGE);
     return productsQuery.find({useMasterKey:true});
     
   }).then(function(products) {
+    console.log(products.length + ' products loaded');
 	  response.success({products: products, totalPages: totalPages, totalProducts: totalProducts, tabCounts: tabCounts});
 	  
   }, function(error) {
@@ -453,7 +449,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     // Create a single variant if product has no options
     ////////////////////////////////////////////////////////
     } else if (!bcProductOptions) {
-      var variantId = productId;
+      var variantId = productId.toString();
       promise = promise.then(function() {
         var variantQuery = new Parse.Query(ProductVariant);
         variantQuery.equalTo('variantId', variantId);
@@ -533,7 +529,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
       _.each(variants, function(valueIds) {
         if (!valueIds.length) valueIds = [valueIds];
         var variantOptions = [];
-        var variantId = productId;
+        var variantId = productId.toString();
         var isNew = true;
         _.each(valueIds, function(valueId) {
           // Find the options data based on variantId
@@ -618,6 +614,8 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   productQuery.equalTo('productId', productId);
   productQuery.first().then(function(result) {
     product = result;
+    return Parse.Cloud.run('loadProduct', {productId: productId});
+/*
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/loadProduct',
@@ -629,9 +627,12 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
         productId: productId
       }
     });
+*/
     
-  }).then(function(httpResponse) {
+  }).then(function(result) {
+    return Parse.Cloud.run('loadProductVariants', {productId: productId});
     
+/*
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/loadProductVariants',
@@ -643,9 +644,9 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
         productId: productId
       }
     });
+*/
     
-  }).then(function(httpResponse) {
-    
+  }).then(function(result) {
     var productsQuery = new Parse.Query(Product);
     productsQuery.equalTo("productId", productId);
     productsQuery.include("variants");
@@ -666,6 +667,9 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
     
   }).then(function(result) {
     updatedProduct = result;
+    return Parse.Cloud.run('getProductTabCounts');
+    
+/*
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/getProductTabCounts',
@@ -674,9 +678,11 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
         'X-Parse-Master-Key': process.env.MASTER_KEY
       }
     });
+*/
     
-  }).then(function(httpResponse) {
-    tabCounts = httpResponse.data.result;
+  }).then(function(result) {
+//     tabCounts = httpResponse.data.result;
+    tabCounts = result;
 	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
 	  
   }, function(error) {
@@ -764,6 +770,9 @@ Parse.Cloud.define("saveProduct", function(request, response) {
     
   }).then(function(result) {
     updatedProduct = result;
+    return Parse.Cloud.run('getProductTabCounts');
+    
+/*
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/getProductTabCounts',
@@ -772,9 +781,10 @@ Parse.Cloud.define("saveProduct", function(request, response) {
         'X-Parse-Master-Key': process.env.MASTER_KEY
       }
     });
+*/
     
-  }).then(function(httpResponse) {
-    tabCounts = httpResponse.data.result;
+  }).then(function(result) {
+    tabCounts = result;
 	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
     
   }, function(error) {
@@ -886,6 +896,10 @@ Parse.Cloud.define("saveVariants", function(request, response) {
   	
   }).then(function(result) {
     logInfo('get product tab counts');
+    
+    return Parse.Cloud.run('getProductTabCounts');
+    
+/*
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/getProductTabCounts',
@@ -894,10 +908,11 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         'X-Parse-Master-Key': process.env.MASTER_KEY
       }
     });
+*/
     
-  }).then(function(httpResponse) {
+  }).then(function(result) {
     logInfo('success');
-    tabCounts = httpResponse.data.result;
+    tabCounts = result;
 	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, tabCounts: tabCounts});
     
 	});
@@ -1118,6 +1133,10 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
   	
   }).then(function(result) {
     logInfo('get product tab counts');
+    
+    return Parse.Cloud.run('getProductTabCounts');
+    
+/*
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/getProductTabCounts',
@@ -1126,10 +1145,11 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         'X-Parse-Master-Key': process.env.MASTER_KEY
       }
     });
+*/
     
-  }).then(function(httpResponse) {
+  }).then(function(result) {
     logInfo('success');
-    tabCounts = httpResponse.data.result;
+    tabCounts = result;
 	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, tabCounts: tabCounts});
     
 	});
@@ -1323,6 +1343,10 @@ Parse.Cloud.define("createResize", function(request, response) {
   	
   }).then(function(result) {
     logInfo('get product tab counts');
+    
+    return Parse.Cloud.run('getProductTabCounts');
+    
+/*
     return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/getProductTabCounts',
@@ -1331,10 +1355,11 @@ Parse.Cloud.define("createResize", function(request, response) {
         'X-Parse-Master-Key': process.env.MASTER_KEY
       }
     });
+*/
     
-  }).then(function(httpResponse) {
+  }).then(function(result) {
     logInfo('success');
-    tabCounts = httpResponse.data.result;
+    tabCounts = result;
 	  response.success({updatedProducts: updatedProducts, tabCounts: tabCounts});
     
 	});
@@ -1444,6 +1469,9 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
   	
 	}).then(function(result) {
   	
+  	return Parse.Cloud.run('loadProductVariants', {productId: bundleProductId});
+  	
+/*
   	return Parse.Cloud.httpRequest({
       method: 'post',
       url: process.env.SERVER_URL + '/functions/loadProductVariants',
@@ -1455,8 +1483,9 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
         productId: bundleProductId
       }
     });
+*/
     
-  }).then(function(httpResponse) {
+  }).then(function(result) {
   	
 //     var productQuery = new Parse.Query(Product);
 //     productQuery.equalTo('objectId', bundleProductId);
@@ -1765,6 +1794,9 @@ Parse.Cloud.afterSave("Product", function(request) {
   		promise = promise.then(function() {
     		logInfo('Product afterSave loadOrder id: ' + orderId);
     		
+    		return Parse.Cloud.run('loadOrder', {orderId: orderId});
+    		
+/*
         return Parse.Cloud.httpRequest({
           method: 'post',
           url: process.env.SERVER_URL + '/functions/loadOrder',
@@ -1776,7 +1808,8 @@ Parse.Cloud.afterSave("Product", function(request) {
             orderId: orderId
           }
         });
-      }).then(function(httpResponse) {
+*/
+      }).then(function(result) {
         logInfo('Product afterSave loadOrder success for order ' + orderId);
         
       });
