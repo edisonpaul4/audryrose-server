@@ -88,20 +88,10 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     //products = products.slice(0,25);// REMOVE
 		_.each(products, function(productId) {
   		promise = promise.then(function() {
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadProduct',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            productId: productId
-          }
-        });
+    		return Parse.Cloud.run('loadProduct', {productId: productId});
     		
-  		}).then(function(response) {
-    		if (response.data.result.added) totalProductsAdded++;
+  		}).then(function(result) {
+    		if (result.added) totalProductsAdded++;
         return true;
         
       }, function(error) {
@@ -156,21 +146,11 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
 		_.each(products, function(product) {
   		logInfo('process product id: ' + product.get('productId'));
   		promise = promise.then(function() {
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadProductVariants',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            productId: product.get('productId')
-          }
-        });
+    		return Parse.Cloud.run('loadProductVariants', {productId: product.get('productId')});
     		
-  		}).then(function(response) {
+  		}).then(function(result) {
     		totalProductsProcessed++;
-    		totalVariantsAdded += response.data.result;
+    		totalVariantsAdded += result;
         return true;
         
       }, function(error) {
@@ -240,20 +220,10 @@ Parse.Cloud.job("updateCategories", function(request, status) {
 		_.each(categories, function(category) {
   		logInfo('process category id: ' + category.id);
   		promise = promise.then(function() {
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadCategory',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            category: category
-          }
-        });
+    		return Parse.Cloud.run('loadCategory', {category: category});
     		
-  		}).then(function(response) {
-    		if (response.data.result.added) totalCategoriesAdded++;
+  		}).then(function(result) {
+    		if (result.added) totalCategoriesAdded++;
         return true;
         
       }, function(error) {
@@ -329,20 +299,10 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
 		_.each(orderIds, function(orderId) {
   		logInfo('process orders id: ' + orderId);
   		promise = promise.then(function() {
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadOrder',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            orderId: orderId
-          }
-        });
+    		return Parse.Cloud.run('loadOrder', {orderId: orderId});
     		
-  		}).then(function(response) {
-    		if (response.data.result.added) totalOrdersAdded++;
+  		}).then(function(result) {
+    		if (result.added) totalOrdersAdded++;
         return true;
         
       }, function(error) {
@@ -431,20 +391,10 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     var promise = Parse.Promise.as();
 		_.each(orderIds, function(orderId) {
   		promise = promise.then(function() {
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadOrder',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            orderId: orderId
-          }
-        });
+    		return Parse.Cloud.run('loadOrder', {orderId: orderId});
     		
-  		}).then(function(response) {
-    		if (response.data.result.added) totalOrdersAdded++;
+  		}).then(function(result) {
+    		if (result.added) totalOrdersAdded++;
     		return true;
         
       }, function(error) {
@@ -516,20 +466,10 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
 		_.each(designers, function(designer) {
   		logInfo('process designers id: ' + designer.id);
   		promise = promise.then(function() {
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadDesigner',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            designer: designer
-          }
-        });
+    		return Parse.Cloud.run('loadDesigner', {designer: designer});
     		
-  		}).then(function(response) {
-    		if (response.data.result.added) totalDesignersAdded++;
+  		}).then(function(result) {
+    		if (result.added) totalDesignersAdded++;
         return true;
         
       }, function(error) {

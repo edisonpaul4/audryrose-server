@@ -151,19 +151,9 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
 
   		promise = promise.then(function() {
     		logInfo('webhook loadOrder id: ' + orderId);
-        
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadOrder',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            orderId: orderId
-          }
-        });
-      }).then(function(httpResponse) {
+        return Parse.Cloud.run('loadOrder', {orderId: orderId});
+
+      }).then(function(result) {
         logInfo('webhook loadOrder success id: ' + orderId);
         
       });
@@ -209,43 +199,22 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
       
   		promise = promise.then(function() {
     		logInfo('webhook loadProduct id: ' + productId);
-    		
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadProduct',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            productId: productId
-          }
-        });
-      }).then(function(httpResponse) {
+    		return Parse.Cloud.run('loadProduct', {productId: productId});
+
+      }).then(function(result) {
         logInfo('webhook loadProduct success id: ' + productId);
         
         return delay(1000);
         
       }).then(function() {
         logInfo('webhook loadProductVariants id: ' + productId);
-        
-        return Parse.Cloud.httpRequest({
-          method: 'post',
-          url: process.env.SERVER_URL + '/functions/loadProductVariants',
-          headers: {
-            'X-Parse-Application-Id': process.env.APP_ID,
-            'X-Parse-Master-Key': process.env.MASTER_KEY
-          },
-          params: {
-            productId: productId
-          }
-        });
+        return Parse.Cloud.run('loadProductVariants', {productId: productId});
         
       }, function(error) {
     		logError(error);
     		response.error(error);
   		
-    	}).then(function(httpResponse) {
+    	}).then(function(result) {
         logInfo('loadProductVariants success id: ' + productId);
                 
       }, function(error) {

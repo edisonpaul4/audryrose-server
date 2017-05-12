@@ -119,16 +119,9 @@ Parse.Cloud.define("getOrders", function(request, response) {
   } else {
     ordersQuery.limit(1000);
   }
-  
-  Parse.Cloud.httpRequest({
-    method: 'post',
-    url: process.env.SERVER_URL + '/functions/getOrderTabCounts',
-    headers: {
-      'X-Parse-Application-Id': process.env.APP_ID,
-      'X-Parse-Master-Key': process.env.MASTER_KEY
-    }
-  }).then(function(response) {
-    tabCounts = response.data.result;
+    
+  Parse.Cloud.run('getOrderTabCounts').then(function(result) {
+    tabCounts = result;
     var batchPdfsQuery = new Parse.Query(BatchPdf);
     batchPdfsQuery.limit(20);
     batchPdfsQuery.descending('createdAt');
@@ -318,17 +311,10 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
   }).then(function(result) {
     updatedOrder = result;
     
-    return Parse.Cloud.httpRequest({
-      method: 'post',
-      url: process.env.SERVER_URL + '/functions/getOrderTabCounts',
-      headers: {
-        'X-Parse-Application-Id': process.env.APP_ID,
-        'X-Parse-Master-Key': process.env.MASTER_KEY
-      }
-    });
+    return Parse.Cloud.run('getOrderTabCounts');
     
-  }).then(function(httpResponse) {
-    tabCounts = httpResponse.data.result;
+  }).then(function(result) {
+    tabCounts = result;
     
     logInfo('order successfully reloaded');
 	  response.success({updatedOrders: [updatedOrder], tabCounts: tabCounts});
@@ -790,37 +776,21 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
   logInfo('\nbatchCreateShipments -----------------------------', true);
   
   // Create shipment groups
-  Parse.Cloud.httpRequest({
-    method: 'post',
-    url: process.env.SERVER_URL + '/functions/createShipments',
-    headers: {
-      'X-Parse-Application-Id': process.env.APP_ID,
-      'X-Parse-Master-Key': process.env.MASTER_KEY
-    },
-    params: {
-      ordersToShip: ordersToShip
-    }
-  }).then(function(httpResponse) {
-    updatedOrders = httpResponse.data.result.updatedOrders;
-    errors = httpResponse.data.result.errors;
-    generatedFile = httpResponse.data.result.generatedFile;
-    newFiles = httpResponse.data.result.newFiles;
     
-    return Parse.Cloud.httpRequest({
-      method: 'post',
-      url: process.env.SERVER_URL + '/functions/getOrderTabCounts',
-      headers: {
-        'X-Parse-Application-Id': process.env.APP_ID,
-        'X-Parse-Master-Key': process.env.MASTER_KEY
-      }
-    });
+  Parse.Cloud.run('createShipments', {ordersToShip: ordersToShip}).then(function(result) {
+    updatedOrders = result.updatedOrders;
+    errors = result.errors;
+    generatedFile = result.generatedFile;
+    newFiles = result.newFiles;
+    
+    return Parse.Cloud.run('getOrderTabCounts');
     
   }, function(error) {
 	  logError(error);
 	  response.error(error);
 	  
-  }).then(function(httpResponse) {
-    tabCounts = httpResponse.data.result;
+  }).then(function(result) {
+    tabCounts = result;
     
     logInfo('order successfully reloaded', true);
 	  response.success({updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors, generatedFile: generatedFile, newFiles: newFiles});
@@ -909,19 +879,10 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
   var tabCounts;
   
   logInfo('addOrderProductToVendorOrder ' + orderId + ' ------------------------');
-  
-  Parse.Cloud.httpRequest({
-    method: 'post',
-    url: process.env.SERVER_URL + '/functions/addToVendorOrder',
-    headers: {
-      'X-Parse-Application-Id': process.env.APP_ID,
-      'X-Parse-Master-Key': process.env.MASTER_KEY
-    },
-    params: {
-      orders: orders
-    }
-  }).then(function(response) {
-    if (response.updatedProducts) updatedProducts = response.updatedProducts;
+    
+  Parse.Cloud.run('addToVendorOrder', {orders: orders}).then(function(result) {
+    
+    if (result.updatedProducts) updatedProducts = result.updatedProducts;
     
     logInfo('get order data');
     var ordersQuery = new Parse.Query(Order);
@@ -938,17 +899,10 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
   }).then(function(result) {
     updatedOrder = result;
     
-    return Parse.Cloud.httpRequest({
-      method: 'post',
-      url: process.env.SERVER_URL + '/functions/getOrderTabCounts',
-      headers: {
-        'X-Parse-Application-Id': process.env.APP_ID,
-        'X-Parse-Master-Key': process.env.MASTER_KEY
-      }
-    });
+    return Parse.Cloud.run('getOrderTabCounts');
     
-  }).then(function(httpResponse) {
-    tabCounts = httpResponse.data.result;
+  }).then(function(result) {
+    tabCounts = result;
     
     logInfo('order successfully reloaded');
 	  response.success({updatedOrders: [updatedOrder], tabCounts: tabCounts});
