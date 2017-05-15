@@ -1475,7 +1475,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
   product.set("search_terms", searchTerms);
   
   var resizes = product.get('resizes');
-  if (resizes.length > 0) {
+  if (resizes && resizes.length > 0) {
     logInfo('product has resizes');
     product.set('hasResizeRequest', true);
   } else {
