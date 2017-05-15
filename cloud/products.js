@@ -117,8 +117,8 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include('variants');
   productsQuery.include('variants.colorCode');
   productsQuery.include('variants.stoneCode');
-  productsQuery.include('variants.resizes');
-  productsQuery.include('variants.resizes.resizeSourceVariant');
+  productsQuery.include('resizes');
+  productsQuery.include('resizes.resizeSourceVariant');
   productsQuery.include("department");
   productsQuery.include("classification");
   productsQuery.include("designer");
@@ -207,8 +207,8 @@ Parse.Cloud.define("getProduct", function(request, response) {
   productQuery.include('variants');
   productQuery.include('variants.colorCode');
   productQuery.include('variants.stoneCode');
-  productQuery.include('variants.resizes');
-  productQuery.include('variants.resizes.resizeSourceVariant');
+  productQuery.include('resizes');
+  productQuery.include('resizes.resizeSourceVariant');
   productQuery.include("department");
   productQuery.include("classification");
   productQuery.include("designer");
@@ -621,8 +621,8 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
     productsQuery.include("variants");
     productsQuery.include('variants.colorCode');
     productsQuery.include('variants.stoneCode');
-    productsQuery.include('variants.resizes');
-    productsQuery.include('variants.resizes.resizeSourceVariant');
+    productsQuery.include('resizes');
+    productsQuery.include('resizes.resizeSourceVariant');
     productsQuery.include("department");
     productsQuery.include("classification");
     productsQuery.include("designer");
@@ -713,8 +713,8 @@ Parse.Cloud.define("saveProduct", function(request, response) {
     productQuery.include('variants');
     productQuery.include('variants.colorCode');
     productQuery.include('variants.stoneCode');
-    productQuery.include('variants.resizes');
-    productQuery.include('variants.resizes.resizeSourceVariant');
+    productQuery.include('resizes');
+    productQuery.include('resizes.resizeSourceVariant');
     productQuery.include("department");
     productQuery.include("classification");
     productQuery.include("designer");
@@ -811,8 +811,8 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         productQuery.include('variants');
         productQuery.include('variants.colorCode');
         productQuery.include('variants.stoneCode');
-        productQuery.include('variants.resizes');
-        productQuery.include('variants.resizes.resizeSourceVariant');
+        productQuery.include('resizes');
+        productQuery.include('resizes.resizeSourceVariant');
         productQuery.include("department");
         productQuery.include("classification");
         productQuery.include("designer");
@@ -1041,8 +1041,8 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         productQuery.include('variants');
         productQuery.include('variants.colorCode');
         productQuery.include('variants.stoneCode');
-        productQuery.include('variants.resizes');
-        productQuery.include('variants.resizes.resizeSourceVariant');
+        productQuery.include('resizes');
+        productQuery.include('resizes.resizeSourceVariant');
         productQuery.include("department");
         productQuery.include("classification");
         productQuery.include("designer");
@@ -1211,16 +1211,7 @@ Parse.Cloud.define("createResize", function(request, response) {
       }).then(function(result) {
         if (result) {
           logInfo('Resize saved');
-          variant.addUnique('resizes', result);
-          return variant.save(null, {useMasterKey:true});
           
-        } else {
-          return false;
-        }
-        
-      }).then(function(result) {
-        if (result) {
-          logInfo('ProductVariant saved');
           resizeSourceVariant.increment('inventoryLevel', units * -1);
           return resizeSourceVariant.save(null, {useMasterKey:true});
           
@@ -1231,6 +1222,7 @@ Parse.Cloud.define("createResize", function(request, response) {
       }).then(function(result) {
         if (result) {
           logInfo('Source ProductVariant saved');
+          product.addUnique('resizes', result);
           product.set('hasResizeRequest', true);
           return product.save(null, {useMasterKey:true});
         } else {
@@ -1264,8 +1256,8 @@ Parse.Cloud.define("createResize", function(request, response) {
         productQuery.include('variants');
         productQuery.include('variants.colorCode');
         productQuery.include('variants.stoneCode');
-        productQuery.include('variants.resizes');
-        productQuery.include('variants.resizes.resizeSourceVariant');
+        productQuery.include('resizes');
+        productQuery.include('resizes.resizeSourceVariant');
         productQuery.include("department");
         productQuery.include("classification");
         productQuery.include("designer");
@@ -1437,8 +1429,8 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
     productQuery.include('variants');
     productQuery.include('variants.colorCode');
     productQuery.include('variants.stoneCode');
-    productQuery.include('variants.resizes');
-    productQuery.include('variants.resizes.resizeSourceVariant');
+    productQuery.include('resizes');
+    productQuery.include('resizes.resizeSourceVariant');
     productQuery.include("department");
     productQuery.include("classification");
     productQuery.include("designer");
@@ -1481,6 +1473,15 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
   searchTerms = _.filter(searchTerms, function(w) { return !_.contains(stopWords, w); });
   logInfo(searchTerms);
   product.set("search_terms", searchTerms);
+  
+  var resizes = product.get('resizes');
+  if (resizes.length > 0) {
+    logInfo('product has resizes');
+    product.set('hasResizeRequest', true);
+  } else {
+    logInfo('product does not have resizes');
+    product.set('hasResizeRequest', false);
+  }
   
   if (!product.has('variants')) {
     logInfo('product has no variants');
