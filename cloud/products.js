@@ -1086,6 +1086,7 @@ Parse.Cloud.define("createResize", function(request, response) {
   var orderId = parseFloat(request.params.orderId);
   var updatedProductIds = [];
   var updatedProducts = [];
+  var updatedVariants = [];
   var updatedOrders = [];
   var productIds = [];
   var errors = [];
@@ -1125,6 +1126,7 @@ Parse.Cloud.define("createResize", function(request, response) {
         if (result) {
           logInfo('ProductVariant found');
           variant = result;
+          updatedVariants.push(variant);
           if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
           
           // Get the resize ProductVariant
@@ -1142,6 +1144,7 @@ Parse.Cloud.define("createResize", function(request, response) {
         if (result) {
           logInfo('Resize ProductVariant found');
           resizeSourceVariant = result;
+          updatedVariants.push(resizeSourceVariant);
         
           // Get the parent product
           var productQuery = new Parse.Query(Product);
@@ -1257,6 +1260,7 @@ Parse.Cloud.define("createResize", function(request, response) {
         productQuery.include('variants.colorCode');
         productQuery.include('variants.stoneCode');
         productQuery.include('resizes');
+        productQuery.include('resizes.variant');
         productQuery.include('resizes.resizeSourceVariant');
         productQuery.include("department");
         productQuery.include("classification");
@@ -1281,7 +1285,13 @@ Parse.Cloud.define("createResize", function(request, response) {
   	
   	return promise;
   	
-  }).then(function(result) {
+  }).then(function() {
+    logInfo('products loaded');
+    return Parse.Object.fetchAll(updatedVariants);
+    
+  }).then(function(results) {
+    logInfo('variants loaded');
+    updatedVariants = results;
     logInfo('get product tab counts');
     return Parse.Cloud.run('getProductTabCounts');
     
@@ -1307,7 +1317,7 @@ Parse.Cloud.define("createResize", function(request, response) {
     if (results) updatedOrders = results;
     
     logInfo('success');
-	  response.success({updatedProducts: updatedProducts, updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors});
+	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors});
     
 	}, function(error) {
 		logError(error);
@@ -1327,6 +1337,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
   var resizeSourceVariant;
   var product;
   var updatedProducts = [];
+  var updatedVariants = [];
   var productIds = [];
   var errors = [];
   var tabCounts;
@@ -1345,6 +1356,8 @@ Parse.Cloud.define("saveResize", function(request, response) {
       
       variant = resizeObj.get('variant');
       resizeSourceVariant = resizeObj.get('resizeSourceVariant');
+      updatedVariants.push(variant);
+      updatedVariants.push(resizeSourceVariant);
       if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
       
       var unitsDiff = resizeObj.get('units') - units;
@@ -1440,6 +1453,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
         productQuery.include('variants.colorCode');
         productQuery.include('variants.stoneCode');
         productQuery.include('resizes');
+        productQuery.include('resizes.variant');
         productQuery.include('resizes.resizeSourceVariant');
         productQuery.include("department");
         productQuery.include("classification");
@@ -1465,6 +1479,12 @@ Parse.Cloud.define("saveResize", function(request, response) {
   	return promise;
   	
   }).then(function(result) {
+    logInfo('products loaded');
+    return Parse.Object.fetchAll(updatedVariants);
+    
+  }).then(function(results) {
+    logInfo('variants loaded');
+    updatedVariants = results;
     logInfo('get product tab counts');
     return Parse.Cloud.run('getProductTabCounts');
     
@@ -1490,7 +1510,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
     updatedOrders = results;
     
     logInfo('success');
-	  response.success({updatedProducts: updatedProducts, updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors});
+	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors});
     
 	}, function(error) {
 		logError(error);
