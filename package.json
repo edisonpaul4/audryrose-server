@@ -33,8 +33,8 @@
     "node-bigcommerce": "^2.2.0",
     "numeral": "^2.0.4",
     "parse": "latest",
-    "parse-dashboard": "^1.0.21",
-    "parse-server": "^2.3.8",
+    "parse-dashboard": "^1.0.25",
+    "parse-server": "^2.4.0",
     "request": "^2.79.0",
     "underscore": "^1.8.3",
     "xmlreader": "^0.2.3"
