@@ -96,5 +96,5 @@ var logInfo = function(i) {
 var logError = function(e) {
   var msg = JSON.stringify(e);
   console.error(msg);
-	bugsnag.notify(msg);
+	if (process.env.NODE_ENV == 'production') bugsnag.notify(msg);
 }

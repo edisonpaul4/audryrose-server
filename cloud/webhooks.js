@@ -255,5 +255,5 @@ var logInfo = function(i, alwaysLog) {
 var logError = function(e) {
   var msg = e.message ? e.message.text ? e.message.text : JSON.stringify(e.message) : JSON.stringify(e);
   console.error(msg);
-	bugsnag.notify(msg);
+	if (process.env.NODE_ENV == 'production') bugsnag.notify(msg);
 }
