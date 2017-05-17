@@ -1664,10 +1664,11 @@ var getOrderProductVariants = function(orderProduct) {
         if (parentProduct.has('resizes')) {
           logInfo('parent product has resizes');
           var resizes = [];
+          console.log(parentProduct.get('resizes'))
           _.each(parentProduct.get('resizes'), function(resize) {
             _.each(variantMatches, function(variantMatch) {
-              console.log(variantMatch.id + ', ' + resize.get('variant').id)
-              if (variantMatch.id == resize.get('variant').id && resize.get('done') == false) resizes.push(resize);
+              if (resize.has('variant')) console.log(variantMatch.id + ', ' + resize.get('variant').id)
+              if (resize.has('variant') && variantMatch.id == resize.get('variant').id && resize.get('done') == false) resizes.push(resize);
             });
           });
           orderProduct.set('resizes', resizes);
@@ -2376,5 +2377,5 @@ var logInfo = function(i, alwaysLog) {
 var logError = function(e) {
   var msg = e.message ? e.message.text ? e.message.text : JSON.stringify(e.message) : JSON.stringify(e);
   console.error(msg);
-	bugsnag.notify(msg);
+	if (process.env.NODE_ENV == 'production') bugsnag.notify(msg);
 }
