@@ -17,7 +17,7 @@ var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');
 var BatchPdf = Parse.Object.extend('BatchPdf');
 
-const ORDERS_PER_PAGE = 50;
+const ORDERS_PER_PAGE = 25;
 const isProduction = process.env.NODE_ENV == 'production';
 const isDebug = process.env.DEBUG == 'true';
 
