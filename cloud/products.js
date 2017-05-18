@@ -36,6 +36,8 @@ bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
 const PRODUCTS_PER_PAGE = 50;
 const yearLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
+const isProduction = process.env.NODE_ENV == 'production';
+const isDebug = process.env.DEBUG == 'true';
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
@@ -2304,11 +2306,11 @@ var createCategoryObject = function(categoryData, currentCategory) {
 }
 
 var logInfo = function(i, alwaysLog) {
-  if (process.env.NODE_ENV == 'development' || process.env.DEBUG == 'true' || alwaysLog) console.info(i);
+  if (!isProduction || isDebug || alwaysLog) console.info(i);
 }
 
 var logError = function(e) {
-  var msg = e.message ? e.message.text ? e.message.text : JSON.stringify(e.message) : JSON.stringify(e);
+  var msg = e.message ? JSON.stringify(e) : e;
   console.error(msg);
-	if (process.env.NODE_ENV == 'production') bugsnag.notify(msg);
+	if (isProduction) bugsnag.notify(msg);
 }

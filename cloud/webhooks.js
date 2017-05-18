@@ -56,6 +56,8 @@ const WEBHOOK_ENDPOINTS = [
   'store/shipment/updated',
   'store/shipment/deleted'
 ];
+const isProduction = process.env.NODE_ENV == 'production';
+const isDebug = process.env.DEBUG == 'true';
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
@@ -256,11 +258,11 @@ var delay = function(t) {
 }
 
 var logInfo = function(i, alwaysLog) {
-  if (process.env.NODE_ENV == 'development' || process.env.DEBUG == 'true' || alwaysLog) console.info(i);
+  if (!isProduction || isDebug || alwaysLog) console.info(i);
 }
 
 var logError = function(e) {
-  var msg = e.message ? e.message.text ? e.message.text : JSON.stringify(e.message) : JSON.stringify(e);
+  var msg = e.message ? JSON.stringify(e) : e;
   console.error(msg);
-	if (process.env.NODE_ENV == 'production') bugsnag.notify(msg);
+	if (isProduction) bugsnag.notify(msg);
 }
