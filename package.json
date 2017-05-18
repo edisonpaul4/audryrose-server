@@ -36,6 +36,7 @@
     "parse-dashboard": "^1.0.25",
     "parse-server": "^2.4.0",
     "request": "^2.79.0",
+    "throng": "^4.0.0",
     "underscore": "^1.8.3",
     "xmlreader": "^0.2.3"
   },
