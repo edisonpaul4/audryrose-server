@@ -146,7 +146,7 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
     ordersQueue.push(requestedOrderId);
   }
     
-  delay(5000).then(function() {
+  delay(500).then(function() {
     var ordersQueueToProcess = ordersQueue.slice(0); // clone array so original can remain editable
     
     var promise = Parse.Promise.as();
@@ -196,7 +196,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
     productsQueue.push(requestedProductId);
   }
 
-  delay(5000).then(function() {
+  delay(500).then(function() {
     var productsQueueToProcess = productsQueue.slice(0); // clone array so original can remain editable
     
     var promise = Parse.Promise.as();
