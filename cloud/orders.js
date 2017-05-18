@@ -42,6 +42,8 @@ const US_SHIPPING_ZONES = [1];
 
 Parse.Cloud.define("getOrders", function(request, response) {
   logInfo('getOrders cloud function --------------------', true);
+  var startTime = moment();
+  
   var totalOrders;
   var totalPages;
   var tabCounts;
@@ -161,6 +163,8 @@ Parse.Cloud.define("getOrders", function(request, response) {
 	  response.error(error.message);
 	  
   }).then(function(ordersResult) {
+    logInfo('getOrders completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    
     if (ordersResult.shippable || ordersResult.partiallyShippable) {
       totalOrders = ordersResult.shippable.length + ordersResult.partiallyShippable.length + ordersResult.unshippable.length;
       switch (subpage) {
@@ -190,6 +194,8 @@ Parse.Cloud.define("getOrders", function(request, response) {
 
 Parse.Cloud.define("getOrderTabCounts", function(request, response) {  
   logInfo('getOrderTabCounts cloud function --------------------', true);
+  var startTime = moment();
+  
   var tabs = {};
   var inventoryBasedUnshippable = 0;
   var inventoryBasedPartiallyShippable = 0;
@@ -265,6 +271,8 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 	  
   }).then(function(count) {
     tabs.fulfilled = count;
+    
+    logInfo('getOrderTabCounts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success(tabs);
 	  
   }, function(error) {
@@ -276,9 +284,12 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 
 Parse.Cloud.define("loadOrder", function(request, response) {
   logInfo('loadOrder cloud function --------------------', true);
+  var startTime = moment();
+  
   var bcOrderId = request.params.orderId;
   
   loadOrder(bcOrderId).then(function(res) {
+    logInfo('loadOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     response.success({added: res.added});
     
   }, function(error) {
@@ -290,6 +301,8 @@ Parse.Cloud.define("loadOrder", function(request, response) {
 
 Parse.Cloud.define("reloadOrder", function(request, response) {
   logInfo('reloadOrder cloud function --------------------', true);
+  var startTime = moment();
+  
   var orderId = parseInt(request.params.orderId);
   var updatedOrder;
   var bcOrder;
@@ -322,6 +335,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
     tabCounts = result;
     
     logInfo('order successfully reloaded');
+    logInfo('reloadOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success({updatedOrders: [updatedOrder], tabCounts: tabCounts});
 	  
   }, function(error) {
@@ -333,6 +347,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 
 Parse.Cloud.define("createShipments", function(request, response) {
   logInfo('createShipments cloud function --------------------------', true);
+  var startTime = moment();
   
   var shipmentGroups = request.params.shipmentGroups ? request.params.shipmentGroups : null;
   var ordersToShip = request.params.ordersToShip ? request.params.ordersToShip : null;
@@ -761,6 +776,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
   }).then(function(result) {
     var newFiles = result ? [result] : null;
     logInfo('Created ' + newShipments.length + ' shipments. ' + shipmentGroupsFailed.length + ' shipment groups failed.', true);
+    logInfo('createShipments completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     response.success({updatedOrders: updatedOrdersArray, errors: errors, generatedFile: generatedFile, newFiles: newFiles});
     
   }, function(error) {
@@ -773,6 +789,8 @@ Parse.Cloud.define("createShipments", function(request, response) {
 
 Parse.Cloud.define("batchCreateShipments", function(request, response) {
   logInfo('batchCreateShipments cloud function --------------------------', true);
+  var startTime = moment();
+  
   var ordersToShip = request.params.ordersToShip;
   var updatedOrders = [];
   var allShipmentGroups = [];
@@ -798,6 +816,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
     tabCounts = result;
     
     logInfo('order successfully reloaded', true);
+    logInfo('batchCreateShipments completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success({updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors, generatedFile: generatedFile, newFiles: newFiles});
 	  
   }, function(error) {
@@ -809,6 +828,8 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
 
 Parse.Cloud.define("batchPrintShipments", function(request, response) {
   logInfo('batchPrintShipments cloud function --------------------------', true);
+  var startTime = moment();
+  
   var ordersToPrint = request.params.ordersToPrint;
   var generatedFile;
   var errors = [];
@@ -867,6 +888,7 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
     
   }).then(function(result) {
     var newFiles = result ? [result] : null;
+    logInfo('batchPrintShipments completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success({generatedFile: generatedFile, errors: errors, newFiles: newFiles});
 	  
   }, function(error) {
@@ -878,6 +900,8 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
 
 Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
   logInfo('addOrderProductToVendorOrder cloud function --------------------------', true);
+  var startTime = moment();
+  
   var orders = request.params.orders;
   var orderId = request.params.orderId;
   var updatedProducts;
@@ -912,6 +936,7 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
     tabCounts = result;
     
     logInfo('order successfully reloaded');
+    logInfo('addOrderProductToVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success({updatedOrders: [updatedOrder], tabCounts: tabCounts});
 	  
   }, function(error) {

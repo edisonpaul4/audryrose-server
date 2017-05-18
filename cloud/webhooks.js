@@ -131,6 +131,8 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
 
 Parse.Cloud.define("ordersWebhook", function(request, response) {
   logInfo('ordersWebhook cloud function --------------------------', true);
+  var startTime = moment();
+  
   logInfo('endpoint: ' + request.params.scope);
   
   var webhookData = request.params.data;
@@ -164,7 +166,7 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
     return promise;
     
   }).then(function() {
-    logInfo('ordersWebhook success');
+    logInfo('ordersWebhook completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success();
 	  
   }, function(error) {
@@ -177,6 +179,8 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
 
 Parse.Cloud.define("productsWebhook", function(request, response) {
   logInfo('productsWebhook cloud function --------------------------', true);
+  var startTime = moment();
+  
   logInfo('endpoint: ' + request.params.scope);
   
   var webhookData = request.params.data;
@@ -229,7 +233,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
     return promise;
     
   }).then(function() {
-    logInfo('productsWebhook success');
+    logInfo('productsWebhook completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     response.success();
 	  
   }, function(error) {
