@@ -41,6 +41,7 @@ const US_SHIPPING_ZONES = [1];
 /////////////////////////
 
 Parse.Cloud.define("getOrders", function(request, response) {
+  logInfo('getOrders cloud function --------------------', true);
   var totalOrders;
   var totalPages;
   var tabCounts;
@@ -188,7 +189,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
 });
 
 Parse.Cloud.define("getOrderTabCounts", function(request, response) {  
-  
+  logInfo('getOrderTabCounts cloud function --------------------', true);
   var tabs = {};
   var inventoryBasedUnshippable = 0;
   var inventoryBasedPartiallyShippable = 0;
@@ -274,6 +275,7 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 });
 
 Parse.Cloud.define("loadOrder", function(request, response) {
+  logInfo('loadOrder cloud function --------------------', true);
   var bcOrderId = request.params.orderId;
   
   loadOrder(bcOrderId).then(function(res) {
@@ -287,6 +289,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
 });
 
 Parse.Cloud.define("reloadOrder", function(request, response) {
+  logInfo('reloadOrder cloud function --------------------', true);
   var orderId = parseInt(request.params.orderId);
   var updatedOrder;
   var bcOrder;
@@ -329,7 +332,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 });
 
 Parse.Cloud.define("createShipments", function(request, response) {
-  logInfo('createShipments --------------------------', true);
+  logInfo('createShipments cloud function --------------------------', true);
   
   var shipmentGroups = request.params.shipmentGroups ? request.params.shipmentGroups : null;
   var ordersToShip = request.params.ordersToShip ? request.params.ordersToShip : null;
@@ -403,7 +406,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       var billingAddress = shipmentGroup.orderBillingAddress;
       var customShipment = shipmentGroup.customShipment ? shipmentGroup.customShipment : null;
       if (customShipment) {
-        logInfo('customShipment: ' + JSON.stringify(customShipment), true);
+        logInfo('customShipment: ' + customShipment, true);
       } else {
         logInfo('no customShipment');
       }
@@ -769,14 +772,13 @@ Parse.Cloud.define("createShipments", function(request, response) {
 });
 
 Parse.Cloud.define("batchCreateShipments", function(request, response) {
+  logInfo('batchCreateShipments cloud function --------------------------', true);
   var ordersToShip = request.params.ordersToShip;
   var updatedOrders = [];
   var allShipmentGroups = [];
   var tabCounts;
   var generatedFile;
   var newFiles = [];
-  
-  logInfo('\nbatchCreateShipments -----------------------------', true);
   
   // Create shipment groups
     
@@ -806,7 +808,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
 });
 
 Parse.Cloud.define("batchPrintShipments", function(request, response) {
-  logInfo('\nbatchPrintShipments');
+  logInfo('batchPrintShipments cloud function --------------------------', true);
   var ordersToPrint = request.params.ordersToPrint;
   var generatedFile;
   var errors = [];
@@ -875,6 +877,7 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
 });
 
 Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
+  logInfo('addOrderProductToVendorOrder cloud function --------------------------', true);
   var orders = request.params.orders;
   var orderId = request.params.orderId;
   var updatedProducts;
@@ -923,6 +926,7 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.beforeSave("Order", function(request, response) {
+  logInfo('Order beforeSave --------------------------', true);
   var order = request.object;
 
   var toLowerCase = function(w) { return w.toLowerCase(); };
@@ -974,6 +978,7 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
 });
 
 Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
+  logInfo('OrderShipment beforeSave --------------------------', true);
   var orderShipment = request.object;
   
   // Match the OrderShipment's items to a ProductVariant and decrement the inventoryLevel by quantity shipped
@@ -1043,6 +1048,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
 /////////////////////////
 
 var loadOrder = function(bcOrderId) {
+  logInfo('loadOrder function --------------------------', true);
   var bcOrder;
 //   var bcOrderId = request.orderId;
   var bcOrderShipments = [];
@@ -1664,10 +1670,9 @@ var getOrderProductVariants = function(orderProduct) {
         if (parentProduct.has('resizes')) {
           logInfo('parent product has resizes');
           var resizes = [];
-          console.log(parentProduct.get('resizes'))
           _.each(parentProduct.get('resizes'), function(resize) {
             _.each(variantMatches, function(variantMatch) {
-              if (resize.has('variant')) console.log(variantMatch.id + ', ' + resize.get('variant').id)
+              if (resize.has('variant')) logInfo(variantMatch.id + ', ' + resize.get('variant').id)
               if (resize.has('variant') && variantMatch.id == resize.get('variant').id && resize.get('done') == false) resizes.push(resize);
             });
           });
@@ -2375,7 +2380,7 @@ var logInfo = function(i, alwaysLog) {
 }
 
 var logError = function(e) {
-  var msg = e.message ? e.message.text ? e.message.text : JSON.stringify(e.message) : JSON.stringify(e);
+  var msg = e.message ? JSON.stringify(e) : e;
   console.error(msg);
 	if (process.env.NODE_ENV == 'production') bugsnag.notify(msg);
 }

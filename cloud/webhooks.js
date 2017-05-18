@@ -62,6 +62,7 @@ const WEBHOOK_ENDPOINTS = [
 /////////////////////////
 
 Parse.Cloud.define("getWebhooks", function(request, response) {
+  logInfo('getWebhooks cloud function --------------------------', true);
   bigCommerce.get('/hooks').then(function(webhooks) {
 	  response.success({webhooks: webhooks, webhookEndpoints: WEBHOOK_ENDPOINTS});
 	  
@@ -73,6 +74,7 @@ Parse.Cloud.define("getWebhooks", function(request, response) {
 });
 
 Parse.Cloud.define("createWebhook", function(request, response) {
+  logInfo('createWebhook cloud function --------------------------', true);
   var endpoint = request.params.endpoint;
   var destination = request.params.destination;
   
@@ -104,6 +106,7 @@ Parse.Cloud.define("createWebhook", function(request, response) {
 });
 
 Parse.Cloud.define("deleteWebhook", function(request, response) {
+  logInfo('deleteWebhook cloud function --------------------------', true);
   var id = request.params.id;
   
   var request = '/hooks/' + id;
@@ -127,7 +130,7 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.define("ordersWebhook", function(request, response) {
-  logInfo('ordersWebhook ---------------------------------------');
+  logInfo('ordersWebhook cloud function --------------------------', true);
   logInfo('endpoint: ' + request.params.scope);
   
   var webhookData = request.params.data;
@@ -173,7 +176,7 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
 });
 
 Parse.Cloud.define("productsWebhook", function(request, response) {
-  logInfo('productsWebhook ---------------------------------------');
+  logInfo('productsWebhook cloud function --------------------------', true);
   logInfo('endpoint: ' + request.params.scope);
   
   var webhookData = request.params.data;

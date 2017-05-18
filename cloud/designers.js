@@ -31,6 +31,7 @@ const DESIGNERS_PER_PAGE = 50;
 /////////////////////////
 
 Parse.Cloud.define("getDesigners", function(request, response) {
+  logInfo('getDesigners cloud function --------------------------', true);
   var totalDesigners;
   var designers;
   var totalPages;
@@ -84,6 +85,7 @@ Parse.Cloud.define("getDesigners", function(request, response) {
 });
 
 Parse.Cloud.define("loadDesigner", function(request, response) {
+  logInfo('loadDesigner cloud function --------------------------', true);
   var designer = request.params.designer;
   var designerObj;
   var added = false;
@@ -135,6 +137,7 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
 });
 
 Parse.Cloud.define("saveVendor", function(request, response) {
+  logInfo('saveVendor cloud function --------------------------', true);
   var designerId = request.params.data.designerId;
   var vendorId = request.params.data.vendorId;
   var name = request.params.data.name;
@@ -226,6 +229,7 @@ Parse.Cloud.define("saveVendor", function(request, response) {
 });
 
 Parse.Cloud.define("saveVendorOrder", function(request, response) {
+  logInfo('saveVendorOrder cloud function --------------------------', true);
   var designerId = request.params.data.designerId;
   var orderId = request.params.data.orderId;
   var variantsData = request.params.data.variantsData;
@@ -409,6 +413,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
 });
 
 Parse.Cloud.define("sendVendorOrder", function(request, response) {
+  logInfo('sendVendorOrder cloud function --------------------------', true);
   var designerId = request.params.data.designerId;
   var orderId = request.params.data.orderId;
   var message = request.params.data.message;
@@ -548,6 +553,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.beforeSave("Vendor", function(request, response) {
+  logInfo('Vendor beforeSave --------------------------', true);
   var vendor = request.object;
   var hasPendingVendorOrder = false;
   var hasSentVendorOrder = false;

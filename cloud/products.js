@@ -42,6 +42,7 @@ const yearLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
 /////////////////////////
 
 Parse.Cloud.define("getProducts", function(request, response) {
+  logInfo('getProducts cloud function --------------------------', true);
   var totalProducts;
   var totalPages;
   var tabCounts;
@@ -154,6 +155,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
 });
 
 Parse.Cloud.define("getProductTabCounts", function(request, response) {  
+  logInfo('getProductTabCounts cloud function --------------------------', true);
   
   var tabs = {};
   
@@ -199,6 +201,7 @@ Parse.Cloud.define("getProductTabCounts", function(request, response) {
 });
 
 Parse.Cloud.define("getProduct", function(request, response) {
+  logInfo('getProduct cloud function --------------------------', true);
   var productId = request.params.productId;
   logInfo('getProduct for ' + productId);
   
@@ -229,7 +232,7 @@ Parse.Cloud.define("getProduct", function(request, response) {
 });
 
 Parse.Cloud.define("getProductFilters", function(request, response) {  
-  
+  logInfo('getProductFilters cloud function --------------------------', true);
   var designers = [];
   var designersQuery = new Parse.Query(Designer);
   designersQuery.ascending('name');
@@ -256,6 +259,7 @@ Parse.Cloud.define("getProductFilters", function(request, response) {
 });
 
 Parse.Cloud.define("loadProduct", function(request, response) {
+  logInfo('loadProduct cloud function --------------------------', true);
   var productId = request.params.productId;
   var product;
   var added = false;
@@ -357,7 +361,7 @@ Parse.Cloud.define("loadProduct", function(request, response) {
 });
 
 Parse.Cloud.define("loadProductVariants", function(request, response) {
-  logInfo('updateProductVariants');
+  logInfo('loadProductVariants cloud function --------------------------', true);
   var totalVariantsAdded = 0;
   var product;
   var bcProduct;
@@ -602,6 +606,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
 });
 
 Parse.Cloud.define("reloadProduct", function(request, response) {
+  logInfo('reloadProduct cloud function --------------------------', true);
   var productId = parseInt(request.params.productId);
   var updatedProduct;
   var bcProduct;
@@ -650,6 +655,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
 });
 
 Parse.Cloud.define("saveProduct", function(request, response) {
+  logInfo('saveProduct cloud function --------------------------', true);
   var productId = parseInt(request.params.data.productId);
   var isActive = request.params.data.isActive !== undefined ? (request.params.data.isActive == true || request.params.data.isActive == 'true') ? true : false : undefined;
   var vendorId = request.params.data.vendorId;
@@ -742,6 +748,7 @@ Parse.Cloud.define("saveProduct", function(request, response) {
 });
 
 Parse.Cloud.define("saveVariants", function(request, response) {
+  logInfo('saveVariants cloud function --------------------------', true);
   var variants = request.params.variants;  
   if (variants.length == 0) response.success();
   var updatedVariants = [];
@@ -855,6 +862,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
 });
 
 Parse.Cloud.define("addToVendorOrder", function(request, response) {
+  logInfo('addToVendorOrder cloud function --------------------------', true);
   var orders = request.params.orders;
   var updatedVariants = [];
   var updatedProductIds = [];
@@ -1081,6 +1089,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
 });
 
 Parse.Cloud.define("createResize", function(request, response) {
+  logInfo('createResize cloud function --------------------------', true);
   var resizes = request.params.resizes;
   console.log(resizes)
   var orderId = parseFloat(request.params.orderId);
@@ -1327,7 +1336,7 @@ Parse.Cloud.define("createResize", function(request, response) {
 });
 
 Parse.Cloud.define("saveResize", function(request, response) {
-  logInfo('saveResize ------------------------');
+  logInfo('saveResize cloud function --------------------------', true);
   var resizeId = request.params.data.resizeId;
   var units = parseFloat(request.params.data.units);
   var received = parseFloat(request.params.data.received);
@@ -1520,6 +1529,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
 });
 
 Parse.Cloud.define("loadCategory", function(request, response) {
+  logInfo('loadCategory cloud function --------------------------', true);
   var category = request.params.category;
   var added = false;
   
@@ -1546,6 +1556,7 @@ Parse.Cloud.define("loadCategory", function(request, response) {
 });
 
 Parse.Cloud.define("getBundleFormData", function(request, response) {
+  logInfo('getBundleFormData cloud function --------------------------', true);
   var productId = request.params.productId;
   
   var productsQuery = new Parse.Query(Product);
@@ -1578,6 +1589,7 @@ Parse.Cloud.define("getBundleFormData", function(request, response) {
 });
 
 Parse.Cloud.define("productBundleSave", function(request, response) {
+  logInfo('productBundleSave cloud function --------------------------', true);
   var bundleProductId = request.params.data.bundleProductId;
   var bundleVariantIds = request.params.data.bundleVariants;
   var bundleProduct;
@@ -1663,6 +1675,7 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.beforeSave("Product", function(request, response) {
+  logInfo('Product beforeSave --------------------------', true);
   var product = request.object;
   var designer;
   var vendor;
@@ -1801,6 +1814,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
 });
 
 Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
+  logInfo('ProductVariant beforeSave --------------------------', true);
   var productVariant = request.object;
   var variantOptions = productVariant.has('variantOptions') ? productVariant.get('variantOptions') : null;
 
@@ -1876,6 +1890,7 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 });
 
 Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
+  logInfo('VendorOrder beforeSave --------------------------', true);
   var vendorOrder = request.object;
   
   if (vendorOrder.has('vendorOrderVariants')) {
@@ -1906,6 +1921,7 @@ Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.afterSave("Product", function(request) {
+  logInfo('Product afterSave --------------------------', true);
   var productId = request.object.get('productId');
   logInfo('Product afterSave triggered for ' + productId);
   

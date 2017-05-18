@@ -27,6 +27,7 @@ const SHIPMENTS_PER_PAGE = 50;
 /////////////////////////
 
 Parse.Cloud.define("getShipments", function(request, response) {
+  logInfo('getShipments cloud function --------------------------', true);
   var totalShipments;
   var totalPages;
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;

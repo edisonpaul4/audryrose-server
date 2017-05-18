@@ -25,6 +25,7 @@ const BIGCOMMERCE_BATCH_SIZE = 250;
 /////////////////////////
 
 Parse.Cloud.define("getOptions", function(request, response) {
+  logInfo('getOptions cloud function --------------------------', true);
   var totalOptions;
   var subpage = request.params.subpage ? request.params.subpage : 'colors';
   
@@ -58,6 +59,7 @@ Parse.Cloud.define("getOptions", function(request, response) {
 });
 
 Parse.Cloud.define("saveOption", function(request, response) {
+  logInfo('saveOption cloud function --------------------------', true);
   var objectId = request.params.objectId;
   var manualCode = request.params.manualCode;
   var optionToUpdate;

@@ -47,6 +47,7 @@ Parse.Cloud.job("test", function(request, status) {
 });
 
 Parse.Cloud.job("updateProducts", function(request, status) {
+  logInfo('updateProducts job --------------------------', true);
   var totalProducts = 0;
   var totalProductsAdded = 0;
   var products = [];
@@ -119,6 +120,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
 });
 
 Parse.Cloud.job("updateProductVariants", function(request, status) {
+  logInfo('updateProductVariants job --------------------------', true);
   var totalProducts = 0;
   var totalProductsProcessed = 0;
   var totalVariantsAdded = 0;
@@ -179,6 +181,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
 });
 
 Parse.Cloud.job("updateCategories", function(request, status) {
+  logInfo('updateCategories job --------------------------', true);
   var totalCategories = 0;
   var totalCategoriesAdded = 0;
   var categories = [];
@@ -251,6 +254,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
 });
 
 Parse.Cloud.job("updateShippedOrders", function(request, status) {
+  logInfo('updateShippedOrders job --------------------------', true);
   var totalOrders = 0;
   var ordersToProcess = 0;
   var totalOrdersAdded = 0;
@@ -329,6 +333,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
 });
 
 Parse.Cloud.job("updateRecentOrders", function(request, status) {
+  logInfo('updateRecentOrders job --------------------------', true);
 //   var hd = new memwatch.HeapDiff();
   var totalOrders = 0;
   var totalOrdersAdded = 0;
@@ -425,6 +430,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
 });
 
 Parse.Cloud.job("updateDesigners", function(request, status) {
+  logInfo('updateDesigners job --------------------------', true);
   var totalDesigners = 0;
   var totalDesignersAdded = 0;
   var designers = [];
@@ -496,6 +502,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
 });
 
 Parse.Cloud.job("updateOptions", function(request, status) {
+  logInfo('updateOptions job --------------------------', true);
   var totalOptionsAdded = 0;
   var colorOptionValues = [];
   var stoneOptionValues = [];
@@ -625,6 +632,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
 /////////////////////////
 
 Parse.Cloud.define("getRecentJobs", function(request, response) {
+  logInfo('getRecentJobs cloud function --------------------------', true);
   // Get most recent jobs
   var recentJobs = new Parse.Query(JobStatus);
   recentJobs.descending("createdAt");
