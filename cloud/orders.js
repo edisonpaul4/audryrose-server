@@ -953,7 +953,7 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.beforeSave("Order", function(request, response) {
-  logInfo('Order beforeSave --------------------------', true);
+  logInfo('Order beforeSave --------------------------');
   var order = request.object;
 
   var toLowerCase = function(w) { return w.toLowerCase(); };
@@ -1005,7 +1005,7 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
 });
 
 Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
-  logInfo('OrderShipment beforeSave --------------------------', true);
+  logInfo('OrderShipment beforeSave --------------------------');
   var orderShipment = request.object;
   
   // Match the OrderShipment's items to a ProductVariant and decrement the inventoryLevel by quantity shipped

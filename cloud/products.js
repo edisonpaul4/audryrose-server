@@ -1716,7 +1716,7 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.beforeSave("Product", function(request, response) {
-  logInfo('Product beforeSave --------------------------', true);
+  logInfo('Product beforeSave --------------------------');
   var product = request.object;
   var designer;
   var vendor;
@@ -1855,7 +1855,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
 });
 
 Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
-  logInfo('ProductVariant beforeSave --------------------------', true);
+  logInfo('ProductVariant beforeSave --------------------------');
   var productVariant = request.object;
   var variantOptions = productVariant.has('variantOptions') ? productVariant.get('variantOptions') : null;
 
@@ -1931,7 +1931,7 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 });
 
 Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
-  logInfo('VendorOrder beforeSave --------------------------', true);
+  logInfo('VendorOrder beforeSave --------------------------');
   var vendorOrder = request.object;
   
   if (vendorOrder.has('vendorOrderVariants')) {
@@ -1962,7 +1962,7 @@ Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.afterSave("Product", function(request) {
-  logInfo('Product afterSave --------------------------', true);
+  logInfo('Product afterSave --------------------------');
   var productId = request.object.get('productId');
   logInfo('Product afterSave triggered for ' + productId);
   
