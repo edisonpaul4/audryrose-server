@@ -428,6 +428,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     
     logInfo('loadProductVariants bigcommerce product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds', true);
     
+    var allPromises = [];
     var promise = Parse.Promise.as();
     
     ////////////////////////////////////////////////////////
@@ -458,7 +459,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
             
           });
         });
-        return promise;
+        allPromises.push(promise);
         
       } else {
         logInfo('Product does not have bundle variants');
@@ -505,7 +506,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     		return error;
   			
   		});
-      return promise;
+      allPromises.push(promise);
     
     ////////////////////////////////////////////////////////
     // Create multiple variants if product has options
@@ -555,21 +556,21 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         if (!valueIds.length) valueIds = [valueIds];
         var variantOptions = [];
         var variantId = productId.toString();
-        var isNew = true;
-        _.each(valueIds, function(valueId) {
-          // Find the options data based on variantId
-          _.each(values, function(valueSet) {
-            
-            _.each(valueSet, function(value) {
-              if (valueId == value.option_value_id) {
-                variantOptions.push(value);
-                variantId += '-' + value.option_value_id;
-              }
-            });
-          });
-        });
+
         // Check if variant exists
         promise = promise.then(function() {
+          _.each(valueIds, function(valueId) {
+            // Find the options data based on variantId
+            _.each(values, function(valueSet) {
+              
+              _.each(valueSet, function(value) {
+                if (valueId == value.option_value_id) {
+                  variantOptions.push(value);
+                  variantId += '-' + value.option_value_id;
+                }
+              });
+            });
+          });
           var variantQuery = new Parse.Query(ProductVariant);
           variantQuery.equalTo('variantId', variantId);
           return variantQuery.first();
@@ -577,7 +578,6 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         }).then(function(variantResult) {
           if (variantResult) {
             logInfo('Variant ' + variantResult.get('variantId') + ' exists.');
-            isNew = false;
             return createProductVariantObject(product, variantId, variantOptions, variantResult);
           } else {
             logInfo('Variant ' + variantId + ' is new.');
@@ -604,9 +604,14 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
       		return error;
     			
     		});
+    		allPromises.push(promise);
       });
-      return promise;
+      
+      
+      
+//       return promise;
     }
+    return Parse.Promise.when(allPromises);
     
   }, function(error) {
   	logError(error);
@@ -1971,15 +1976,17 @@ Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
 /////////////////////////
 
 Parse.Cloud.afterSave("Product", function(request) {
-  logInfo('Product afterSave --------------------------');
   var productId = request.object.get('productId');
-  logInfo('Product afterSave triggered for ' + productId);
   
-  var ordersQuery = new Parse.Query(Order);
-  ordersQuery.equalTo('productIds', productId);
-  ordersQuery.containedIn('status_id', [3, 7, 8, 9, 11, 12]);
-
-  ordersQuery.count().then(function(count){
+  delay(10000).then(function() {
+    logInfo('Product afterSave --------------------------');
+    logInfo('Product afterSave triggered for ' + productId);
+    var ordersQuery = new Parse.Query(Order);
+    ordersQuery.equalTo('productIds', productId);
+    ordersQuery.containedIn('status_id', [3, 7, 8, 9, 11, 12]);
+    return ordersQuery.count();
+    
+  }).then(function(count){
     logInfo('Product afterSave total orders of product: ' + count);
     return ordersQuery.find();
     
