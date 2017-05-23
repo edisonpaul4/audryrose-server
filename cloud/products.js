@@ -2006,6 +2006,7 @@ Parse.Cloud.afterSave("Product", function(request) {
     var ordersQueueToProcess = ordersQueue.slice(0); // clone array so original can remain editable
     logInfo('orders to process: ' + ordersQueueToProcess.join(','));
     
+    var allPromises = [];
     var promise = Parse.Promise.as();
 		_.each(ordersQueueToProcess, function(orderId) {
       
@@ -2021,8 +2022,9 @@ Parse.Cloud.afterSave("Product", function(request) {
         logInfo('Product afterSave loadOrder success for order ' + orderId);
         
       });
+      allPromises.push(promise);
     });
-    return promise;
+    return Parse.Promise.when(allPromises);
     
   }).then(function() {
     logInfo('Product afterSave success for product ' + productId);
