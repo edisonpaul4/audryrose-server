@@ -70,7 +70,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     _.each(pages, function(page) {
       page++;
       promise = promise.then(function() {
-        return delay(10).then(function() {
+        return delay(1000).then(function() {
           var request = '/products?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE;
           return bigCommerce.get(request);
         }).then(function(response) {
@@ -87,6 +87,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     
   }).then(function() {
     logInfo('Number of products to search: ' + products.length);
+    var allPromises = [];
     var promise = Parse.Promise.as();
     //products = products.slice(0,25);// REMOVE
 		_.each(products, function(productId) {
@@ -102,9 +103,9 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     		return error;
   			
   		});
-    });		
-		return promise;
-
+  		allPromises.push(promise);
+    });
+    return Parse.Promise.when(allPromises);
     
   }).then(function() {
     var now = moment();
@@ -146,6 +147,7 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     
   }).then(function(products) {
     logInfo('Number of products to get variants: ' + products.length);
+    var allPromises = [];
     var promise = Parse.Promise.as();
 		_.each(products, function(product) {
   		logInfo('process product id: ' + product.get('productId'));
@@ -162,8 +164,9 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     		return error;
   			
   		});
+  		allPromises.push(promise);
     });		
-		return promise;
+		return Parse.Promise.when(allPromises);
     
   }).then(function() {
     var now = moment();
@@ -204,7 +207,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     _.each(pages, function(page) {
       page++;
       promise = promise.then(function() {
-        return delay(10).then(function() {
+        return delay(1000).then(function() {
           var request = '/categories?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE;
           return bigCommerce.get(request);
         }).then(function(response) {
@@ -221,6 +224,7 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     
   }).then(function() {
     logInfo('Number of categories to search: ' + categories.length);
+    var allPromises = [];
     var promise = Parse.Promise.as();
 		_.each(categories, function(category) {
   		logInfo('process category id: ' + category.id);
@@ -236,9 +240,9 @@ Parse.Cloud.job("updateCategories", function(request, status) {
     		return error;
   			
   		});
-    });		
-		return promise;
-
+  		allPromises.push(promise);
+    });
+    return Parse.Promise.when(allPromises);
     
   }).then(function() {
     var now = moment();
@@ -283,7 +287,7 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     _.each(pages, function(page) {
       page++;
       promise = promise.then(function() {
-        return delay(10).then(function() {
+        return delay(1000).then(function() {
           var request = '/orders?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:desc&status_id=2&is_deleted=false';
           return bigCommerce.get(request);
         }).then(function(response) {

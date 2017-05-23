@@ -149,6 +149,7 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
   delay(500).then(function() {
     var ordersQueueToProcess = ordersQueue.slice(0); // clone array so original can remain editable
     
+    var allPromises = [];
     var promise = Parse.Promise.as();
 		_.each(ordersQueueToProcess, function(orderId) {
 
@@ -164,8 +165,9 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
         logInfo('webhook loadOrder success id: ' + orderId);
         
       });
+      allPromises.push(promise);
     });
-    return promise;
+    return Parse.Promise.when(allPromises);
     
   }).then(function() {
     logInfo('ordersWebhook completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
@@ -180,16 +182,14 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
 });
 
 Parse.Cloud.define("productsWebhook", function(request, response) {
-  logInfo('productsWebhook cloud function --------------------------', true);
   var startTime = moment();
-  
-  logInfo('endpoint: ' + request.params.scope);
   
   var webhookData = request.params.data;
   var requestedProductId = parseInt(webhookData.id);
+  logInfo('productsWebhook cloud function product: ' + requestedProductId + ' --------------------------', true);
+  logInfo('productsWebhook endpoint: ' + request.params.scope);
   
-  
-  logInfo('products queue: ' + productsQueue.join(','));
+  logInfo('products queue: ' + productsQueue.join(','), true);
   var addToQueue = productsQueue.indexOf(requestedProductId) < 0;
   if (addToQueue) {
     // Add product id to server products queue
@@ -199,6 +199,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
   delay(500).then(function() {
     var productsQueueToProcess = productsQueue.slice(0); // clone array so original can remain editable
     
+    var allPromises = [];
     var promise = Parse.Promise.as();
   	_.each(productsQueueToProcess, function(productId) {
       
@@ -231,8 +232,9 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
     		response.error(error);
   		
     	});
+    	allPromises.push(promise);
     });
-    return promise;
+    return Parse.Promise.when(allPromises);
     
   }).then(function() {
     logInfo('productsWebhook completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
