@@ -51,6 +51,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
   var totalOrders;
   var totalPages;
   var tabCounts = {};
+  var orders;
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
   var currentSort = (request.params.sort) ? request.params.sort : 'date-added-desc';
   var search = request.params.search ? request.params.search : null;
@@ -132,26 +133,33 @@ Parse.Cloud.define("getOrders", function(request, response) {
   tabCountsQuery.include('metrics');
     
   tabCountsQuery.first().then(function(result) {
+    var ordersCount;
     if (result) {
       _.each(result.get('metrics'), function(metric) {
         switch (metric.get('slug')) {
           case 'awaitingFulfillment':
             tabCounts.awaitingFulfillment = metric.get('count');
+            if (subpage == 'awaiting-fulfillment') ordersCount = metric.get('count');
             break;
           case 'resizable':
             tabCounts.resizable = metric.get('count');
+            if (subpage == 'resizable') ordersCount = metric.get('count');
             break;
           case 'fullyShippable':
             tabCounts.fullyShippable = metric.get('count');
+            if (subpage == 'fully-shippable') ordersCount = metric.get('count');
             break;
           case 'partiallyShippable':
             tabCounts.partiallyShippable = metric.get('count');
+            if (subpage == 'partially-shippable') ordersCount = metric.get('count');
             break;
           case 'cannotShip':
             tabCounts.cannotShip = metric.get('count');
+            if (subpage == 'cannot-ship') ordersCount = metric.get('count');
             break;
           case 'fulfilled':
             tabCounts.fulfilled = metric.get('count');
+            if (subpage == 'fulfilled') ordersCount = metric.get('count');
             break;
           default:
             break;
@@ -159,22 +167,12 @@ Parse.Cloud.define("getOrders", function(request, response) {
       });
     }
     
-    var batchPdfsQuery = new Parse.Query(BatchPdf);
-    batchPdfsQuery.limit(20);
-    batchPdfsQuery.descending('createdAt');
-    return batchPdfsQuery.find();
-    
-  }, function(error) {
-	  logError(error);
-	  response.error(error.message);
-	  
-  }).then(function(result) {
-    _.each(result, function(batchPdf) {
-      var file = batchPdf.get('file')
-      files.push({name: batchPdf.get('name'), createdAt: batchPdf.get('createdAt'), url: file.url()});
-    })
-    return ordersQuery.count();
-    
+    if (ordersCount != undefined) {
+      return ordersCount;
+    } else {
+      return ordersQuery.count();
+    }
+        
   }, function(error) {
 	  logError(error);
 	  response.error(error.message);
@@ -203,20 +201,40 @@ Parse.Cloud.define("getOrders", function(request, response) {
       switch (subpage) {
         case 'fully-shippable':
           tabCounts.fullyShippable = ordersResult.shippable.length;
-          response.success({orders: ordersResult.shippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, files: files});
+          orders = ordersResult.shippable;
+          totalPages = 1;
           break;
         case 'partially-shippable':
           tabCounts.partiallyShippable = ordersResult.partiallyShippable.length;
-          response.success({orders: ordersResult.partiallyShippable, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, files: files});
+          orders = ordersResult.partiallyShippable;
+          totalPages = 1;
           break;
         default:
-          response.success({orders: ordersResult, totalPages: 1, totalOrders: totalOrders, tabCounts: tabCounts, files: files});
+          orders = ordersResult;
+          totalPages = 1;
           break;
       }
       
     } else {
-      response.success({orders: ordersResult, totalPages: totalPages, totalOrders: totalOrders, tabCounts: tabCounts, files: files});
+      orders = ordersResult;
     }
+    
+    var batchPdfsQuery = new Parse.Query(BatchPdf);
+    batchPdfsQuery.limit(20);
+    batchPdfsQuery.descending('createdAt');
+    return batchPdfsQuery.find();
+    
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
+  }).then(function(result) {
+    _.each(result, function(batchPdf) {
+      var file = batchPdf.get('file')
+      files.push({name: batchPdf.get('name'), createdAt: batchPdf.get('createdAt'), url: file.url()});
+    });
+    
+    response.success({orders: orders, totalPages: totalPages, totalOrders: totalOrders, tabCounts: tabCounts, files: files});
 	  
   }, function(error) {
 	  logError(error);

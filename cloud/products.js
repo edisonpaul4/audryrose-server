@@ -146,31 +146,40 @@ Parse.Cloud.define("getProducts", function(request, response) {
   tabCountsQuery.include('metrics');
   
   tabCountsQuery.first().then(function(result) {
+    var productsCount;
     if (result) {
       _.each(result.get('metrics'), function(metric) {
         switch (metric.get('slug')) {
           case 'inStock':
             tabCounts.inStock = metric.get('count');
+            if (subpage == 'in-stock') productsCount = metric.get('count');
             break;
           case 'needToOrder':
             tabCounts.needToOrder = metric.get('count');
+            if (subpage == 'need-to-order') productsCount = metric.get('count');
             break;
           case 'waitingToReceive':
             tabCounts.waitingToReceive = metric.get('count');
+            if (subpage == 'waiting-to-receive') productsCount = metric.get('count');
             break;
           case 'beingResized':
             tabCounts.beingResized = metric.get('count');
+            if (subpage == 'being-resized') productsCount = metric.get('count');
             break;
           case 'all':
             tabCounts.all = metric.get('count');
+            if (subpage == 'all') productsCount = metric.get('count');
             break;
           default:
             break;
         }
       });
     }
-    
-    return productsQuery.count();
+    if (productsCount != undefined) {
+      return productsCount;
+    } else {
+      return productsQuery.count();
+    }
     
   }).then(function(count) {
     totalProducts = count;
