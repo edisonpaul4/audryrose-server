@@ -377,7 +377,6 @@ Parse.Cloud.define("loadProduct", function(request, response) {
 });
 
 Parse.Cloud.define("loadProductVariants", function(request, response) {
-  logInfo('loadProductVariants cloud function --------------------------', true);
   var startTime = moment();
   
   var totalVariantsAdded = 0;
@@ -394,6 +393,8 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   productQuery.include('classification');
   productQuery.include('designer');
   productQuery.include('bundleVariants');
+  
+  logInfo('loadProductVariants cloud function product:' + productId + ' --------------------------', true);
   
   productQuery.first().then(function(result) {
     product = result;
@@ -424,6 +425,8 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
 		response.error(error.message);
   }).then(function(res) {
     bcProductOptions = res;
+    
+    logInfo('loadProductVariants bigcommerce completed:' + moment().diff(startTime, 'seconds') + ' seconds', true);
     
     var promise = Parse.Promise.as();
     
@@ -604,6 +607,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   	logError(error);
 		response.error(error.message);
   }).then(function() {
+    logInfo('loadProductVariants create options completed:' + moment().diff(startTime, 'seconds') + ' seconds', true);
 		var now = new Date();
 		product.set("variantsUpdatedAt", now);
 		logInfo('set ' + allVariants.length + ' total variants to product');
