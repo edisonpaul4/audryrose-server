@@ -18,6 +18,8 @@ var VendorOrder = Parse.Object.extend('VendorOrder');
 var VendorOrderVariant = Parse.Object.extend('VendorOrderVariant');
 var Resize = Parse.Object.extend('Resize');
 var ResizeVariant = Parse.Object.extend('ResizeVariant');
+var Metric = Parse.Object.extend('Metric');
+var MetricGroup = Parse.Object.extend('MetricGroup');
 
 var ordersQueue = [];
 
@@ -49,7 +51,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
   
   var totalProducts;
   var totalPages;
-  var tabCounts;
+  var tabCounts = {};
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
   var currentSort = (request.params.sort) ? request.params.sort : 'date-added-desc';
   var search = request.params.search ? request.params.search : null;
@@ -137,8 +139,36 @@ Parse.Cloud.define("getProducts", function(request, response) {
   
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
-  Parse.Cloud.run('getProductTabCounts').then(function(result) {
-    tabCounts = result;
+  var tabCountsQuery = new Parse.Query(MetricGroup);
+  tabCountsQuery.equalTo('objectClass', 'Product');
+  tabCountsQuery.equalTo('slug', 'tabCounts');
+  tabCountsQuery.descending('createdAt');
+  tabCountsQuery.include('metrics');
+  
+  tabCountsQuery.first().then(function(result) {
+    if (result) {
+      _.each(result.get('metrics'), function(metric) {
+        switch (metric.get('slug')) {
+          case 'inStock':
+            tabCounts.inStock = metric.get('count');
+            break;
+          case 'needToOrder':
+            tabCounts.needToOrder = metric.get('count');
+            break;
+          case 'waitingToReceive':
+            tabCounts.waitingToReceive = metric.get('count');
+            break;
+          case 'beingResized':
+            tabCounts.beingResized = metric.get('count');
+            break;
+          case 'all':
+            tabCounts.all = metric.get('count');
+            break;
+          default:
+            break;
+        }
+      });
+    }
     
     return productsQuery.count();
     
@@ -159,11 +189,12 @@ Parse.Cloud.define("getProducts", function(request, response) {
   });
 });
 
-Parse.Cloud.define("getProductTabCounts", function(request, response) {  
-  logInfo('getProductTabCounts cloud function --------------------------', true);
+Parse.Cloud.define("updateProductTabCounts", function(request, response) {  
+  logInfo('updateProductTabCounts cloud function --------------------------', true);
   var startTime = moment();
   
   var tabs = {};
+  var metrics = [];
   
   var inStockQuery = new Parse.Query(Product);
   inStockQuery.greaterThan('total_stock', 0);
@@ -181,23 +212,40 @@ Parse.Cloud.define("getProductTabCounts", function(request, response) {
   
   inStockQuery.count().then(function(count) {
     tabs.inStock = count;
+    metrics.push(createMetric('Product', 'inStock', 'In Stock', count));
     return needToOrderQuery.count();
     
   }).then(function(count) {
     tabs.needToOrder = count;
+    metrics.push(createMetric('Product', 'needToOrder', 'Need To Order', count));
     return waitingToReceiveQuery.count();
     
   }).then(function(count) {
     tabs.waitingToReceive = count;
+    metrics.push(createMetric('Product', 'waitingToReceive', 'Waiting To Receive', count));
     return beingResizedQuery.count();
     
   }).then(function(count) {
     tabs.beingResized = count;
+    metrics.push(createMetric('Product', 'beingResized', 'Being Resized', count));
     return allQuery.count();
     
   }).then(function(count) {
     tabs.all = count;
-    logInfo('getProductTabCounts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    metrics.push(createMetric('Product', 'all', 'All', count));
+    return Parse.Object.saveAll(metrics, {useMasterKey: true});
+    
+  }).then(function(results) {
+    var metricGroup = new MetricGroup();
+    metricGroup.set('objectClass', 'Product');
+    metricGroup.set('slug', 'tabCounts');
+    metricGroup.set('name', 'Tab Counts');
+    metricGroup.set('metrics', results);
+    return metricGroup.save(null, {useMasterKey: true});
+    
+  }).then(function(result) {
+    
+    logInfo('updateProductTabCounts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success(tabs);
 	  
   }, function(error) {
@@ -674,7 +722,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
     
   }).then(function(result) {
     updatedProduct = result;
-    return Parse.Cloud.run('getProductTabCounts');
+    return Parse.Cloud.run('updateProductTabCounts');
     
   }).then(function(result) {
     tabCounts = result;
@@ -769,7 +817,7 @@ Parse.Cloud.define("saveProduct", function(request, response) {
     
   }).then(function(result) {
     updatedProduct = result;
-    return Parse.Cloud.run('getProductTabCounts');
+    return Parse.Cloud.run('updateProductTabCounts');
     
   }).then(function(result) {
     tabCounts = result;
@@ -889,7 +937,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
   }).then(function(result) {
     logInfo('get product tab counts');
     
-    return Parse.Cloud.run('getProductTabCounts');
+    return Parse.Cloud.run('updateProductTabCounts');
     
   }).then(function(result) {
     logInfo('success');
@@ -1119,7 +1167,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
   }).then(function(result) {
     logInfo('get product tab counts');
     
-    return Parse.Cloud.run('getProductTabCounts');
+    return Parse.Cloud.run('updateProductTabCounts');
     
   }).then(function(result) {
     logInfo('success');
@@ -1349,7 +1397,7 @@ Parse.Cloud.define("createResize", function(request, response) {
     logInfo('variants loaded');
     updatedVariants = results;
     logInfo('get product tab counts');
-    return Parse.Cloud.run('getProductTabCounts');
+    return Parse.Cloud.run('updateProductTabCounts');
     
   }).then(function(result) {
     tabCounts = result;
@@ -1544,7 +1592,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
     logInfo('variants loaded');
     updatedVariants = results;
     logInfo('get product tab counts');
-    return Parse.Cloud.run('getProductTabCounts');
+    return Parse.Cloud.run('updateProductTabCounts');
     
   }).then(function(result) {
     tabCounts = result;
@@ -2324,6 +2372,15 @@ var createCategoryObject = function(categoryData, currentCategory) {
   categoryObj.set('name', categoryData.name);
   categoryObj.set('parent_category_list', categoryData.parent_category_list);
   return categoryObj;
+}
+
+var createMetric = function(objectClass, slug, name, value) {
+  var metric = new Metric();
+  metric.set('objectClass', objectClass);
+  metric.set('slug', slug);
+  metric.set('name', name);
+  metric.set('count', value);
+  return metric;
 }
 
 var logInfo = function(i, alwaysLog) {

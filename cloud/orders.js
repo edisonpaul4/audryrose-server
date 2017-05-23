@@ -16,6 +16,8 @@ var OrderShipment = Parse.Object.extend('OrderShipment');
 var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');
 var BatchPdf = Parse.Object.extend('BatchPdf');
+var Metric = Parse.Object.extend('Metric');
+var MetricGroup = Parse.Object.extend('MetricGroup');
 
 const ORDERS_PER_PAGE = 25;
 const isProduction = process.env.NODE_ENV == 'production';
@@ -48,7 +50,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
   
   var totalOrders;
   var totalPages;
-  var tabCounts;
+  var tabCounts = {};
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
   var currentSort = (request.params.sort) ? request.params.sort : 'date-added-desc';
   var search = request.params.search ? request.params.search : null;
@@ -66,8 +68,6 @@ Parse.Cloud.define("getOrders", function(request, response) {
     var searchTerms = search.split(' ');
     searchTerms = _.map(searchTerms, toLowerCase);
     
-//     logInfo(searchTerms);
-    
     var searchOrderNumberQuery = new Parse.Query(Order);
     searchOrderNumberQuery.matches('orderId', regex);
     var searchTermsQuery = new Parse.Query(Order);
@@ -76,7 +76,6 @@ Parse.Cloud.define("getOrders", function(request, response) {
     
   } else {
     
-//     logInfo(subpage);
     switch (subpage) {
       case 'fulfilled':
         ordersQuery.equalTo('status', 'Shipped');
@@ -125,9 +124,41 @@ Parse.Cloud.define("getOrders", function(request, response) {
   } else {
     ordersQuery.limit(1000);
   }
+  
+  var tabCountsQuery = new Parse.Query(MetricGroup);
+  tabCountsQuery.equalTo('objectClass', 'Order');
+  tabCountsQuery.equalTo('slug', 'tabCounts');
+  tabCountsQuery.descending('createdAt');
+  tabCountsQuery.include('metrics');
     
-  Parse.Cloud.run('getOrderTabCounts').then(function(result) {
-    tabCounts = result;
+  tabCountsQuery.first().then(function(result) {
+    if (result) {
+      _.each(result.get('metrics'), function(metric) {
+        switch (metric.get('slug')) {
+          case 'awaitingFulfillment':
+            tabCounts.awaitingFulfillment = metric.get('count');
+            break;
+          case 'resizable':
+            tabCounts.resizable = metric.get('count');
+            break;
+          case 'fullyShippable':
+            tabCounts.fullyShippable = metric.get('count');
+            break;
+          case 'partiallyShippable':
+            tabCounts.partiallyShippable = metric.get('count');
+            break;
+          case 'cannotShip':
+            tabCounts.cannotShip = metric.get('count');
+            break;
+          case 'fulfilled':
+            tabCounts.fulfilled = metric.get('count');
+            break;
+          default:
+            break;
+        }
+      });
+    }
+    
     var batchPdfsQuery = new Parse.Query(BatchPdf);
     batchPdfsQuery.limit(20);
     batchPdfsQuery.descending('createdAt');
@@ -194,13 +225,14 @@ Parse.Cloud.define("getOrders", function(request, response) {
   });
 });
 
-Parse.Cloud.define("getOrderTabCounts", function(request, response) {  
-  logInfo('getOrderTabCounts cloud function --------------------', true);
+Parse.Cloud.define("updateOrderTabCounts", function(request, response) {  
+  logInfo('updateOrderTabCounts cloud function --------------------', true);
   var startTime = moment();
   
   var tabs = {};
   var inventoryBasedUnshippable = 0;
   var inventoryBasedPartiallyShippable = 0;
+  var metrics = [];
   
   var awaitingFulfillmentQuery = getPendingOrderQuery();
   
@@ -229,6 +261,7 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
   
   awaitingFulfillmentQuery.count().then(function(count) {
     tabs.awaitingFulfillment = count;
+    metrics.push(createMetric('Order', 'awaitingFulfillment', 'Awaiting Fulfillment', count));
     return resizableQuery.count();
     
   }, function(error) {
@@ -237,6 +270,7 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 	  
   }).then(function(count) {
     tabs.resizable = count;
+    metrics.push(createMetric('Order', 'resizable', 'Resizable', count));
     return getInventoryAwareShippableOrders(fullyShippableQuery, 'fully-shippable');
     
   }, function(error) {
@@ -245,6 +279,7 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 	  
   }).then(function(ordersResult) {
     tabs.fullyShippable = ordersResult.shippable.length;
+    metrics.push(createMetric('Order', 'fullyShippable', 'Fully Shippable', ordersResult.shippable.length));
     if (ordersResult.partiallyShippable.length > 0) inventoryBasedPartiallyShippable += ordersResult.partiallyShippable.length;
     if (ordersResult.unshippable.length > 0) inventoryBasedUnshippable += ordersResult.unshippable.length;
     return getInventoryAwareShippableOrders(partiallyShippableQuery, 'partially-shippable');
@@ -255,6 +290,7 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 	  
   }).then(function(ordersResult) {
     tabs.partiallyShippable = ordersResult.partiallyShippable.length;
+    metrics.push(createMetric('Order', 'partiallyShippable', 'Partially Shippable', ordersResult.partiallyShippable.length));
     if (ordersResult.unshippable.length > 0) inventoryBasedUnshippable += ordersResult.unshippable.length;
     return cannotShipQuery.count();
     
@@ -264,6 +300,7 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 	  
   }).then(function(count) {
     tabs.cannotShip = count;
+    metrics.push(createMetric('Order', 'cannotShip', 'Cannot Ship', count));
     if (inventoryBasedUnshippable > 0) tabs.cannotShip += inventoryBasedUnshippable;
     return fulfilledQuery.count();
     
@@ -273,8 +310,20 @@ Parse.Cloud.define("getOrderTabCounts", function(request, response) {
 	  
   }).then(function(count) {
     tabs.fulfilled = count;
+    metrics.push(createMetric('Order', 'fulfilled', 'Fulfilled', count));
+    return Parse.Object.saveAll(metrics, {useMasterKey: true});
     
-    logInfo('getOrderTabCounts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+  }).then(function(results) {
+    var metricGroup = new MetricGroup();
+    metricGroup.set('objectClass', 'Order');
+    metricGroup.set('slug', 'tabCounts');
+    metricGroup.set('name', 'Tab Counts');
+    metricGroup.set('metrics', results);
+    return metricGroup.save(null, {useMasterKey: true});
+    
+  }).then(function(result) {
+    
+    logInfo('updateOrderTabCounts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success(tabs);
 	  
   }, function(error) {
@@ -331,7 +380,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
   }).then(function(result) {
     updatedOrder = result;
     
-    return Parse.Cloud.run('getOrderTabCounts');
+    return Parse.Cloud.run('updateOrderTabCounts');
     
   }).then(function(result) {
     tabCounts = result;
@@ -808,7 +857,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
     generatedFile = result.generatedFile;
     newFiles = result.newFiles;
     
-    return Parse.Cloud.run('getOrderTabCounts');
+    return Parse.Cloud.run('updateOrderTabCounts');
     
   }, function(error) {
 	  logError(error);
@@ -932,7 +981,7 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
   }).then(function(result) {
     updatedOrder = result;
     
-    return Parse.Cloud.run('getOrderTabCounts');
+    return Parse.Cloud.run('updateOrderTabCounts');
     
   }).then(function(result) {
     tabCounts = result;
@@ -2400,6 +2449,15 @@ var combinePdfs = function(pdfs) {
 
 var validatePhoneNumber = function(string) {
   return string.match(/\d/g).length >= 10;
+}
+
+var createMetric = function(objectClass, slug, name, value) {
+  var metric = new Metric();
+  metric.set('objectClass', objectClass);
+  metric.set('slug', slug);
+  metric.set('name', name);
+  metric.set('count', value);
+  return metric;
 }
 
 var logInfo = function(i, alwaysLog) {
