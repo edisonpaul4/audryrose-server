@@ -1977,11 +1977,12 @@ Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
 
 Parse.Cloud.afterSave("Product", function(request) {
   var productId = request.object.get('productId');
+  var ordersQuery;
   
   delay(10000).then(function() {
     logInfo('Product afterSave --------------------------');
     logInfo('Product afterSave triggered for ' + productId);
-    var ordersQuery = new Parse.Query(Order);
+    ordersQuery = new Parse.Query(Order);
     ordersQuery.equalTo('productIds', productId);
     ordersQuery.containedIn('status_id', [3, 7, 8, 9, 11, 12]);
     return ordersQuery.count();
