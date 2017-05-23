@@ -1064,7 +1064,6 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
     		response.error(error.message);
     		
     	});
-    	
   	});
   	return promise;
   	
@@ -1072,6 +1071,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
   	
   	logInfo(productIds.length + ' product ids to save');
   	
+  	var allPromises = [];
     var promise = Parse.Promise.as();
     
     _.each(productIds, function(productId) {
@@ -1112,9 +1112,9 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
     		response.error(error.message);
     		
     	});
+    	allPromises.push(promise);
   	});
-  	
-  	return promise;
+  	return Parse.Promise.when(allPromises);
   	
   }).then(function(result) {
     logInfo('get product tab counts');
@@ -1302,6 +1302,7 @@ Parse.Cloud.define("createResize", function(request, response) {
   	
   	logInfo(productIds.length + ' product ids to get');
   	
+  	var allPromises = [];
     var promise = Parse.Promise.as();
     
     _.each(productIds, function(productId) {
@@ -1335,9 +1336,10 @@ Parse.Cloud.define("createResize", function(request, response) {
     		response.error(error.message);
     		
     	});
+    	allPromises.push(promise);
   	});
   	
-  	return promise;
+  	return Parse.Promise.when(allPromises);
   	
   }).then(function() {
     logInfo('products loaded');
