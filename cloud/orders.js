@@ -480,10 +480,10 @@ Parse.Cloud.define("createShipments", function(request, response) {
     
     var promise = Parse.Promise.as();
     _.each(shipmentGroups, function(shipmentGroup) {
-      logInfo('Process order address: ' + shipmentGroup.orderAddressId, true);
-      
       var orderId = shipmentGroup.orderId;
       var orderAddressId = shipmentGroup.orderAddressId;
+      logInfo('Process order #' + orderId + ', address #' + shipmentGroup.orderAddressId, true);
+      
       logInfo('Order address ' + shipmentGroup.orderAddressId + ' has ' + shipmentGroup.orderProducts.length + ' orderProducts', true);
       var shippingAddress = shipmentGroup.orderProducts[0].shippingAddress;
       logInfo('shippingAddress: ' + shippingAddress.id, true);
@@ -630,7 +630,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
           extra: shipmentExtra
         };
         
-        logInfo(shipment, true)
+        logInfo(shipment)
         logInfo(carrier.object_id, true)
         logInfo(serviceLevel, true)
         
