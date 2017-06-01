@@ -114,9 +114,9 @@ Parse.Cloud.define("getOrders", function(request, response) {
   ordersQuery.include('orderProducts');
   ordersQuery.include('orderProducts.variants');
   ordersQuery.include('orderProducts.variants.designer');
-  ordersQuery.include('orderProducts.variants.designer.vendors');
-  ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders');
-  ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders.vendorOrderVariants');
+  ordersQuery.include('orderProducts.vendorOrders');
+  ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+  ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
   ordersQuery.include('orderProducts.resizes');
   ordersQuery.include('orderShipments');
   
@@ -388,9 +388,9 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 //     ordersQuery.include('orderProducts.variant.designer');
     ordersQuery.include('orderProducts.variants');
     ordersQuery.include('orderProducts.variants.designer');
-    ordersQuery.include('orderProducts.variants.designer.vendors');
-    ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders');
-    ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders.vendorOrderVariants');
+    ordersQuery.include('orderProducts.vendorOrders');
+    ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+    ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
     ordersQuery.include('orderProducts.resizes');
     ordersQuery.include('orderShipments');
     return ordersQuery.first();
@@ -452,13 +452,11 @@ Parse.Cloud.define("createShipments", function(request, response) {
           var orderQuery = new Parse.Query(Order);
           orderQuery.equalTo('orderId', parseInt(orderId));
           orderQuery.include('orderProducts');
-//           orderQuery.include('orderProducts.variant');
           orderQuery.include('orderProducts.variants');
           orderQuery.include('orderShipments');
           return orderQuery.first();
           
         }).then(function(order) {
-//           var orderJSON = order.toJSON();
           var groups = createShipmentGroups(order, order.get('orderProducts'), order.get('orderShipments'));
           shipmentGroups = shipmentGroups.concat(groups.shippableGroups);
           return true;
@@ -783,9 +781,9 @@ Parse.Cloud.define("createShipments", function(request, response) {
 //         ordersQuery.include('orderProducts.variant.designer');
         ordersQuery.include('orderProducts.variants');
         ordersQuery.include('orderProducts.variants.designer');
-        ordersQuery.include('orderProducts.variants.designer.vendors');
-        ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders');
-        ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders.vendorOrderVariants');
+        ordersQuery.include('orderProducts.vendorOrders');
+        ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+        ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
         ordersQuery.include('orderProducts.resizes');
         ordersQuery.include('orderShipments');
         return ordersQuery.first();
@@ -979,7 +977,7 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
   
   logInfo('addOrderProductToVendorOrder ' + orderId + ' ------------------------');
     
-  Parse.Cloud.run('addToVendorOrder', {orders: orders}).then(function(result) {
+  Parse.Cloud.run('addToVendorOrder', {orders: orders, orderId: orderId}).then(function(result) {
     
     if (result.updatedProducts) updatedProducts = result.updatedProducts;
     
@@ -989,9 +987,9 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
     ordersQuery.include('orderProducts');
     ordersQuery.include('orderProducts.variants');
     ordersQuery.include('orderProducts.variants.designer');
-    ordersQuery.include('orderProducts.variants.designer.vendors');
-    ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders');
-    ordersQuery.include('orderProducts.variants.designer.vendors.vendorOrders.vendorOrderVariants');
+    ordersQuery.include('orderProducts.vendorOrders');
+    ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+    ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
     ordersQuery.include('orderProducts.resizes');
     ordersQuery.include('orderShipments');
     return ordersQuery.first();
@@ -1760,6 +1758,7 @@ var getOrderProductVariants = function(orderProduct) {
       if (variantMatches) {
         orderProduct.set('variants', variantMatches);
         
+/*
         // Check if any variants have resizes
         if (parentProduct.has('resizes')) {
           logInfo('parent product has resizes');
@@ -1775,6 +1774,7 @@ var getOrderProductVariants = function(orderProduct) {
           logInfo('parent product does not have resizes');
           orderProduct.unset('resizes');
         }
+*/
       }
       
     } else if (result) {

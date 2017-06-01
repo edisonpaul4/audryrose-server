@@ -239,8 +239,6 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
   var vendorOrder;
   var vendorOrderVariants = [];
   var vendor;
-  var hasResize = false;
-  var hasOrder = false;
   var numReceived = 0;
   var productIds = [];
   
@@ -261,7 +259,6 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
       promise = promise.then(function() {
         var vendorOrderVariantQuery = new Parse.Query(VendorOrderVariant);
         vendorOrderVariantQuery.equalTo('objectId', variantData.objectId);
-        vendorOrderVariantQuery.equalTo('done', false);
         vendorOrderVariantQuery.include('variant');
         vendorOrderVariantQuery.include('resizeVariant');
         return vendorOrderVariantQuery.first();
@@ -292,11 +289,6 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
         if (vendorOrderVariant && vendorOrderVariant.has('units') && vendorOrderVariant.get('units') > 0) {
           logInfo('VendorOrderVariant saved');
           logInfo('Variant has ' + vendorOrderVariant.get('units') + ' units');
-          if (vendorOrderVariant.has('isResize') && vendorOrderVariant.get('isResize') == true) {
-            hasResize = true;
-          } else {
-            hasOrder = true;
-          }
           vendorOrderVariants.push(vendorOrderVariant);
           
           if (vendorOrderVariant.get('ordered') == true && vendorOrderVariant.get('received') >= vendorOrderVariant.get('units')) {
@@ -319,7 +311,6 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
     
     return promise;
     
-    
   }, function(error) {
 		logError(error);
 		response.error(error.message);
@@ -330,8 +321,6 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
     if (vendorOrderVariants.length > 0) {
       logInfo('Save changes to vendor order');
       vendorOrder.set('message', message);
-      vendorOrder.set('hasResize', hasResize);
-      vendorOrder.set('hasOrder', hasOrder);
       if (numReceived >= vendorOrderVariants.length) {
         vendorOrder.set('receivedAll', true);
         vendorOrder.set('dateReceived', moment().toDate());
