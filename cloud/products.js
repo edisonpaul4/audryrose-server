@@ -1202,7 +1202,6 @@ Parse.Cloud.define("createResize", function(request, response) {
   var startTime = moment();
   
   var resizes = request.params.resizes;
-  console.log(resizes)
   var orderId = parseFloat(request.params.orderId);
   var updatedProductIds = [];
   var updatedProducts = [];
@@ -1221,7 +1220,7 @@ Parse.Cloud.define("createResize", function(request, response) {
     
     _.each(resizes, function(resizeData) {
       var resize = (resizeData.resize == true || resizeData.resize == 'true') ? true : false;
-      var orderProductId = order.orderProductId ? parseFloat(order.orderProductId) : null;
+      var orderProductId = resizeData.orderProductId ? parseFloat(resizeData.orderProductId) : null;
       var variantId = resizeData.variant;
       var resizeVariantId = resizeData.resizeVariant;
       var vendorId = resizeData.vendor;
