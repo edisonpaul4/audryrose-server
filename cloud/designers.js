@@ -65,6 +65,7 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   designersQuery.include('vendors');
   designersQuery.include('vendors.vendorOrders');
   designersQuery.include('vendors.vendorOrders.vendorOrderVariants');
+  designersQuery.include('vendors.vendorOrders.vendorOrderVariants.orderProducts');
   designersQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
   designersQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
   

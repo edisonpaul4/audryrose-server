@@ -1921,11 +1921,12 @@ var getOrderProductVariantMatches = function(orderProduct, variants) {
       var optionsChecked = 0;
       var optionMatches = 0;
       
-//       logInfo('getOrderProductVariantMatches: variant ' + variant.get('variantId') + ' ' + ' totalOptionsToCheck:' + totalOptionsToCheck);
+      logInfo('getOrderProductVariantMatches: variant ' + variant.get('variantId') + ' ' + ' totalOptionsToCheck:' + totalOptionsToCheck);
 
       _.each(productOptions, function(productOption) {
         optionsChecked++;
         _.each(variantOptions, function(variantOption) {
+//           logInfo('check po:' + productOption.option_id + ' vo:' + variantOption.option_id + ', pv:' + productOption.value + ' vv:' + variantOption.option_value_id);
           if (productOption.option_id == variantOption.option_id && productOption.value == variantOption.option_value_id) {
 //             logInfo('getOrderProductVariantMatches: matched option_id:' + productOption.option_id + ' option_value_id:' + productOption.value);
             optionMatches++;
