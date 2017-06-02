@@ -1393,10 +1393,12 @@ var loadOrder = function(bcOrderId) {
     // Count the order's products shippable/resizable status
     logInfo('Count the orders products shippable/resizable status');
     var numShippable = 0;
+    var numPartiallyShippable = 0;
     var numResizable = 0;
     var numShipped = 0;
     _.each(orderProducts, function(orderProduct) {
       if (orderProduct.has('shippable') && orderProduct.get('shippable') == true) numShippable++;
+      if (orderProduct.has('partiallyShippable') && orderProduct.get('partiallyShippable') == true) numPartiallyShippable++;
       if (orderProduct.has('resizable') && orderProduct.get('resizable') == true) numResizable++;
       if (orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) numShipped++;
     });
@@ -1407,6 +1409,10 @@ var loadOrder = function(bcOrderId) {
       orderObj.set('fullyShippable', true);
       orderObj.set('partiallyShippable', false);
     } else if (numShippable > 0) {
+      logInfo('set as partially shippable');
+      orderObj.set('fullyShippable', false);
+      orderObj.set('partiallyShippable', true);
+    } else if (numPartiallyShippable > 0) {
       logInfo('set as partially shippable');
       orderObj.set('fullyShippable', false);
       orderObj.set('partiallyShippable', true);
@@ -1988,11 +1994,15 @@ var getOrderProductsStatus = function(orderProducts) {
       // Determine inventory level of order product
       var inventoryLevel = orderProductVariants ? getInventoryLevel(orderProductVariants, vendorOrders, resizes) : 0;
       logInfo('OrderProduct has inventory: ' + inventoryLevel);
+      
+      var quantityToShip = orderProduct.has('quantity_shipped') ? orderProduct.get('quantity') - orderProduct.get('quantity_shipped') : orderProduct.get('quantity');
+      logInfo('OrderProduct quantity to ship: ' + quantityToShip);
     	
     	if (orderProduct.has('quantity_shipped') && orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) {
       	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' has already shipped');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
+      	orderProduct.set('partiallyShippable', false);
       	return orderProduct;
 
     	} else if (orderProduct.has('isCustom') && orderProduct.get('isCustom') == true) {
@@ -2004,24 +2014,34 @@ var getOrderProductsStatus = function(orderProducts) {
       	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' does not have any variants');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
+      	orderProduct.set('partiallyShippable', false);
         return orderProduct;
       	
-    	} else if (inventoryLevel >= orderProduct.get('quantity')) {
-      	// Has inventory, save it and exit
+    	} else if (inventoryLevel >= quantityToShip) {
       	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' is shippable');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', true);
+      	orderProduct.set('partiallyShippable', false);
+        return orderProduct;
+        
+    	} else if (inventoryLevel > 0 && inventoryLevel <= quantityToShip) {
+      	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' is partially shippable');
+      	orderProduct.set('resizable', false);
+      	orderProduct.set('shippable', false);
+      	orderProduct.set('partiallyShippable', true);
         return orderProduct;
       	
     	} else if (!isResizeProductType) {
       	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' is not a resizable product');
       	orderProduct.set('resizable', false);
       	orderProduct.set('shippable', false);
+      	orderProduct.set('partiallyShippable', false);
         return orderProduct;
       	
     	} else {
       	// No inventory and OrderProduct has sizes, check if resizable
       	orderProduct.set('shippable', false);
+      	orderProduct.set('partiallyShippable', false);
       	return getOrderProductResizable(orderProduct);
       		
       }
