@@ -1185,7 +1185,19 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
         }
         
       }).then(function() {
-        logInfo('inventory saved for all vendor order variants');
+        if (totalItemsProcessed == items.length) {
+          logInfo('inventory saved for all vendor order variants');
+          if (resizesToSave.length > 0) {
+            return Parse.Object.saveAll(resizesToSave, {useMasterKey: true});
+          } else {
+            return true;
+          }
+        } else {
+          return true;
+        }
+        
+      }).then(function() {
+        logInfo('inventory saved for all resizes');
         if (totalItemsProcessed == items.length) {
           response.success();
         } else {
