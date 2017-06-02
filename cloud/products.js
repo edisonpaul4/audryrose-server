@@ -127,6 +127,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include('variants.stoneCode');
   productsQuery.include('resizes');
   productsQuery.include('resizes.resizeSourceVariant');
+  productsQuery.include('resizes.orderProduct');
   productsQuery.include("department");
   productsQuery.include("classification");
   productsQuery.include("designer");
@@ -279,6 +280,7 @@ Parse.Cloud.define("getProduct", function(request, response) {
   productQuery.include('variants.stoneCode');
   productQuery.include('resizes');
   productQuery.include('resizes.resizeSourceVariant');
+  productQuery.include('resizes.orderProduct');
   productQuery.include("department");
   productQuery.include("classification");
   productQuery.include("designer");
@@ -720,6 +722,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
     productsQuery.include('variants.stoneCode');
     productsQuery.include('resizes');
     productsQuery.include('resizes.resizeSourceVariant');
+    productsQuery.include('resizes.orderProduct');
     productsQuery.include("department");
     productsQuery.include("classification");
     productsQuery.include("designer");
@@ -815,6 +818,7 @@ Parse.Cloud.define("saveProduct", function(request, response) {
     productQuery.include('variants.stoneCode');
     productQuery.include('resizes');
     productQuery.include('resizes.resizeSourceVariant');
+    productQuery.include('resizes.orderProduct');
     productQuery.include("department");
     productQuery.include("classification");
     productQuery.include("designer");
@@ -917,6 +921,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
         productQuery.include('variants.stoneCode');
         productQuery.include('resizes');
         productQuery.include('resizes.resizeSourceVariant');
+        productQuery.include('resizes.orderProduct');
         productQuery.include("department");
         productQuery.include("classification");
         productQuery.include("designer");
@@ -1159,6 +1164,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         productQuery.include('variants.stoneCode');
         productQuery.include('resizes');
         productQuery.include('resizes.resizeSourceVariant');
+        productQuery.include('resizes.orderProduct');
         productQuery.include("department");
         productQuery.include("classification");
         productQuery.include("designer");
@@ -1300,7 +1306,7 @@ Parse.Cloud.define("createResize", function(request, response) {
           resizeQuery.equalTo('variant', variant);
           resizeQuery.equalTo('resizeSourceVariant', resizeSourceVariant);
           resizeQuery.equalTo('done', false);
-          if (orderProduct) resizeQuery.equalTo('orderProducts', orderProduct);
+          if (orderProduct) resizeQuery.equalTo('orderProduct', orderProduct);
           return resizeQuery.first();
         
         } else {
@@ -1336,7 +1342,7 @@ Parse.Cloud.define("createResize", function(request, response) {
         }
         
         resizeObj.set('dateSent', moment().toDate());
-        if (orderProduct) resizeObj.addUnique('orderProducts', orderProduct);
+        if (orderProduct) resizeObj.set('orderProduct', orderProduct);
         
         if (resizeSourceVariant.has('inventoryLevel') && resizeSourceVariant.get('inventoryLevel') < resizeObj.get('units')) {
           logInfo('resizeSourceVariant:' + resizeSourceVariant.get('inventoryLevel') + ', resizeObj:' + resizeObj.get('units'));
@@ -1409,6 +1415,7 @@ Parse.Cloud.define("createResize", function(request, response) {
         productQuery.include('resizes');
         productQuery.include('resizes.variant');
         productQuery.include('resizes.resizeSourceVariant');
+        productQuery.include('resizes.orderProduct');
         productQuery.include("department");
         productQuery.include("classification");
         productQuery.include("designer");
@@ -1440,8 +1447,13 @@ Parse.Cloud.define("createResize", function(request, response) {
   }).then(function(results) {
     logInfo('variants loaded');
     updatedVariants = results;
-    logInfo('get product tab counts');
-    return Parse.Cloud.run('updateProductTabCounts');
+    if (orderId) {
+      logInfo('get order tab counts');
+      return Parse.Cloud.run('updateOrderTabCounts');      
+    } else {
+      logInfo('get product tab counts');
+      return Parse.Cloud.run('updateProductTabCounts');
+    }
     
   }).then(function(result) {
     tabCounts = result;
@@ -1526,7 +1538,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
         
         if (received) {
           var receivedDiff = resizeObj.has('received') ? received - resizeObj.get('received') : received;
-          if (receivedDiff != 0) variant.increment('inventoryLevel', receivedDiff);
+          if (receivedDiff != 0 && !resizeObj.has('orderProduct')) variant.increment('inventoryLevel', receivedDiff);
           resizeObj.set('received', received);
         } else {
           resizeObj.set('received', 0);
@@ -1605,6 +1617,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
         productQuery.include('resizes');
         productQuery.include('resizes.variant');
         productQuery.include('resizes.resizeSourceVariant');
+        productQuery.include('resizes.orderProduct');
         productQuery.include("department");
         productQuery.include("classification");
         productQuery.include("designer");
@@ -1794,6 +1807,7 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
     productQuery.include('variants.stoneCode');
     productQuery.include('resizes');
     productQuery.include('resizes.resizeSourceVariant');
+    productQuery.include('resizes.orderProduct');
     productQuery.include("department");
     productQuery.include("classification");
     productQuery.include("designer");

@@ -263,12 +263,18 @@ Parse.Cloud.define("updateOrderTabCounts", function(request, response) {
   fullyShippableQuery.include('orderProducts');
 //   fullyShippableQuery.include('orderProducts.variant');
   fullyShippableQuery.include('orderProducts.variants');
+  fullyShippableQuery.include('orderProducts.vendorOrders');
+  fullyShippableQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+  fullyShippableQuery.include('orderProducts.resizes');
   
   var partiallyShippableQuery = getPendingOrderQuery();
   partiallyShippableQuery.equalTo('partiallyShippable', true);  
   partiallyShippableQuery.include('orderProducts');
 //   partiallyShippableQuery.include('orderProducts.variant');
   partiallyShippableQuery.include('orderProducts.variants');
+  partiallyShippableQuery.include('orderProducts.vendorOrders');
+  partiallyShippableQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+  partiallyShippableQuery.include('orderProducts.resizes');
   
   var cannotShipQuery = getPendingOrderQuery();
   cannotShipQuery.equalTo('fullyShippable', false);
@@ -453,6 +459,9 @@ Parse.Cloud.define("createShipments", function(request, response) {
           orderQuery.equalTo('orderId', parseInt(orderId));
           orderQuery.include('orderProducts');
           orderQuery.include('orderProducts.variants');
+          orderQuery.include('orderProducts.vendorOrders');
+          orderQuery.include('orderProducts.vendorOrder.vendorOrderVariants');
+          orderQuery.include('orderProducts.resizes');
           orderQuery.include('orderShipments');
           return orderQuery.first();
           
@@ -480,22 +489,21 @@ Parse.Cloud.define("createShipments", function(request, response) {
     _.each(shipmentGroups, function(shipmentGroup) {
       var orderId = shipmentGroup.orderId;
       var orderAddressId = shipmentGroup.orderAddressId;
-      logInfo('Process order #' + orderId + ', address #' + shipmentGroup.orderAddressId, true);
-      
-      logInfo('Order address ' + shipmentGroup.orderAddressId + ' has ' + shipmentGroup.orderProducts.length + ' orderProducts', true);
       var shippingAddress = shipmentGroup.orderProducts[0].shippingAddress;
-      logInfo('shippingAddress: ' + shippingAddress.id, true);
       var billingAddress = shipmentGroup.orderBillingAddress;
       var customShipment = shipmentGroup.customShipment ? shipmentGroup.customShipment : null;
-      if (customShipment) {
-        logInfo('customShipment: ' + customShipment, true);
-      } else {
-        logInfo('no customShipment');
-      }
       var bcShipment;
       var shippoLabel;
       
       promise = promise.then(function() {
+        
+        logInfo('\nProcess order #' + orderId + ', address #' + shipmentGroup.orderAddressId, true);
+        logInfo('Order address ' + shipmentGroup.orderAddressId + ' has ' + shipmentGroup.orderProducts.length + ' orderProducts', true);
+        if (customShipment) {
+          logInfo('customShipment: ' + customShipment, true);
+        } else {
+          logInfo('no customShipment');
+        }
 
         // Load order shipments
         var request = '/orders/' + orderId + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
@@ -757,12 +765,10 @@ Parse.Cloud.define("createShipments", function(request, response) {
     // Create a list of all unique updated order ids
     var allOrderIds = [];
     _.each(newShipments, function(s) { 
-      var index = allOrderIds.indexOf(s.get('order_id'));
-      if (index < 0) allOrderIds.push(s.get('order_id'));
+      if (allOrderIds.indexOf(s.get('order_id')) < 0) allOrderIds.push(s.get('order_id'));
     });
     _.each(shipmentGroupsFailed, function(s) { 
-      var index = allOrderIds.indexOf(s.orderId);
-      if (index < 0) allOrderIds.push(s.orderId);
+      if (allOrderIds.indexOf(s.orderId) < 0) allOrderIds.push(s.orderId);
     });
     logInfo('orderIds to save: ' + allOrderIds.join(','), true);
     
@@ -777,8 +783,6 @@ Parse.Cloud.define("createShipments", function(request, response) {
         var ordersQuery = new Parse.Query(Order);
         ordersQuery.equalTo('orderId', parseInt(orderIdToLoad));
         ordersQuery.include('orderProducts');
-//         ordersQuery.include('orderProducts.variant');
-//         ordersQuery.include('orderProducts.variant.designer');
         ordersQuery.include('orderProducts.variants');
         ordersQuery.include('orderProducts.variants.designer');
         ordersQuery.include('orderProducts.vendorOrders');
@@ -1079,25 +1083,75 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
     logInfo('order products need inventory updated for ' + items.length + ' items');
     var totalItemsProcessed = 0;
     var variantsToSave = [];
+    var vendorOrderVariantsToSave = [];
+    var resizesToSave = [];
     _.each(items, function(item) {
       logInfo('get product ' + item.order_product_id);
       var orderProductQuery = new Parse.Query(OrderProduct);
       orderProductQuery.equalTo('orderProductId', parseInt(item.order_product_id));
       orderProductQuery.include('variants');
-      orderProductQuery.first().then(function(result) {
-        if (result) {
-          logInfo('order product ' + result.get('orderProductId') + ' exists');
-          if (result.has('variants')) {
-            var variants = result.get('variants');
+      orderProductQuery.include('vendorOrders');
+      orderProductQuery.include('vendorOrders.vendorOrderVariants');
+      orderProductQuery.include('vendorOrders.vendorOrderVariants.orderProducts');
+      orderProductQuery.include('resizes');
+      orderProductQuery.first().then(function(orderProduct) {
+        if (orderProduct) {
+          logInfo('order product ' + orderProduct.get('orderProductId') + ' exists');
+          if (orderProduct.has('variants')) {
+            var variants = orderProduct.get('variants');
             _.each(variants, function(variant) {
-              logInfo('matches variant ' + variant.get('variantId'));
+              logInfo('order product variant ' + variant.get('variantId'));
               var totalToSubtract = parseInt(item.quantity) * -1;
               if (!variant.has('inventoryLevel')) variant.set('inventoryLevel', 0);
+              
+              // Check for received vendor orders and resizes with reserved inventory
+              var totalReserved = 0;
+              if (orderProduct.has('vendorOrders')) {
+                _.each(orderProduct.get('vendorOrders'), function(vendorOrder) {
+                  _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
+                    var reserved = vendorOrderVariant.get('received');
+                    if (vendorOrderVariant.has('shipped')) {
+                      reserved -= vendorOrderVariant.get('shipped');
+                    } else {
+                      vendorOrderVariant.set('shipped', 0);
+                    }
+                    _.each(vendorOrderVariant.get('orderProducts'), function(vendorOrderVariantProduct) {
+                      if (vendorOrderVariantProduct.get('orderProductId') == orderProduct.get('orderProductId')) {
+                        logInfo('order product ' + orderProduct.get('orderProductId') + ' has ' + reserved + ' inventory reserved from vendor order');
+                        totalReserved += parseInt(item.quantity) > reserved ? reserved : parseInt(item.quantity);
+                      }
+                    });
+                    if (totalReserved > 0 && reserved > 0) {
+                      vendorOrderVariant.increment('shipped', reserved);
+                    }
+                    vendorOrderVariantsToSave.push(vendorOrderVariant);
+                  });
+                });
+              }
+              if (orderProduct.has('resizes')) {
+                _.each(orderProduct.get('resizes'), function(resize) {
+                  console.log(resize)
+                  var reserved = resize.get('received');
+                  if (resize.has('shipped')) {
+                    reserved -= resize.get('shipped');
+                  } else {
+                    resize.set('shipped', 0);
+                  }
+                  logInfo('order product ' + orderProduct.get('orderProductId') + ' has ' + reserved + ' inventory reserved from resize');
+                  totalReserved += parseInt(item.quantity) > reserved ? reserved : parseInt(item.quantity);
+                  if (totalReserved > 0 && reserved > 0) {
+                    resize.increment('shipped', reserved);
+                  }
+                  resizesToSave.push(resize);
+                });
+              }
+              totalToSubtract += totalReserved;
+              
               variant.increment('inventoryLevel', totalToSubtract);
               variantsToSave.push(variant);
             });
           } else {
-            logInfo('no variants for order product ' + result.get('orderProductId'));
+            logInfo('no variants for order product ' + orderProduct.get('orderProductId'));
           }
 
         } else {
@@ -1121,6 +1175,18 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
       }).then(function() {
         if (totalItemsProcessed == items.length) {
           logInfo('inventory saved for all variants');
+          if (vendorOrderVariantsToSave.length > 0) {
+            return Parse.Object.saveAll(vendorOrderVariantsToSave, {useMasterKey: true});
+          } else {
+            return true;
+          }
+        } else {
+          return true;
+        }
+        
+      }).then(function() {
+        logInfo('inventory saved for all vendor order variants');
+        if (totalItemsProcessed == items.length) {
           response.success();
         } else {
           return true;
@@ -1208,6 +1274,9 @@ var loadOrder = function(bcOrderId) {
     		logInfo('Process orderProduct id: ' + orderProduct.id);
         var orderProductQuery = new Parse.Query(OrderProduct);
         orderProductQuery.equalTo('orderProductId', parseInt(orderProduct.id));
+        orderProductQuery.include('vendorOrders');
+        orderProductQuery.include('vendorOrders.vendorOrderVariants');
+        orderProductQuery.include('resizes');
     		return orderProductQuery.first();
     		
   		}, function(error){
@@ -1254,7 +1323,7 @@ var loadOrder = function(bcOrderId) {
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
     		// Set order product quantity shippped each time to update based on BC shipment changes
-    		if (bcOrderShipments <= 0) {
+    		if (bcOrderShipments.length <= 0) {
       		logInfo('Set OrderProduct quantity shipped: 0');
       		orderProductObject.set('quantity_shipped', 0);
     		} else {
@@ -1525,6 +1594,8 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
       var orderProducts = order.get('orderProducts');
       _.each(orderProducts, function(orderProduct) {
         var variants = orderProduct.get('variants');
+        var vendorOrders = orderProduct.get('vendorOrders');
+        var resizes = orderProduct.get('resizes');
         if (orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) {
 //           logInfo('orderProduct ' + orderProduct.id + ' is shipped');
           shippedOrderProducts.push(orderProduct);
@@ -1552,13 +1623,13 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
           } else if (counted) {
 //             logInfo('orderProduct ' + orderProduct.id + ' is not shippable');
             unshippableOrderProducts.push(orderProduct);
-          } else if (!counted && orderProduct.get('quantity') <= getInventoryLevel(variants)) {
+          } else if (!counted && orderProduct.get('quantity') <= getInventoryLevel(variants, vendorOrders, resizes)) {
 //             logInfo('new orderProduct ' + orderProduct.id + ' is shippable with ' + orderProduct.get('quantity') + ' total ordered');
             _.each(variants, function(variant) {
               variantsOrderedCount.push({variantId: variant.id, totalOrdered: orderProduct.get('quantity')});
             });
             shippableOrderProducts.push(orderProduct);
-          } else if (!counted && orderProduct.get('quantity') > getInventoryLevel(variants)) {
+          } else if (!counted && orderProduct.get('quantity') > getInventoryLevel(variants, vendorOrders, resizes)) {
 //             logInfo('new orderProduct ' + orderProduct.id + ' is not shippable with ' + orderProduct.get('quantity') + ' total ordered');
             unshippableOrderProducts.push(orderProduct);
           }
@@ -1896,10 +1967,14 @@ var getOrderProductsStatus = function(orderProducts) {
     	logInfo('\nGet status for OrderProduct ' + orderProduct.get('orderProductId'));
     	
     	var orderProductVariants = orderProduct.has('variants') ? orderProduct.get('variants') : null;
+    	var vendorOrders = orderProduct.has('vendorOrders') ? orderProduct.get('vendorOrders') : null;
+    	var resizes = orderProduct.has('resizes') ? orderProduct.get('resizes') : null;
+    	
       // Determine if product is in resizable class
       var isResizeProductType = (orderProductVariants && orderProductVariants.length == 1 && orderProductVariants[0].has('size_value')) ? true : false;
       // Determine inventory level of order product
-      var inventoryLevel = orderProductVariants ? getInventoryLevel(orderProductVariants) : 0;
+      var inventoryLevel = orderProductVariants ? getInventoryLevel(orderProductVariants, vendorOrders, resizes) : 0;
+      logInfo('OrderProduct has inventory: ' + inventoryLevel);
     	
     	if (orderProduct.has('quantity_shipped') && orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) {
       	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' has already shipped');
@@ -1995,7 +2070,7 @@ var getOrderProductResizable = function(orderProduct) {
               var variantOptions = variant.has('variantOptions') ? variant.get('variantOptions') : [];
               _.each(variantOptions, function(variantOption) {
                 if (orderProductVariantOption.option_id == variantOption.option_id && orderProductVariantOption.option_value_id == variantOption.option_value_id) {
-                  logInfo('\nVariant size difference: ' + sizeDifference);
+                  logInfo('Variant size difference: ' + sizeDifference);
                   logInfo('Variant inventory: ' + variant.get('inventoryLevel')); 
                   logInfo(orderProductVariantOption.display_name + ': ' + orderProductVariantOption.value + ' ' + variantOption.value);
                   optionMatches++;
@@ -2139,7 +2214,7 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
           shippedGroups[shipmentIndex].orderProducts.push(orderProduct.toJSON());
         }
     		
-  		} else if (orderProduct.get('shippable') && orderProduct.get('quantity_shipped') !== orderProduct.get('quantity') && getInventoryLevel(orderProduct.get('variants')) >= orderProduct.get('quantity')) { 
+  		} else if (orderProduct.get('shippable') && orderProduct.get('quantity_shipped') !== orderProduct.get('quantity') && getInventoryLevel(orderProduct.get('variants'), orderProduct.get('vendorOrders'), orderProduct.get('resizes')) >= orderProduct.get('quantity')) { 
     		logInfo('product is shippable');
     		
     		// Check whether product is being shipped to a unique address
@@ -2182,17 +2257,44 @@ var createShipmentGroups = function(order, orderProducts, shippedShipments) {
   return {shippedGroups: shippedGroups, shippableGroups: shippableGroups, unshippableGroups: unshippableGroups};
 }
 
-var getInventoryLevel = function(orderProductVariants) {
+var getInventoryLevel = function(orderProductVariants, vendorOrders, resizes) {
   // TODO: DEDUCT MULTIPLE OF THE SAME PRODUCT VARIANT
-  var inventoryLevel;
+  var lowestInventoryLevel;
   _.each(orderProductVariants, function(orderProductVariant) {
-    if (inventoryLevel == undefined) {
-      inventoryLevel = orderProductVariant.get('inventoryLevel');
-    } else if (orderProductVariant.get('inventoryLevel') < inventoryLevel) {
-      inventoryLevel = orderProductVariant.get('inventoryLevel');
+    var inventoryLevel = orderProductVariant.has('inventoryLevel') && orderProductVariant.get('inventoryLevel') > 0 ? orderProductVariant.get('inventoryLevel') : 0;
+    if (vendorOrders) {
+      // Check for vendor order reserved inventory
+      _.each(vendorOrders, function(vendorOrder) {
+        _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
+          var variant = vendorOrderVariant.get('variant');
+          if (variant.id == orderProductVariant.id) {
+            var reserved = vendorOrderVariant.get('received');
+            if (vendorOrderVariant.get('shipped')) reserved -= vendorOrderVariant.get('shipped');
+            logInfo('add ' + reserved + ' from reserved to inventory');
+            inventoryLevel += reserved;
+          }
+        });        
+      });
+    }
+    if (resizes) {
+      // Check for resizes reserved inventory
+      _.each(resizes, function(resize) {
+        var variant = resize.get('variant');
+        if (variant.id == orderProductVariant.id) {
+          var reserved = resize.get('received');
+          if (resize.get('shipped')) reserved -= resize.get('shipped');
+          logInfo('add ' + reserved + ' from reserved to inventory');
+          inventoryLevel += reserved;
+        }
+      });
+    }
+    if (lowestInventoryLevel == undefined) {
+      lowestInventoryLevel = inventoryLevel;
+    } else if (inventoryLevel < lowestInventoryLevel) {
+      lowestInventoryLevel = inventoryLevel;
     }
   });
-  return inventoryLevel;
+  return lowestInventoryLevel;
 }
 
 var createOrderShipmentPackingSlip = function(order, shipment) {

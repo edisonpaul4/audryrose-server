@@ -261,6 +261,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
         vendorOrderVariantQuery.equalTo('objectId', variantData.objectId);
         vendorOrderVariantQuery.include('variant');
         vendorOrderVariantQuery.include('resizeVariant');
+        vendorOrderVariantQuery.include('orderProducts');
         return vendorOrderVariantQuery.first();
         
       }).then(function(vendorOrderVariant) {
@@ -272,12 +273,28 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
           if (variantData.received != undefined) {
             logInfo('received:' + parseFloat(variantData.received))
             if (parseFloat(variantData.received) > vendorOrderVariant.get('received')) {
-              var diff = parseFloat(variantData.received) - vendorOrderVariant.get('received');
-              logInfo('add ' + diff + ' to variant inventory');
-              variant.increment('inventoryLevel', diff);
+              var inventoryDiff = parseFloat(variantData.received) - vendorOrderVariant.get('received');
+              var totalReserved = 0;
+              if (vendorOrderVariant.get('orderProducts') && vendorOrderVariant.get('orderProducts').length > 0) {
+                _.each(vendorOrderVariant.get('orderProducts'), function(orderProduct) {
+                  var need = orderProduct.get('quantity') - orderProduct.get('quantity_shipped');
+                  var reservable = inventoryDiff > 0 ? inventoryDiff : 0;
+                  logInfo('need:' + need + ' reservable:' + reservable);
+                  if (need > 0 && reservable > 0) totalReserved += reservable > need ? need : reservable;
+                });
+                var inventoryNotReserved = totalReserved < inventoryDiff ? inventoryDiff - totalReserved : 0;
+                logInfo('totalReserved: ' + totalReserved + 'inventoryNotReserved: ' + inventoryNotReserved);
+                logInfo('add ' + inventoryNotReserved + ' to variant inventory');
+                variant.increment('inventoryLevel', inventoryNotReserved);
+              } else {
+                logInfo('add ' + inventoryDiff + ' to variant inventory');
+                variant.increment('inventoryLevel', inventoryDiff); 
+              }
             }
             vendorOrderVariant.set('received', parseFloat(variantData.received));
-            if (vendorOrderVariant.get('received') >= vendorOrderVariant.get('units')) vendorOrderVariant.set('done', true);
+            if (vendorOrderVariant.get('received') >= vendorOrderVariant.get('units')) {
+              vendorOrderVariant.set('done', true);
+            }
           }
           return vendorOrderVariant.save(null, {useMasterKey:true});
         } else {
@@ -306,6 +323,9 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
         }
       }).then(function(result) {
         logInfo('ProductVariant saved');
+        
+      }, function(error) {
+        logError(error);
       });
     });
     
