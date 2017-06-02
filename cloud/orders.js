@@ -116,6 +116,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
   ordersQuery.include('orderProducts.variants.designer');
   ordersQuery.include('orderProducts.vendorOrders');
   ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+  ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.orderProducts');
   ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
   ordersQuery.include('orderProducts.resizes');
   ordersQuery.include('orderShipments');
@@ -265,6 +266,7 @@ Parse.Cloud.define("updateOrderTabCounts", function(request, response) {
   fullyShippableQuery.include('orderProducts.variants');
   fullyShippableQuery.include('orderProducts.vendorOrders');
   fullyShippableQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+  fullyShippableQuery.include('orderProducts.vendorOrders.vendorOrderVariants.orderProducts');
   fullyShippableQuery.include('orderProducts.resizes');
   
   var partiallyShippableQuery = getPendingOrderQuery();
@@ -274,6 +276,7 @@ Parse.Cloud.define("updateOrderTabCounts", function(request, response) {
   partiallyShippableQuery.include('orderProducts.variants');
   partiallyShippableQuery.include('orderProducts.vendorOrders');
   partiallyShippableQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+  partiallyShippableQuery.include('orderProducts.vendorOrders.vendorOrderVariants.orderProducts');
   partiallyShippableQuery.include('orderProducts.resizes');
   
   var cannotShipQuery = getPendingOrderQuery();
@@ -396,6 +399,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
     ordersQuery.include('orderProducts.variants.designer');
     ordersQuery.include('orderProducts.vendorOrders');
     ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+    ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.orderProducts');
     ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
     ordersQuery.include('orderProducts.resizes');
     ordersQuery.include('orderShipments');
@@ -460,7 +464,8 @@ Parse.Cloud.define("createShipments", function(request, response) {
           orderQuery.include('orderProducts');
           orderQuery.include('orderProducts.variants');
           orderQuery.include('orderProducts.vendorOrders');
-          orderQuery.include('orderProducts.vendorOrder.vendorOrderVariants');
+          orderQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+          orderQuery.include('orderProducts.vendorOrders.vendorOrderVariants.orderProducts');
           orderQuery.include('orderProducts.resizes');
           orderQuery.include('orderShipments');
           return orderQuery.first();
@@ -787,6 +792,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         ordersQuery.include('orderProducts.variants.designer');
         ordersQuery.include('orderProducts.vendorOrders');
         ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+        ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.orderProducts');
         ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
         ordersQuery.include('orderProducts.resizes');
         ordersQuery.include('orderShipments');
@@ -993,6 +999,7 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
     ordersQuery.include('orderProducts.variants.designer');
     ordersQuery.include('orderProducts.vendorOrders');
     ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+    ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.orderProducts');
     ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
     ordersQuery.include('orderProducts.resizes');
     ordersQuery.include('orderShipments');
@@ -2304,7 +2311,7 @@ var getInventoryLevel = function(orderProductVariants, vendorOrders, resizes) {
             var reserved = vendorOrderVariant.get('received');
             if (vendorOrderVariant.get('shipped')) reserved -= vendorOrderVariant.get('shipped');
             logInfo('add ' + reserved + ' from reserved to inventory');
-            inventoryLevel += reserved;
+            inventoryLevel = reserved;
           }
         });        
       });
@@ -2317,7 +2324,7 @@ var getInventoryLevel = function(orderProductVariants, vendorOrders, resizes) {
           var reserved = resize.get('received');
           if (resize.get('shipped')) reserved -= resize.get('shipped');
           logInfo('add ' + reserved + ' from reserved to inventory');
-          inventoryLevel += reserved;
+          inventoryLevel = reserved;
         }
       });
     }
