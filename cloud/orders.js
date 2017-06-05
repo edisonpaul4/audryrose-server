@@ -499,6 +499,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
       var customShipment = shipmentGroup.customShipment ? shipmentGroup.customShipment : null;
       var bcShipment;
       var shippoLabel;
+      var carrier;
       
       promise = promise.then(function() {
         
@@ -608,13 +609,12 @@ Parse.Cloud.define("createShipments", function(request, response) {
         }
         
         // Set the carrier to the default "usps"
-        var carrier;
         _.map(carriers, function(c){
           if (c.carrier == 'usps') carrier = c;
           return c;
         });
 
-        // Overwrite shipment options of customizations exist
+        // Overwrite shipment options if customizations exist
         if (customShipment) {
           serviceLevel = customShipment.shippingServiceLevel;
           parcel = {
@@ -683,6 +683,13 @@ Parse.Cloud.define("createShipments", function(request, response) {
             order_address_id: orderAddressId,
             shipping_provider: "",
             items: items
+          }
+          if ((carrier && carrier.carrier == 'usps') || (carrier && carrier.carrier == 'ups') || (carrier && carrier.carrier == 'fedex')) {
+            bcShipmentData.shipping_provider = carrier.carrier;
+            bcShipmentData.tracking_carrier = carrier.carrier;
+          } else if (carrier && carrier.carrier == 'dhl_express') {
+            bcShipmentData.shipping_provider = 'custom';
+            bcShipmentData.tracking_carrier = 'dhl';
           }
           return bigCommerce.post(request, bcShipmentData);
           
