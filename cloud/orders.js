@@ -1115,7 +1115,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
             var variants = orderProduct.get('variants');
             _.each(variants, function(variant) {
               logInfo('order product variant ' + variant.get('variantId'));
-              var totalToSubtract = parseInt(item.quantity) * -1;
+              var totalToSubtract = parseInt(item.quantity);
               if (!variant.has('inventoryLevel')) variant.set('inventoryLevel', 0);
               
               // Check for received vendor orders and resizes with reserved inventory
@@ -1144,7 +1144,6 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
               }
               if (orderProduct.has('resizes')) {
                 _.each(orderProduct.get('resizes'), function(resize) {
-                  console.log(resize)
                   var reserved = resize.get('received');
                   if (resize.has('shipped')) {
                     reserved -= resize.get('shipped');
@@ -1159,9 +1158,13 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
                   resizesToSave.push(resize);
                 });
               }
-              totalToSubtract += totalReserved;
+              if (totalReserved > 0) totalToSubtract -= totalReserved;
               
-              variant.increment('inventoryLevel', totalToSubtract);
+              variant.increment('inventoryLevel', (totalToSubtract * -1));
+              if (variant.get('inventoryLevel') < 0) {
+                variant.set('inventoryLevel', 0);
+                // TODO: Add activity log here for negative inventory level
+              }
               variantsToSave.push(variant);
             });
           } else {

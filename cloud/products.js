@@ -1682,6 +1682,23 @@ Parse.Cloud.define("saveResize", function(request, response) {
   
 });
 
+/*
+Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
+  logInfo('updateAwaitingInventoryQueue cloud function --------------------------', true);
+  
+  var vendorOrderVariants;
+  
+  var vendorOrdersQuery = new Parse.Query(VendorOrderVariant);
+  vendorOrdersQuery.equalTo('orderedAll', true);
+  vendorOrdersQuery.equalTo('receivedAll', false);
+  vendorOrdersQuery.include('vendorOrderVariants');
+  vendorOrdersQuery.include('vendorOrderVariants.variant');
+  vendorOrdersQuery.include('vendorOrderVariants.orderProducts');
+  vendorOrdersQuery.include('resizeSourceVariant');
+  
+});
+*/
+
 Parse.Cloud.define("loadCategory", function(request, response) {
   logInfo('loadCategory cloud function --------------------------', true);
   var startTime = moment();
