@@ -1164,6 +1164,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
               if (variant.get('inventoryLevel') < 0) {
                 variant.set('inventoryLevel', 0);
                 // TODO: Add activity log here for negative inventory level
+                logInfo('Variant ' + variant.get('variantId') + ' was prevented from setting inventory to negative value', true);
               }
               variantsToSave.push(variant);
             });
