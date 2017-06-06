@@ -1695,6 +1695,9 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
   vendorOrdersQuery.include('vendorOrderVariants.variant');
   vendorOrdersQuery.include('vendorOrderVariants.orderProducts');
   vendorOrdersQuery.include('resizeSourceVariant');
+  vendorOrdersQuery.find().then(function(vendorOrders) {
+    
+  });
   
 });
 */
