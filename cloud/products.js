@@ -882,6 +882,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
           } else {
             variant.set('inventoryLevel', 0);
           }
+          logInfo('Set inventory for variant ' + variant.get('variantId') + ' to ' + variant.get('inventoryLevel'), true);
           return variant.save(null, {useMasterKey: true});
         } else {
           logError(error);
@@ -1348,6 +1349,7 @@ Parse.Cloud.define("createResize", function(request, response) {
           logInfo('resizeSourceVariant:' + resizeSourceVariant.get('inventoryLevel') + ', resizeObj:' + resizeObj.get('units'));
           logInfo('Requested units total is more than are available.', true);
           errors.push('Requested units total is more than are available.');
+          return false;
         } else {
           return resizeObj.save(null, {useMasterKey:true});
         }
@@ -1357,6 +1359,7 @@ Parse.Cloud.define("createResize", function(request, response) {
           logInfo('Resize saved');
           
           resizeSourceVariant.increment('inventoryLevel', units * -1);
+          logInfo('Set inventory for variant ' + resizeSourceVariant.get('variantId') + ' to ' + resizeSourceVariant.get('inventoryLevel'), true);
           return resizeSourceVariant.save(null, {useMasterKey:true});
           
         } else {
@@ -1533,12 +1536,16 @@ Parse.Cloud.define("saveResize", function(request, response) {
       } else {
         if (unitsDiff != 0) {
           resizeSourceVariant.increment('inventoryLevel', unitsDiff);
+          logInfo('Set inventory for variant ' + resizeSourceVariant.get('variantId') + ' to ' + resizeSourceVariant.get('inventoryLevel'), true);
           resizeObj.set('units', units);
         }
         
         if (received) {
           var receivedDiff = resizeObj.has('received') ? received - resizeObj.get('received') : received;
-          if (receivedDiff != 0 && !resizeObj.has('orderProduct')) variant.increment('inventoryLevel', receivedDiff);
+          if (receivedDiff != 0 && !resizeObj.has('orderProduct')) {
+            variant.increment('inventoryLevel', receivedDiff);
+            logInfo('Set inventory for variant ' + variant.get('variantId') + ' to ' + variant.get('inventoryLevel'), true);
+          }
           resizeObj.set('received', received);
         } else {
           resizeObj.set('received', 0);

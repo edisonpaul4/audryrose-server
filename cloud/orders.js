@@ -1161,6 +1161,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
               if (totalReserved > 0) totalToSubtract -= totalReserved;
               
               variant.increment('inventoryLevel', (totalToSubtract * -1));
+              logInfo('Set inventory for variant ' + variant.get('variantId') + ' to ' + variant.get('inventoryLevel'), true);
               if (variant.get('inventoryLevel') < 0) {
                 variant.set('inventoryLevel', 0);
                 // TODO: Add activity log here for negative inventory level
