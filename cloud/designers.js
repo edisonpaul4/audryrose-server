@@ -473,7 +473,9 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     }
     var data = {
       from: 'orders@loveaudryrose.com',
-      to: vendor.get('email'),
+      to: vendor.get('name') + ' <' + vendor.get('email') + '>',
+      cc: 'Audry Rose <orders@loveaudryrose.com>',
+      bcc: 'male@jeremyadam.com',
       subject: 'Audry Rose Order ' + moment().format('M.D.YY'),
       text: messageProductsText,
       html: messageProductsHTML

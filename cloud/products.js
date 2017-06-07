@@ -409,17 +409,7 @@ Parse.Cloud.define("loadProduct", function(request, response) {
 		response.error(error);
 		
 	}).then(function(productObject) {
-//     if (productObject.classification) updatedClassification = productObject.classification;
     return productObject.save(null, {useMasterKey: true});
-    
-/*
-  }).then(function(result) {
-    if (updatedClassification) {
-      return updatedClassification.save(null, {useMasterKey: true});
-    } else {
-      return true;
-    }
-*/
     
   }, function(error) {
 		logError(error);
