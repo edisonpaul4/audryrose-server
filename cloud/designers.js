@@ -480,7 +480,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
       to: vendor.get('name') + ' <' + vendor.get('email') + '>',
       cc: 'Audry Rose <orders@loveaudryrose.com>',
       bcc: 'male@jeremyadam.com',
-      subject: 'Audry Rose Order ' + moment().format('M.D.YY'),
+      subject: 'Audry Rose Order ' + vendorOrder.get('vendorOrderNumber') + ' - ' + moment().format('M.D.YY'),
       text: messageProductsText,
       html: messageProductsHTML
     }
@@ -579,6 +579,11 @@ Parse.Cloud.beforeSave("Vendor", function(request, response) {
   var hasSentVendorOrder = false;
   var vendorDesigners;
   
+  if (!vendor.has('abbreviation')) {
+    var abbreviation = getAbbreviation(vendor.get('name'));
+    vendor.set('abbreviation', abbreviation);
+  }
+  
   if (vendor.has('vendorOrders')) {
     var vendorOrders = vendor.get('vendorOrders');
     Parse.Object.fetchAll(vendorOrders).then(function(vendorOrderObjects) {
@@ -620,6 +625,27 @@ Parse.Cloud.beforeSave("Vendor", function(request, response) {
   }
 });
 
+Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
+  var vendorOrder = request.object;
+  
+  // Create a unique vendor order number
+  vendorOrder.get('vendor').fetch().then(function(vendor){
+    if (!vendorOrder.has('vendorOrderNumber')) {
+      vendor.increment('vendorOrderCount', 1);
+      var vendorOrderNumber = vendor.get('abbreviation') + vendor.get('vendorOrderCount');
+      logInfo(vendorOrderNumber);
+      vendorOrder.set('vendorOrderNumber', vendorOrderNumber);
+      return vendor.save(null, {useMasterKey:true});
+      
+    } else {
+      return false;
+    }
+    
+  }).then(function(result) {
+    response.success();
+  });
+});
+
 
 /////////////////////////
 //  UTILITY FUNCTIONS  //
@@ -631,18 +657,23 @@ var createDesignerObject = function(designerData, currentDesigner) {
   designer.set('designerId', parseInt(designerData.id));
   designer.set('name', designerData.name);
   if (!designer.get('abbreviation')) {
-    var abbreviation = designerData.name;
-    abbreviation = abbreviation.toUpperCase();
-    abbreviation = abbreviation.replace(/-/g, '');
-    abbreviation = abbreviation.replace(/\./g, '');
-    abbreviation = abbreviation.replace(/\+/g, '');
-    abbreviation = abbreviation.replace(/\(|\)/g, '');
-    abbreviation = abbreviation.replace(/ /g, '');
-    designer.set('abbreviation', abbreviation.substring(0, 3));
+    var abbreviation = getAbbreviation(designerData.name);
+    designer.set('abbreviation', abbreviation);
   }
   designer.set('image_file', designerData.image_file);
   
   return designer;
+}
+
+var getAbbreviation = function(name) {
+  var abbreviation = name;
+  abbreviation = abbreviation.toUpperCase();
+  abbreviation = abbreviation.replace(/-/g, '');
+  abbreviation = abbreviation.replace(/\./g, '');
+  abbreviation = abbreviation.replace(/\+/g, '');
+  abbreviation = abbreviation.replace(/\(|\)/g, '');
+  abbreviation = abbreviation.replace(/ /g, '');
+  return abbreviation.substring(0, 3);
 }
 
 var getDesignerSort = function(designersQuery, currentSort) {

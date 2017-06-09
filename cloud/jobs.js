@@ -636,11 +636,14 @@ Parse.Cloud.job("updateOptions", function(request, status) {
 Parse.Cloud.job("updateVendorOrders", function(request, status) {
   logInfo('updateVendorOrders job --------------------------', true);
   var startTime = moment();
+  var vendors = [];
   var vendorOrders = [];  
   var vendorOrderVariants = [];
   
   var vendorOrderQuery = new Parse.Query(VendorOrder);
   vendorOrderQuery.include('vendorOrderVariants');
+  vendorOrderQuery.include('vendor');
+  vendorOrderQuery.ascending('createdAt');
   vendorOrderQuery.limit(10000);
   vendorOrderQuery.find().then(function(results) {
     if (results) vendorOrders = results;
@@ -653,6 +656,15 @@ Parse.Cloud.job("updateVendorOrders", function(request, status) {
     return Parse.Object.saveAll(vendorOrderVariants, {useMasterKey: true});
     
   }).then(function(results) {
+    var promise = Parse.Promise.as();
+    _.each(vendorOrders, function(vendorOrder) {
+      promise = promise.then(function() {
+        return vendorOrder.save(null, {useMasterKey:true});
+      });
+    });
+    return promise;
+    
+  }).then(function(result) {
     var message = vendorOrderVariants.length + ' vendorOrderVariants saved. updateVendorOrders completion time: ' + moment().diff(startTime, 'seconds') + ' seconds';
     logInfo(message, true);
     status.success(message);
