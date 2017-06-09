@@ -298,6 +298,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
               vendorOrderVariant.set('done', true);
             }
           }
+          vendorOrderVariant.set('vendorOrder', vendorOrder);
           return vendorOrderVariant.save(null, {useMasterKey:true});
         } else {
           logInfo('VendorOrderVariant not found');
@@ -400,6 +401,9 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
 		
 	}).then(function(result) {
     logInfo('products saved');
+    return Parse.Cloud.run('updateAwaitingInventoryQueue');
+    
+  }).then(function(result) {
     
     var designerQuery = new Parse.Query(Designer);
     designerQuery.equalTo('objectId', designerId);
@@ -538,9 +542,9 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
   	
   }).then(function(result) {
     logInfo('products saved');
-    return delay(1000);
+    return Parse.Cloud.run('updateAwaitingInventoryQueue');
     
-  }).then(function() {
+  }).then(function(result) {
     
     var designerQuery = new Parse.Query(Designer);
     designerQuery.equalTo('objectId', designerId);

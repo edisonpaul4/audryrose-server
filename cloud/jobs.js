@@ -10,6 +10,7 @@ var Product = Parse.Object.extend('Product');
 var ColorCode = Parse.Object.extend('ColorCode');
 var StoneCode = Parse.Object.extend('StoneCode');
 var Order = Parse.Object.extend('Order');
+var VendorOrder = Parse.Object.extend('VendorOrder');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -630,6 +631,33 @@ Parse.Cloud.job("updateOptions", function(request, status) {
   	logError(error);
 		status.error(error);
   });
+});
+
+Parse.Cloud.job("updateVendorOrders", function(request, status) {
+  logInfo('updateVendorOrders job --------------------------', true);
+  var startTime = moment();
+  var vendorOrders = [];  
+  var vendorOrderVariants = [];
+  
+  var vendorOrderQuery = new Parse.Query(VendorOrder);
+  vendorOrderQuery.include('vendorOrderVariants');
+  vendorOrderQuery.limit(10000);
+  vendorOrderQuery.find().then(function(results) {
+    if (results) vendorOrders = results;
+    _.each(vendorOrders, function(vendorOrder) {
+      _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
+        vendorOrderVariant.set('vendorOrder', vendorOrder);
+        vendorOrderVariants.push(vendorOrderVariant);
+      });
+    });
+    return Parse.Object.saveAll(vendorOrderVariants, {useMasterKey: true});
+    
+  }).then(function(results) {
+    var message = vendorOrderVariants.length + ' vendorOrderVariants saved. updateVendorOrders completion time: ' + moment().diff(startTime, 'seconds') + ' seconds';
+    logInfo(message, true);
+    status.success(message);
+  });
+  
 });
 
 
