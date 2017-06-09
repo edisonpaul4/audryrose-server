@@ -395,8 +395,6 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
     var ordersQuery = new Parse.Query(Order);
     ordersQuery.equalTo("orderId", orderId);
     ordersQuery.include('orderProducts');
-//     ordersQuery.include('orderProducts.variant');
-//     ordersQuery.include('orderProducts.variant.designer');
     ordersQuery.include('orderProducts.variants');
     ordersQuery.include('orderProducts.variants.designer');
     ordersQuery.include('orderProducts.vendorOrders');
@@ -425,6 +423,52 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
 	  logError(error);
 	  response.error(error.message);
 	  
+  });
+});
+
+Parse.Cloud.define("saveOrder", function(request, response) {
+  logInfo('saveOrder cloud function --------------------------', true);
+  var startTime = moment();
+  
+  var orderId = parseInt(request.params.data.orderId);
+  var dateNeeded = request.params.data.dateNeeded !== undefined ? request.params.data.dateNeeded : undefined;
+  
+  var order;
+  var updatedOrder;
+  
+  var orderQuery = new Parse.Query(Order);
+  orderQuery.equalTo('orderId', orderId);
+  orderQuery.first().then(function(result) {
+    order = result;
+    if (dateNeeded) {
+      order.set('dateNeeded', dateNeeded);
+    } else {
+      order.unset('dateNeeded');
+    }
+    return order.save(null, {useMasterKey: true});
+    
+  }).then(function(result) {
+    var ordersQuery = new Parse.Query(Order);
+    ordersQuery.equalTo("orderId", orderId);
+    ordersQuery.include('orderProducts');
+    ordersQuery.include('orderProducts.variants');
+    ordersQuery.include('orderProducts.variants.designer');
+    ordersQuery.include('orderProducts.vendorOrders');
+    ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
+    ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.orderProducts');
+    ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
+    ordersQuery.include('orderProducts.resizes');
+    ordersQuery.include('orderProducts.awaitingInventory');
+    ordersQuery.include('orderProducts.awaitingInventory.vendorOrder');
+    ordersQuery.include('orderShipments');
+    return ordersQuery.first();
+    
+  }).then(function(result) {
+    updatedOrder = result;
+    
+    logInfo('saveOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    response.success({updatedOrders: [updatedOrder]});
+    
   });
 });
 
