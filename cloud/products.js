@@ -486,7 +486,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   }).then(function(res) {
     bcProductOptions = res;
     
-    logInfo('loadProductVariants bigcommerce product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    logInfo('loadProductVariants bigcommerce product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds');
     
     var allPromises = [];
     var promise = Parse.Promise.as();
@@ -596,7 +596,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         if (valueSet.length) values.push(valueSet);
       });
       
-      logInfo('loadProductVariants option values product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      logInfo('loadProductVariants option values product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds');
       
       // Get all possible combinations of option value ids
       var valueIds = [];
@@ -609,7 +609,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
       });
       var variants = allCombinations(valueIds);
       
-      logInfo('loadProductVariants all combinations product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      logInfo('loadProductVariants all combinations product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds');
       
       // Populate and save the variants
       _.each(variants, function(valueIds) {
@@ -677,7 +677,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   	logError(error);
 		response.error(error.message);
   }).then(function() {
-    logInfo('loadProductVariants create options product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    logInfo('loadProductVariants create options product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds');
 		var now = new Date();
 		product.set("variantsUpdatedAt", now);
 		logInfo('set ' + allVariants.length + ' total variants to product');
