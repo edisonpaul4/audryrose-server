@@ -8,8 +8,6 @@ var streams = require('memory-streams');
 var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
 // var memwatch = require('memwatch-next');
 
-// var loadOrder = require('./orders/load-order.js');
-
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
 var OrderShipment = Parse.Object.extend('OrderShipment');
@@ -363,7 +361,7 @@ Parse.Cloud.define("updateOrderTabCounts", function(request, response) {
 });
 
 Parse.Cloud.define("loadOrder", function(request, response) {
-  logInfo('loadOrder cloud function --------------------', true);
+  logInfo('loadOrder cloud function ' + request.params.orderId + ' --------------------', true);
   var startTime = moment();
   
   var bcOrderId = request.params.orderId;
@@ -1291,7 +1289,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
 /////////////////////////
 
 var loadOrder = function(bcOrderId) {
-  logInfo('loadOrder function --------------------------', true);
+  logInfo('loadOrder function ' + bcOrderId + ' --------------------------', true);
   var bcOrder;
 //   var bcOrderId = request.orderId;
   var bcOrderShipments = [];

@@ -21,8 +21,7 @@ var Resize = Parse.Object.extend('Resize');
 var ResizeVariant = Parse.Object.extend('ResizeVariant');
 var Metric = Parse.Object.extend('Metric');
 var MetricGroup = Parse.Object.extend('MetricGroup');
-
-var ordersQueue = [];
+var ReloadQueue = Parse.Object.extend('ReloadQueue');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -458,6 +457,9 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   }).then(function(res) {
     bcProduct = res;
     if (!bcProduct) response.error('Product ' + productId + ' not found in Bigcommerce.');
+    return delay(500);
+    
+  }).then(function(res) {
     var rulesRequest = '/products/' + productId + '/rules';
     return bigCommerce.get(rulesRequest);
   
@@ -467,6 +469,9 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
 		
   }).then(function(res) {
     bcProductRules = res;
+    return delay(500);
+    
+  }).then(function(res) {
     if (bcProduct && bcProduct.option_set) {
       var optionSetsRequest = '/optionsets/' + bcProduct.option_set_id + '/options';
       return bigCommerce.get(optionSetsRequest);
@@ -477,6 +482,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   }, function(error) {
   	logError(error);
 		response.error(error.message);
+		
   }).then(function(res) {
     bcProductOptions = res;
     
@@ -699,13 +705,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   var updatedProduct;
   var bcProduct;
 
-  var productQuery = new Parse.Query(Product);
-  productQuery.equalTo('productId', productId);
-  productQuery.first().then(function(result) {
-    product = result;
-    return Parse.Cloud.run('loadProduct', {productId: productId});
-    
-  }).then(function(result) {
+  Parse.Cloud.run('loadProduct', {productId: productId}).then(function(result) {
     return Parse.Cloud.run('loadProductVariants', {productId: productId});
     
   }).then(function(result) {
@@ -2262,99 +2262,35 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 
 });
 
-/*
-Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
-  logInfo('VendorOrder beforeSave --------------------------');
-  var vendorOrder = request.object;
-  
-  if (vendorOrder.has('vendorOrderVariants')) {
-    var variants = vendorOrder.get('vendorOrderVariants');
-    Parse.Object.fetchAll(variants).then(function(variantObjects) {
-      var hasResize = false;
-      var hasOrder = false;
-      _.each(variantObjects, function(variant) {
-        var isResize = variant.get('isResize');
-        if (isResize) {
-          hasResize = true;
-        } else {
-          hasOrder = true;
-        }
-      });
-      vendorOrder.set('hasResize', hasResize);
-      vendorOrder.set('hasOrder', hasOrder);
-      response.success();
-    });
-  } else {
-    // TODO: DO SOMETHING HERE WHEN THERE ARE NO VARIANTS IN A VENDOR ORDER
-    response.success();
-  }
-});
-*/
-
 /////////////////////////
 //  AFTER SAVE         //
 /////////////////////////
 
 Parse.Cloud.afterSave("Product", function(request) {
   var productId = request.object.get('productId');
-  var ordersQuery;
 
   logInfo('Product afterSave --------------------------');
   logInfo('Product afterSave triggered for ' + productId);
-  ordersQuery = new Parse.Query(Order);
+  
+  var ordersQuery = new Parse.Query(Order);
   ordersQuery.equalTo('productIds', productId);
   ordersQuery.containedIn('status_id', PENDING_ORDER_STATUSES);
-  ordersQuery.count().then(function(count) {
-    logInfo('Product afterSave total orders of product: ' + count);
-    return ordersQuery.find();
+  ordersQuery.find().then(function(orders) {
     
-  }).then(function(orders) {
-    var newOrders = 0;
+    if (!orders) return true;
+    
+    logInfo('Product afterSave ' + orders.length + ' orders found for ' + productId);
+    
+    var items = [];
 		_.each(orders, function(order) {
-      // Add order id to server orders queue
-      if (ordersQueue.indexOf(order.get('orderId')) < 0) {
-        ordersQueue.push(order.get('orderId'));
-        newOrders++;
-      }
+      items.push(order.get('orderId'));
     });
-    if (newOrders == 0) return false;
     
-    return true;
+    return Parse.Cloud.run('addToReloadQueue', {objectClass: 'Order', items: items});
     
   }).then(function(result) {
-    if (!result) return;
-    
-    var promise = Parse.Promise.as();
-    return promise.delay(5000);
-    
-  }).then(function() {
-    
-    // Has new orders, continue
-    var ordersQueueToProcess = ordersQueue.slice(0); // clone array so original can remain editable
-    logInfo('orders to process: ' + ordersQueueToProcess.join(','));
-    
-    var allPromises = [];
-    var promise = Parse.Promise.as();
-		_.each(ordersQueueToProcess, function(orderId) {
-      
-      // Remove order id from server orders queue
-      var index = ordersQueue.indexOf(orderId);
-      if (index >= 0) ordersQueue.splice(index, 1);
-  		
-  		promise = promise.then(function() {
-    		logInfo('Product afterSave loadOrder id: ' + orderId);
-    		return Parse.Cloud.run('loadOrder', {orderId: orderId});
-    		
-      }).then(function(result) {
-        logInfo('Product afterSave loadOrder success for order ' + orderId);
-        
-      });
-      allPromises.push(promise);
-    });
-    return Parse.Promise.when(allPromises);
-    
-  }).then(function() {
     logInfo('Product afterSave success for product ' + productId);
+    
   });
 });
 

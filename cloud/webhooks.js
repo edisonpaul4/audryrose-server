@@ -4,6 +4,7 @@ var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 
 var StoreWebhook = Parse.Object.extend('StoreWebhook');
+var ReloadQueue = Parse.Object.extend('ReloadQueue');
 
 var ordersQueue = [];
 var productsQueue = [];
@@ -127,49 +128,124 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
   
 });
 
-/////////////////////////
-//  WEBHOOK ENDPOINTS  //
-/////////////////////////
+Parse.Cloud.define("addToReloadQueue", function(request, response) {
+  logInfo('addToReloadQueue cloud function --------------------------', true);
+  
+  var objectClass = request.params.objectClass;
+  var items = request.params.items;
+  var reloadQueue;
 
-Parse.Cloud.define("ordersWebhook", function(request, response) {
-  logInfo('ordersWebhook cloud function --------------------------', true);
-  var startTime = moment();
-  
-  logInfo('endpoint: ' + request.params.scope);
-  
-  var webhookData = request.params.data;
-  var requestedOrderId = parseInt(webhookData.id);
-  
-  logInfo('orders queue: ' + ordersQueue.join(','));
-  if (ordersQueue.indexOf(requestedOrderId) < 0) {
-    // Add order id to server orders queue
-    ordersQueue.push(requestedOrderId);
-  }
+  var reloadQueueQuery = new Parse.Query(ReloadQueue);
+  reloadQueueQuery.equalTo('objectClass', objectClass);
+  reloadQueueQuery.first().then(function(result) {
+    if (result) {
+      logInfo('ReloadQueue found');
+      reloadQueue = result;
+    } else {
+      reloadQueue = new ReloadQueue();
+      reloadQueue.set('objectClass', objectClass);
+    }
     
-  delay(500).then(function() {
-    var ordersQueueToProcess = ordersQueue.slice(0); // clone array so original can remain editable
+    // Add items to the queue if new and not currently processing
+		_.each(items, function(item) {
+  		var processing = reloadQueue.has('processing') ? reloadQueue.get('processing') : [];
+      if (reloadQueue.has('queue')) {
+        if (processing.indexOf(item) < 0) reloadQueue.addUnique('queue', item);
+      } else {
+        if (processing.indexOf(item) < 0) reloadQueue.set('queue', [item]);
+      }
+    });
     
+    return reloadQueue.save(null, {useMasterKey: true});
+    
+  }).then(function(result) {
+    if (result) {
+      logInfo('ReloadQueue saved');
+      reloadQueue = result;
+    }
+    response.success('addToReloadQueue success');
+    return delay(10000);
+    
+  }).then(function() {
+    
+    // Take all items from queue and move to processing
+    var queue = reloadQueue.get('queue');
+    logInfo('addToReloadQueue ' + objectClass + 's queued: ' + queue.join(','), true);
+    _.each(queue, function(queueItem) {
+      if (reloadQueue.has('queue')) {
+        reloadQueue.addUnique('processing', queueItem);
+      } else {
+        reloadQueue.set('processing', [queueItem]);
+      }
+      reloadQueue.remove('queue', queueItem);
+    });
+    
+    return reloadQueue.save(null, {useMasterKey: true});
+    
+  }).then(function(result) {
+    if (result) {
+      logInfo('ReloadQueue queue copied to processing');
+      reloadQueue = result;
+    }
+    
+    var queueToProcess = reloadQueue.get('processing');
+    logInfo('addToReloadQueue ' + objectClass + 's processing: ' + queueToProcess.join(','), true);
     var allPromises = [];
     var promise = Parse.Promise.as();
-		_.each(ordersQueueToProcess, function(orderId) {
-
-      // Remove order id from server orders queue
-      var index = ordersQueue.indexOf(orderId);
-      ordersQueue.splice(index, 1);
-
+		_.each(queueToProcess, function(queueItem) {
+  		
   		promise = promise.then(function() {
-    		logInfo('webhook loadOrder id: ' + orderId);
-        return Parse.Cloud.run('loadOrder', {orderId: orderId});
-
+    		switch (objectClass) {
+      		case 'Order':
+        		logInfo('addToReloadQueue loadOrder id: ' + queueItem);
+      		  return Parse.Cloud.run('loadOrder', {orderId: queueItem});
+      		  break;
+    		  case 'Product':
+      		  logInfo('addToReloadQueue reloadProduct id: ' + queueItem);
+      		  return Parse.Cloud.run('reloadProduct', {productId: queueItem});
+      		  break;
+    		  default:
+    		    return true;
+    		    break;
+    		}
+    		
       }).then(function(result) {
-        logInfo('webhook loadOrder success id: ' + orderId);
+        logInfo('addToReloadQueue item success for ' + queueItem);
+        reloadQueue.remove('processing', queueItem);
+        return reloadQueue.save(null, {useMasterKey: true});
         
-      });
+      }).then(function(result) {
+        reloadQueue = result;
+        logInfo('addToReloadQueue ' + queueItem + ' removed from queue');
+        
+      }, function(error) {
+    		logError(error);
+    		
+    	});
       allPromises.push(promise);
     });
     return Parse.Promise.when(allPromises);
     
   }).then(function() {
+    logInfo('addToReloadQueue success');
+    
+  });
+    
+});
+
+/////////////////////////
+//  WEBHOOK ENDPOINTS  //
+/////////////////////////
+
+Parse.Cloud.define("ordersWebhook", function(request, response) {
+  var startTime = moment();
+  
+  var webhookData = request.params.data;
+  var requestedOrderId = parseInt(webhookData.id);
+
+  logInfo('ordersWebhook cloud function order ' + requestedOrderId + ' --------------------------', true);
+  
+  Parse.Cloud.run('addToReloadQueue', {objectClass: 'Order', items: [requestedOrderId]}).then(function(result) {
     logInfo('ordersWebhook completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success();
 	  
@@ -178,7 +254,6 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
 		response.error(error);
 		
 	});
-  
 });
 
 Parse.Cloud.define("productsWebhook", function(request, response) {
@@ -186,67 +261,20 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
   
   var webhookData = request.params.data;
   var requestedProductId = parseInt(webhookData.id);
-  logInfo('productsWebhook cloud function product: ' + requestedProductId + ' --------------------------', true);
-  logInfo('productsWebhook endpoint: ' + request.params.scope);
+
+  logInfo('productsWebhook cloud function order ' + requestedProductId + ' --------------------------', true);
   
-  logInfo('products queue: ' + productsQueue.join(','), true);
-  var addToQueue = productsQueue.indexOf(requestedProductId) < 0;
-  if (addToQueue) {
-    // Add product id to server products queue
-    productsQueue.push(requestedProductId);
-  }
-
-  delay(500).then(function() {
-    var productsQueueToProcess = productsQueue.slice(0); // clone array so original can remain editable
-    
-    var allPromises = [];
-    var promise = Parse.Promise.as();
-  	_.each(productsQueueToProcess, function(productId) {
-      
-      // Remove product id from server orders queue
-      var index = productsQueue.indexOf(productId);
-      productsQueue.splice(index, 1);
-      
-  		promise = promise.then(function() {
-    		logInfo('webhook loadProduct id: ' + productId);
-    		return Parse.Cloud.run('loadProduct', {productId: productId});
-
-      }).then(function(result) {
-        logInfo('webhook loadProduct success id: ' + productId);
-        
-        return delay(1000);
-        
-      }).then(function() {
-        logInfo('webhook loadProductVariants id: ' + productId);
-        return Parse.Cloud.run('loadProductVariants', {productId: productId});
-        
-      }, function(error) {
-    		logError(error);
-    		response.error(error);
-  		
-    	}).then(function(result) {
-        logInfo('loadProductVariants success id: ' + productId);
-                
-      }, function(error) {
-    		logError(error);
-    		response.error(error);
-  		
-    	});
-    	allPromises.push(promise);
-    });
-    return Parse.Promise.when(allPromises);
-    
-  }).then(function() {
+  Parse.Cloud.run('addToReloadQueue', {objectClass: 'Product', items: [requestedProductId]}).then(function(result) {
     logInfo('productsWebhook completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
-    response.success();
+	  response.success();
 	  
   }, function(error) {
 		logError(error);
 		response.error(error);
 		
 	});
-  
 });
+
 
 
 /////////////////////////
