@@ -376,7 +376,7 @@ Parse.Cloud.job("updateRecentOrders", function(request, status) {
     var promise = Parse.Promise.as();
     _.each(orderStatuses, function(orderStatusRequest) {
       promise = promise.then(function() {
-        return delay(10).then(function() {
+        return delay(500).then(function() {
           var request = '/orders?limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:desc' + '&status_id=' + orderStatusRequest.id;
           return bigCommerce.get(request);
         }).then(function(response) {
@@ -458,7 +458,7 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
     _.each(pages, function(page) {
       page++;
       promise = promise.then(function() {
-        return delay(10).then(function() {
+        return delay(500).then(function() {
           var request = '/brands?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:desc';
           return bigCommerce.get(request);
         }).then(function(response) {
@@ -533,7 +533,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
     var promise = Parse.Promise.as();
     _.each(allIds, function(id) {
       promise = promise.then(function() {
-        return delay(10).then(function() {
+        return delay(500).then(function() {
           var request = '/options/' + id + '/values?limit=' + BIGCOMMERCE_BATCH_SIZE;
           return bigCommerce.get(request);
         }).then(function(response) {
@@ -556,7 +556,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
 		_.each(colorOptionValues, function(colorOptionValue) {
   		logInfo('process color options id: ' + colorOptionValue.id);
   		promise = promise.then(function() {
-    		return delay(10).then(function() {
+    		return delay(500).then(function() {
           var colorCodeQuery = new Parse.Query(ColorCode);
           colorCodeQuery.equalTo('option_id', parseInt(colorOptionValue.option_id));
           colorCodeQuery.equalTo('option_value_id', parseInt(colorOptionValue.id));
@@ -591,7 +591,7 @@ Parse.Cloud.job("updateOptions", function(request, status) {
 		_.each(stoneOptionValues, function(stoneOptionValue) {
   		logInfo('process stone options id: ' + stoneOptionValue.id);
   		promise = promise.then(function() {
-    		return delay(10).then(function() {
+    		return delay(500).then(function() {
           var stoneCodeQuery = new Parse.Query(StoneCode);
           stoneCodeQuery.equalTo('option_id', parseInt(stoneOptionValue.option_id));
           stoneCodeQuery.equalTo('option_value_id', parseInt(stoneOptionValue.id));
