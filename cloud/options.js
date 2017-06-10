@@ -106,7 +106,6 @@ var logInfo = function(i, alwaysLog) {
 }
 
 var logError = function(e) {
-  var msg = e.message ? JSON.stringify(e) : e;
-  console.error(msg);
-	if (isProduction) bugsnag.notify(msg);
+  console.error(e);
+	if (isProduction) bugsnag.notify(e);
 }
