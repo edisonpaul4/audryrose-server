@@ -163,6 +163,7 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
       logInfo('ReloadQueue saved');
       reloadQueue = result;
     }
+    logInfo('addToReloadQueue ' + objectClass + 's queued: ' + reloadQueue.get('queue').join(','), true);
     response.success('addToReloadQueue success');
     return delay(10000);
     
@@ -170,7 +171,6 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     
     // Take all items from queue and move to processing
     var queue = reloadQueue.get('queue');
-    logInfo('addToReloadQueue ' + objectClass + 's queued: ' + queue.join(','), true);
     _.each(queue, function(queueItem) {
       if (reloadQueue.has('queue')) {
         reloadQueue.addUnique('processing', queueItem);

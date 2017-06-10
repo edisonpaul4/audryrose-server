@@ -655,7 +655,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
         	logError(error);
       		response.error(error.message);
         }).then(function(variantObject) {
-          logInfo('loadProductVariants variantObject saved product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds', true);
+          logInfo('loadProductVariants variantObject saved product: ' + productId + ' completed:' + moment().diff(startTime, 'seconds') + ' seconds');
           allVariants.push(variantObject);
           return variantObject;
           
@@ -2269,8 +2269,7 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 Parse.Cloud.afterSave("Product", function(request) {
   var productId = request.object.get('productId');
 
-  logInfo('Product afterSave --------------------------');
-  logInfo('Product afterSave triggered for ' + productId);
+  logInfo('Product afterSave '  + productId + ' --------------------------', true);
   
   var ordersQuery = new Parse.Query(Order);
   ordersQuery.equalTo('productIds', productId);
