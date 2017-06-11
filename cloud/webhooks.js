@@ -192,7 +192,11 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
       reloadQueue = result;
     }
     
+    // Skip processing if queue is empty
+    if (queueToProcess.length < 1) return true;
+    
     logInfo('addToReloadQueue ' + objectClass + 's processing: ' + queueToProcess.join(','), true);
+    
     var allPromises = [];
     var promise = Parse.Promise.as();
 		_.each(queueToProcess, function(queueItem) {
