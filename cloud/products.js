@@ -125,6 +125,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include('variants');
   productsQuery.include('variants.colorCode');
   productsQuery.include('variants.stoneCode');
+  productsQuery.include("variants.vendorOrderVariants");
   productsQuery.include('resizes');
   productsQuery.include('resizes.resizeSourceVariant');
   productsQuery.include('resizes.orderProduct');
@@ -2531,8 +2532,8 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
     		variantObj.set('singlepair_label', variantOption.label);
     		variantObj.set('singlepair_value', variantOption.value);
   		}
-  		if (variantOption.adjuster && variantOption.adjuster === 'absolute') adjustedPrice = variantOption.adjusterValue;
-  		if (variantOption.adjuster && variantOption.adjuster === 'relative') adjustedPrice += variantOption.adjusterValue;	
+  		if (variantOption.adjuster && variantOption.adjuster === 'absolute') adjustedPrice = variantOption.adjuster_value;
+  		if (variantOption.adjuster && variantOption.adjuster === 'relative') adjustedPrice += variantOption.adjuster_value;	
   		
   		return variantOption;
 		});
