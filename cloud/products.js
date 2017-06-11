@@ -335,7 +335,7 @@ Parse.Cloud.define("loadProduct", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('loadProduct is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000); 
   
   var productId = parseFloat(request.params.productId);
@@ -439,7 +439,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('loadProductVariants is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000); 
     
   var totalVariantsAdded = 0;
@@ -714,7 +714,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('reloadProduct is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000); 
   
   var productId = parseInt(request.params.productId);
@@ -766,7 +766,7 @@ Parse.Cloud.define("saveProduct", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('saveProduct is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
     
   var productId = parseInt(request.params.data.productId);
@@ -869,7 +869,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('saveVariants is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);  
   
   var variants = request.params.variants;  
@@ -994,7 +994,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('addToVendorOrder is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var orders = request.params.orders;
@@ -1244,7 +1244,7 @@ Parse.Cloud.define("createResize", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('createResize is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000); 
   
   var resizes = request.params.resizes;
@@ -1538,7 +1538,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('saveResize is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000); 
   
   var resizeId = request.params.data.resizeId;
@@ -1747,7 +1747,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('updateAwaitingInventoryQueue is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000); 
   
   var awaitingInventory = [];
@@ -1891,7 +1891,7 @@ Parse.Cloud.define("loadCategory", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('loadCategory is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var category = request.params.category;
@@ -1927,7 +1927,7 @@ Parse.Cloud.define("getBundleFormData", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('getBundleFormData is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var productId = request.params.productId;
@@ -1969,7 +1969,7 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('productBundleSave is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var bundleProductId = request.params.data.bundleProductId;

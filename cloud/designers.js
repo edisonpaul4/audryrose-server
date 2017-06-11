@@ -141,6 +141,12 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
 
 Parse.Cloud.define("saveVendor", function(request, response) {
   logInfo('saveVendor cloud function --------------------------', true);
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  }, 20000);
+  
   var designerId = request.params.data.designerId;
   var vendorId = request.params.data.vendorId;
   var name = request.params.data.name;
@@ -221,6 +227,7 @@ Parse.Cloud.define("saveVendor", function(request, response) {
     return designerQuery.first();
     
   }).then(function(designerObject) {
+    completed = true;
     response.success(designerObject);
     
   }, function(error) {
@@ -233,6 +240,12 @@ Parse.Cloud.define("saveVendor", function(request, response) {
 
 Parse.Cloud.define("saveVendorOrder", function(request, response) {
   logInfo('saveVendorOrder cloud function --------------------------', true);
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  }, 20000);
+  
   var designerId = request.params.data.designerId;
   var orderId = request.params.data.orderId;
   var variantsData = request.params.data.variantsData;
@@ -419,6 +432,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
 		response.error(error.message);
 		
 	}).then(function(designerObject) {
+  	completed = true;
     response.success(designerObject);
     
   }, function(error) {
@@ -431,6 +445,12 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
 
 Parse.Cloud.define("sendVendorOrder", function(request, response) {
   logInfo('sendVendorOrder cloud function --------------------------', true);
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  }, 20000);
+  
   var designerId = request.params.data.designerId;
   var orderId = request.params.data.orderId;
   var message = request.params.data.message;
@@ -557,6 +577,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     
   }).then(function(designerObject) {
     logInfo('sendVendorOrder complete');
+    completed = true;
     response.success({updatedDesigner: designerObject, successMessage: successMessage, errors: errors});
     
   }, function(error) {

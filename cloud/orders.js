@@ -250,7 +250,7 @@ Parse.Cloud.define("updateOrderTabCounts", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('updateOrderTabCounts is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var tabs = {};
@@ -372,7 +372,7 @@ Parse.Cloud.define("loadOrder", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('loadOrder is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var bcOrderId = request.params.orderId;
@@ -395,7 +395,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('reloadOrder is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var orderId = parseInt(request.params.orderId);
@@ -448,7 +448,7 @@ Parse.Cloud.define("saveOrder", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('saveOrder is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var orderId = parseInt(request.params.data.orderId);
@@ -500,7 +500,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('createShipments is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var shipmentGroups = request.params.shipmentGroups ? request.params.shipmentGroups : null;
@@ -957,7 +957,7 @@ Parse.Cloud.define("batchCreateShipments", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('batchCreateShipments is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var ordersToShip = request.params.ordersToShip;
@@ -1002,7 +1002,7 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('batchPrintShipments is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var ordersToPrint = request.params.ordersToPrint;
@@ -1080,7 +1080,7 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('batchPrintShipments is taking longer than 20 seconds');
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000);
   
   var orders = request.params.orders;

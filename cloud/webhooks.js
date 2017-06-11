@@ -130,8 +130,8 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('addToReloadQueue is taking longer than 25 seconds');
-  }, 25000);
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  }, 20000);
   
   var objectClass = request.params.objectClass;
   var items = request.params.items;
@@ -261,8 +261,8 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('ordersWebhook is taking longer than 10 seconds');
-  }, 10000);
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  }, 20000);
   
   var webhookData = request.params.data;
   var requestedOrderId = parseInt(webhookData.id);
@@ -286,8 +286,8 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('productsWebhook is taking longer than 10 seconds');
-  }, 10000);
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  }, 20000);
   
   var webhookData = request.params.data;
   var requestedProductId = parseInt(webhookData.id);
