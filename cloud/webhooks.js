@@ -136,6 +136,7 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
   var objectClass = request.params.objectClass;
   var items = request.params.items;
   var reloadQueue;
+  var queueToProcess;
 
   var reloadQueueQuery = new Parse.Query(ReloadQueue);
   reloadQueueQuery.equalTo('objectClass', objectClass);
@@ -152,9 +153,9 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
 		_.each(items, function(item) {
   		var processing = reloadQueue.has('processing') ? reloadQueue.get('processing') : [];
       if (reloadQueue.has('queue')) {
-        if (processing.indexOf(item) < 0) reloadQueue.addUnique('queue', item);
+        reloadQueue.addUnique('queue', item);
       } else {
-        if (processing.indexOf(item) < 0) reloadQueue.set('queue', [item]);
+        reloadQueue.set('queue', [item]);
       }
     });
     
@@ -165,8 +166,8 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
       logInfo('ReloadQueue saved');
       reloadQueue = result;
     }
-    var queueToProcess = reloadQueue.get('queue');
-    logInfo('addToReloadQueue ' + objectClass + 's queued: ' + queueToProcess.join(','), true);
+    var queue = reloadQueue.has('queue') ? reloadQueue.get('queue') : [];
+    logInfo('addToReloadQueue ' + objectClass + 's queued: ' + queue.join(','), true);
     
     return delay(10000);
     
@@ -177,12 +178,12 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     reloadQueue = result;
     
     // Take all items from queue and move to processing
-    var queue = reloadQueue.get('queue');
+    queueToProcess = reloadQueue.get('queue');
     
     // Skip processing if queue is empty
-    if (queue.length < 1) return false;
+    if (queueToProcess.length < 1) return false;
     
-    _.each(queue, function(queueItem) {
+    _.each(queueToProcess, function(queueItem) {
       if (reloadQueue.has('queue')) {
         reloadQueue.addUnique('processing', queueItem);
       } else {
