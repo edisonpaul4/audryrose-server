@@ -136,7 +136,6 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
   var objectClass = request.params.objectClass;
   var items = request.params.items;
   var reloadQueue;
-  var queueToProcess = [];
 
   var reloadQueueQuery = new Parse.Query(ReloadQueue);
   reloadQueueQuery.equalTo('objectClass', objectClass);
@@ -166,15 +165,23 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
       logInfo('ReloadQueue saved');
       reloadQueue = result;
     }
-    queueToProcess = reloadQueue.get('queue');
+    var queueToProcess = reloadQueue.get('queue');
     logInfo('addToReloadQueue ' + objectClass + 's queued: ' + queueToProcess.join(','), true);
     
     return delay(10000);
     
   }).then(function() {
+    return reloadQueueQuery.first();
+    
+  }).then(function(result) {
+    reloadQueue = result;
     
     // Take all items from queue and move to processing
     var queue = reloadQueue.get('queue');
+    
+    // Skip processing if queue is empty
+    if (queue.length < 1) return false;
+    
     _.each(queue, function(queueItem) {
       if (reloadQueue.has('queue')) {
         reloadQueue.addUnique('processing', queueItem);
@@ -190,10 +197,12 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     if (result) {
       logInfo('ReloadQueue queue copied to processing');
       reloadQueue = result;
+    } else {
+      return false;
     }
     
     // Skip processing if queue is empty
-    if (queueToProcess.length < 1) return true;
+    if (queueToProcess.length < 1) return false;
     
     logInfo('addToReloadQueue ' + objectClass + 's processing: ' + queueToProcess.join(','), true);
     
@@ -209,7 +218,7 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
       		  break;
     		  case 'Product':
       		  logInfo('addToReloadQueue reloadProduct id: ' + queueItem, true);
-      		  return Parse.Cloud.run('reloadProduct', {productId: queueItem});
+      		  return Parse.Cloud.run('loadProduct', {productId: queueItem});
       		  break;
     		  default:
     		    return true;
