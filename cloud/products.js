@@ -333,6 +333,11 @@ Parse.Cloud.define("getProductFilters", function(request, response) {
 Parse.Cloud.define("loadProduct", function(request, response) {
   var startTime = moment();
   
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('loadProduct is taking longer than 20 seconds');
+  }, 20000); 
+  
   var productId = parseFloat(request.params.productId);
   logInfo('loadProduct cloud function ' + productId + ' --------------------------', true);
   var product;
@@ -419,6 +424,7 @@ Parse.Cloud.define("loadProduct", function(request, response) {
   	
 	}).then(function(result) {
   	logInfo('loadProduct completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+  	completed = true;
     response.success({added: added});
     
   }, function(error) {
@@ -431,6 +437,11 @@ Parse.Cloud.define("loadProduct", function(request, response) {
 Parse.Cloud.define("loadProductVariants", function(request, response) {
   var startTime = moment();
   
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('loadProductVariants is taking longer than 20 seconds');
+  }, 20000); 
+    
   var totalVariantsAdded = 0;
   var product;
   var bcProduct;
@@ -688,6 +699,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
 		response.error(error.message);
   }).then(function(savedProduct) {
     logInfo('loadProductVariants completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
     response.success(totalVariantsAdded);
     
   }, function(error) {
@@ -699,6 +711,11 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
 Parse.Cloud.define("reloadProduct", function(request, response) {
   logInfo('reloadProduct cloud function --------------------------', true);
   var startTime = moment();
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('reloadProduct is taking longer than 20 seconds');
+  }, 20000); 
   
   var productId = parseInt(request.params.productId);
   var updatedProduct;
@@ -733,6 +750,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   }).then(function(result) {
     tabCounts = result;
     logInfo('reloadProduct completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
 	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
 	  
   }, function(error) {
@@ -746,6 +764,11 @@ Parse.Cloud.define("saveProduct", function(request, response) {
   logInfo('saveProduct cloud function --------------------------', true);
   var startTime = moment();
   
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('saveProduct is taking longer than 20 seconds');
+  }, 20000);
+    
   var productId = parseInt(request.params.data.productId);
   var isActive = request.params.data.isActive !== undefined ? (request.params.data.isActive == true || request.params.data.isActive == 'true') ? true : false : undefined;
   var vendorId = request.params.data.vendorId;
@@ -829,6 +852,7 @@ Parse.Cloud.define("saveProduct", function(request, response) {
   }).then(function(result) {
     tabCounts = result;
     logInfo('saveProduct completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
 	  response.success({updatedProduct: updatedProduct, tabCounts: tabCounts});
     
   }, function(error) {
@@ -842,6 +866,11 @@ Parse.Cloud.define("saveProduct", function(request, response) {
 Parse.Cloud.define("saveVariants", function(request, response) {
   logInfo('saveVariants cloud function --------------------------', true);
   var startTime = moment();
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('saveVariants is taking longer than 20 seconds');
+  }, 20000);  
   
   var variants = request.params.variants;  
   if (variants.length == 0) response.success();
@@ -952,6 +981,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
     logInfo('success');
     tabCounts = result;
     logInfo('saveVariants completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
 	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, tabCounts: tabCounts});
     
 	});
@@ -961,6 +991,11 @@ Parse.Cloud.define("saveVariants", function(request, response) {
 Parse.Cloud.define("addToVendorOrder", function(request, response) {
   logInfo('addToVendorOrder cloud function --------------------------', true);
   var startTime = moment();
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('addToVendorOrder is taking longer than 20 seconds');
+  }, 20000);
   
   var orders = request.params.orders;
   var orderId = parseFloat(request.params.orderId);
@@ -1196,6 +1231,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
     logInfo('success');
     tabCounts = result;
     logInfo('addToVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
 	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, tabCounts: tabCounts});
     
 	});
@@ -1205,6 +1241,11 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
 Parse.Cloud.define("createResize", function(request, response) {
   logInfo('createResize cloud function --------------------------', true);
   var startTime = moment();
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('createResize is taking longer than 20 seconds');
+  }, 20000); 
   
   var resizes = request.params.resizes;
   var orderId = parseFloat(request.params.orderId);
@@ -1481,6 +1522,7 @@ Parse.Cloud.define("createResize", function(request, response) {
     if (results) updatedOrders = results;
     
     logInfo('createResize completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
 	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors});
     
 	}, function(error) {
@@ -1493,6 +1535,11 @@ Parse.Cloud.define("createResize", function(request, response) {
 Parse.Cloud.define("saveResize", function(request, response) {
   logInfo('saveResize cloud function --------------------------', true);
   var startTime = moment();
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('saveResize is taking longer than 20 seconds');
+  }, 20000); 
   
   var resizeId = request.params.data.resizeId;
   var units = parseFloat(request.params.data.units);
@@ -1684,6 +1731,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
     updatedOrders = results;
     
     logInfo('saveResize completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
 	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors});
     
 	}, function(error) {
@@ -1696,6 +1744,11 @@ Parse.Cloud.define("saveResize", function(request, response) {
 Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
   logInfo('updateAwaitingInventoryQueue cloud function --------------------------', true);
   var startTime = moment();
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('updateAwaitingInventoryQueue is taking longer than 20 seconds');
+  }, 20000); 
   
   var awaitingInventory = [];
   var orderProductsIneligible = [];
@@ -1821,6 +1874,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     
   }).then(function(results) {
     logInfo('updateAwaitingInventoryQueue completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
     response.success({errors: errors});
     
   }, function(error) {
@@ -1834,6 +1888,11 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
 Parse.Cloud.define("loadCategory", function(request, response) {
   logInfo('loadCategory cloud function --------------------------', true);
   var startTime = moment();
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('loadCategory is taking longer than 20 seconds');
+  }, 20000);
   
   var category = request.params.category;
   var added = false;
@@ -1852,6 +1911,7 @@ Parse.Cloud.define("loadCategory", function(request, response) {
     
   }).then(function(categoryObject) {
     logInfo('loadCategory completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
     response.success({added: added});
     
   }, function(error) {
@@ -1864,6 +1924,11 @@ Parse.Cloud.define("loadCategory", function(request, response) {
 Parse.Cloud.define("getBundleFormData", function(request, response) {
   logInfo('getBundleFormData cloud function --------------------------', true);
   var startTime = moment();
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('getBundleFormData is taking longer than 20 seconds');
+  }, 20000);
   
   var productId = request.params.productId;
   
@@ -1888,6 +1953,7 @@ Parse.Cloud.define("getBundleFormData", function(request, response) {
       products.push(product);
     });
     logInfo('getBundleFormData completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
     response.success(products);
     
   }, function(error) {
@@ -1900,6 +1966,11 @@ Parse.Cloud.define("getBundleFormData", function(request, response) {
 Parse.Cloud.define("productBundleSave", function(request, response) {
   logInfo('productBundleSave cloud function --------------------------', true);
   var startTime = moment();
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('productBundleSave is taking longer than 20 seconds');
+  }, 20000);
   
   var bundleProductId = request.params.data.bundleProductId;
   var bundleVariantIds = request.params.data.bundleVariants;
@@ -1971,6 +2042,7 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
   }).then(function(result) {
     updatedProducts.push(result);
     logInfo('productBundleSave completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
 	  response.success({updatedProducts: updatedProducts});
     
 	}, function(error) {
