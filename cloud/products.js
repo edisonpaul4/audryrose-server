@@ -129,18 +129,16 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include('resizes');
   productsQuery.include('resizes.resizeSourceVariant');
   productsQuery.include('resizes.orderProduct');
-  productsQuery.include("department");
-  productsQuery.include("classification");
-  productsQuery.include("designer");
-  productsQuery.include("designer.vendors");
-  productsQuery.include("vendor");
-  productsQuery.include("vendor.vendorOrders");
-  productsQuery.include("vendor.vendorOrders.vendorOrderVariants");
-  productsQuery.include("vendor.vendorOrders.vendorOrderVariants.variant");
-  productsQuery.include("bundleVariants");
+  productsQuery.include('department');
+  productsQuery.include('classification');
+  productsQuery.include('designer');
+  productsQuery.include('designer.vendors');
+  productsQuery.include('vendor');
+  productsQuery.include('vendor.vendorOrders');
+  productsQuery.include('vendor.vendorOrders.vendorOrderVariants');
+//   productsQuery.include('vendor.vendorOrders.vendorOrderVariants.variant');
+  productsQuery.include('bundleVariants');
   productsQuery.limit(PRODUCTS_PER_PAGE);
-  
-//   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
   
   var tabCountsQuery = new Parse.Query(MetricGroup);
   tabCountsQuery.equalTo('objectClass', 'Product');
@@ -333,10 +331,10 @@ Parse.Cloud.define("getProductFilters", function(request, response) {
 });
 
 Parse.Cloud.define("loadProduct", function(request, response) {
-  logInfo('loadProduct cloud function --------------------------', true);
   var startTime = moment();
   
-  var productId = request.params.productId;
+  var productId = parseFloat(request.params.productId);
+  logInfo('loadProduct cloud function ' + productId + '--------------------------', true);
   var product;
   var added = false;
   

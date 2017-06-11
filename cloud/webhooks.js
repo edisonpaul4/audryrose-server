@@ -164,7 +164,6 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
       reloadQueue = result;
     }
     logInfo('addToReloadQueue ' + objectClass + 's queued: ' + reloadQueue.get('queue').join(','), true);
-    response.success('addToReloadQueue success');
     return delay(10000);
     
   }).then(function() {
@@ -228,6 +227,7 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     
   }).then(function() {
     logInfo('addToReloadQueue success');
+    response.success('addToReloadQueue success');
     
   });
     
