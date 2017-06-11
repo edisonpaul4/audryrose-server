@@ -1688,6 +1688,12 @@ var getOrderSort = function(ordersQuery, currentSort) {
     case 'date-shipped-asc':
       ordersQuery.ascending("date_shipped");
       break;
+    case 'date-needed-desc':
+      ordersQuery.descending("dateNeeded");
+      break;
+    case 'date-needed-asc':
+      ordersQuery.ascending("dateNeeded");
+      break;
     case 'total-desc':
       ordersQuery.descending("total_inc_tax");
       break;
