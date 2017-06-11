@@ -2267,14 +2267,16 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 
 Parse.Cloud.afterSave("Product", function(request) {  
   var productId = request.object.get('productId');
-
-  logInfo('Product afterSave '  + productId + ' --------------------------', true);
   
-  var ordersQuery = new Parse.Query(Order);
-  ordersQuery.equalTo('productIds', productId);
-  ordersQuery.containedIn('status_id', PENDING_ORDER_STATUSES);
-  ordersQuery.find().then(function(orders) {
+  delay(5000).then(function() {
+    logInfo('Product afterSave '  + productId + ' --------------------------', true);
+  
+    var ordersQuery = new Parse.Query(Order);
+    ordersQuery.equalTo('productIds', productId);
+    ordersQuery.containedIn('status_id', PENDING_ORDER_STATUSES);
+    return ordersQuery.find();
     
+  }).then(function(orders) {
     if (!orders) return true;
     
     logInfo('Product afterSave ' + orders.length + ' orders found for ' + productId, true);
