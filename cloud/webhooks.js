@@ -6,9 +6,6 @@ var bugsnag = require("bugsnag");
 var StoreWebhook = Parse.Object.extend('StoreWebhook');
 var ReloadQueue = Parse.Object.extend('ReloadQueue');
 
-var ordersQueue = [];
-var productsQueue = [];
-
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 // Set up Bigcommerce API
@@ -196,11 +193,11 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
   		promise = promise.then(function() {
     		switch (objectClass) {
       		case 'Order':
-        		logInfo('addToReloadQueue loadOrder id: ' + queueItem);
+        		logInfo('addToReloadQueue loadOrder id: ' + queueItem, true);
       		  return Parse.Cloud.run('loadOrder', {orderId: queueItem});
       		  break;
     		  case 'Product':
-      		  logInfo('addToReloadQueue reloadProduct id: ' + queueItem);
+      		  logInfo('addToReloadQueue reloadProduct id: ' + queueItem, true);
       		  return Parse.Cloud.run('reloadProduct', {productId: queueItem});
       		  break;
     		  default:
@@ -209,13 +206,13 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     		}
     		
       }).then(function(result) {
-        logInfo('addToReloadQueue item success for ' + queueItem);
+        logInfo('addToReloadQueue item success for ' + queueItem, true);
         reloadQueue.remove('processing', queueItem);
         return reloadQueue.save(null, {useMasterKey: true});
         
       }).then(function(result) {
         reloadQueue = result;
-        logInfo('addToReloadQueue ' + queueItem + ' removed from queue');
+        logInfo('addToReloadQueue ' + queueItem + ' removed from queue', true);
         
       }, function(error) {
     		logError(error);
@@ -226,7 +223,7 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     return Parse.Promise.when(allPromises);
     
   }).then(function() {
-    logInfo('addToReloadQueue success');
+    logInfo('addToReloadQueue success', true);
     response.success('addToReloadQueue success');
     
   });
