@@ -130,8 +130,8 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('addToReloadQueue is taking longer than 10 seconds');
-  }, 10000);
+    if (!completed) response.success('addToReloadQueue is taking longer than 25 seconds');
+  }, 25000);
   
   var objectClass = request.params.objectClass;
   var items = request.params.items;
@@ -169,7 +169,7 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     var queue = reloadQueue.has('queue') ? reloadQueue.get('queue') : [];
     logInfo('addToReloadQueue ' + objectClass + 's queued: ' + queue.join(','), true);
     
-    return delay(10000);
+    return delay(5000);
     
   }).then(function() {
     return reloadQueueQuery.first();
