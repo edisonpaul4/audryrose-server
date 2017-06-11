@@ -130,7 +130,7 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('addToReloadQueue initiated');
+    if (!completed) response.success('addToReloadQueue is taking longer than 10 seconds');
   }, 10000);
   
   var objectClass = request.params.objectClass;
@@ -251,7 +251,7 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('ordersWebhook completed');
+    if (!completed) response.success('ordersWebhook is taking longer than 10 seconds');
   }, 10000);
   
   var webhookData = request.params.data;
@@ -276,7 +276,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
   
   var completed = false;
   setTimeout(function() {
-    if (!completed) response.success('productsWebhook completed');
+    if (!completed) response.success('productsWebhook is taking longer than 10 seconds');
   }, 10000);
   
   var webhookData = request.params.data;
