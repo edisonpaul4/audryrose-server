@@ -128,6 +128,11 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
 Parse.Cloud.define("addToReloadQueue", function(request, response) {
   logInfo('addToReloadQueue cloud function --------------------------', true);
   
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('addToReloadQueue initiated');
+  }, 10000);
+  
   var objectClass = request.params.objectClass;
   var items = request.params.items;
   var reloadQueue;
@@ -226,7 +231,8 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     
   }).then(function() {
     logInfo('addToReloadQueue success', true);
-    response.success('addToReloadQueue success');
+    completed = true;
+    response.success('addToReloadQueue completed');
     
   });
     
@@ -239,6 +245,11 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
 Parse.Cloud.define("ordersWebhook", function(request, response) {
   var startTime = moment();
   
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('ordersWebhook completed');
+  }, 10000);
+  
   var webhookData = request.params.data;
   var requestedOrderId = parseInt(webhookData.id);
 
@@ -246,7 +257,8 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
   
   Parse.Cloud.run('addToReloadQueue', {objectClass: 'Order', items: [requestedOrderId]}).then(function(result) {
     logInfo('ordersWebhook completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
-	  response.success();
+    completed = true;
+    response.success('ordersWebhook completed');
 	  
   }, function(error) {
 		logError(error);
@@ -258,6 +270,11 @@ Parse.Cloud.define("ordersWebhook", function(request, response) {
 Parse.Cloud.define("productsWebhook", function(request, response) {
   var startTime = moment();
   
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success('productsWebhook completed');
+  }, 10000);
+  
   var webhookData = request.params.data;
   var requestedProductId = parseInt(webhookData.id);
 
@@ -265,7 +282,8 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
   
   Parse.Cloud.run('addToReloadQueue', {objectClass: 'Product', items: [requestedProductId]}).then(function(result) {
     logInfo('productsWebhook completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
-	  response.success();
+    completed = true;
+    response.success('productsWebhook completed');
 	  
   }, function(error) {
 		logError(error);

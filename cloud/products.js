@@ -136,7 +136,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include('vendor');
   productsQuery.include('vendor.vendorOrders');
   productsQuery.include('vendor.vendorOrders.vendorOrderVariants');
-//   productsQuery.include('vendor.vendorOrders.vendorOrderVariants.variant');
+  productsQuery.include('vendor.vendorOrders.vendorOrderVariants.variant');
   productsQuery.include('bundleVariants');
   productsQuery.limit(PRODUCTS_PER_PAGE);
   
@@ -334,7 +334,7 @@ Parse.Cloud.define("loadProduct", function(request, response) {
   var startTime = moment();
   
   var productId = parseFloat(request.params.productId);
-  logInfo('loadProduct cloud function ' + productId + '--------------------------', true);
+  logInfo('loadProduct cloud function ' + productId + ' --------------------------', true);
   var product;
   var added = false;
   
@@ -382,7 +382,7 @@ Parse.Cloud.define("loadProduct", function(request, response) {
     product = result;
     
     var productQuery = new Parse.Query(Product);
-    productQuery.equalTo('productId', parseFloat(productId));
+    productQuery.equalTo('productId', productId);
     productQuery.include('department');
     productQuery.include('designer');
     productQuery.include('vendor');
@@ -2265,7 +2265,7 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 //  AFTER SAVE         //
 /////////////////////////
 
-Parse.Cloud.afterSave("Product", function(request) {
+Parse.Cloud.afterSave("Product", function(request) {  
   var productId = request.object.get('productId');
 
   logInfo('Product afterSave '  + productId + ' --------------------------', true);
@@ -2277,7 +2277,7 @@ Parse.Cloud.afterSave("Product", function(request) {
     
     if (!orders) return true;
     
-    logInfo('Product afterSave ' + orders.length + ' orders found for ' + productId);
+    logInfo('Product afterSave ' + orders.length + ' orders found for ' + productId, true);
     
     var items = [];
 		_.each(orders, function(order) {
