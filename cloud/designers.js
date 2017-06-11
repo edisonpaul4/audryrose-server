@@ -472,9 +472,21 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
   vendorOrderQuery.include('vendorOrderVariants.variant');
   vendorOrderQuery.include('vendorOrderVariants.resizeVariant');
   vendorOrderQuery.first().then(function(result) {
-    vendorOrder = result;
+    if (result) {
+      vendorOrder = result;
+    } else {
+      errors.push('Error sending order: vendor order not found.');
+      response.success({errors: errors});
+      return;
+    }
     vendor = vendorOrder.get('vendor');
     vendorOrderVariants = vendorOrder.get('vendorOrderVariants');
+    
+    if (vendorOrder.get('orderedAll') == true) {
+      errors.push('Error sending order: order already sent.');
+      response.success({errors: errors});
+      return;
+    }
     
     _.each(vendorOrderVariants, function(vendorOrderVariant) {
       vendorOrderVariant.set('ordered', true);
@@ -493,7 +505,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     if (!vendor.has('email')) {
       errors.push('Error sending order: ' + vendor.get('name') + ' needs an email address.');
       response.success({errors: errors});
-      return false;
+      return;
     }
     var data = {
       from: 'orders@loveaudryrose.com',
@@ -508,8 +520,8 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     
   }).then(function(body) {
     emailId = body.id;
-    successMessage = 'Order successfully sent to ' + vendor.get('email');
-    logInfo(successMessage);
+    successMessage = 'Order ' + vendorOrder.get('vendorOrderNumber') + ' successfully sent to ' + vendor.get('email');
+    logInfo(successMessage, true);
     
     return Parse.Object.saveAll(vendorOrderVariants, {useMasterKey: true});
     
