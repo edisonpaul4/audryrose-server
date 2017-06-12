@@ -470,8 +470,8 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
     return bigCommerce.get(rulesRequest);
   
   }, function(error) {
-  	logError('Error loading product ' + productId + ' from Bigcommerce.' + JSON.stringify(error));
-		response.error('Error loading product ' + productId + ' from Bigcommerce.');
+  	logInfo('Error loading product ' + productId + ' from Bigcommerce.' + JSON.stringify(error), true);
+  	response.success(totalVariantsAdded);
 		
   }).then(function(res) {
     bcProductRules = res;
@@ -2664,6 +2664,15 @@ var createMetric = function(objectClass, slug, name, value) {
   metric.set('name', name);
   metric.set('count', value);
   return metric;
+}
+
+var queryResultsToJSON = function(results) {
+  console.log(JSON.stringify(results))
+  var jsonArray = [];
+  _.each(results, function(result) {
+    jsonArray.push(result.toJSON());
+  });
+  return jsonArray;
 }
 
 var logInfo = function(i, alwaysLog) {
