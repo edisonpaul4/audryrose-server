@@ -112,12 +112,13 @@ Parse.Cloud.define("getOrders", function(request, response) {
   ordersQuery.include('orderProducts');
   ordersQuery.include('orderProducts.variants');
   ordersQuery.include('orderProducts.variants.designer');
+  ordersQuery.include('orderProducts.variants.designer.vendors');
   ordersQuery.include('orderProducts.vendorOrders');
   ordersQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
   ordersQuery.include('orderProducts.vendorOrders.vendor');
   ordersQuery.include('orderProducts.resizes');
   ordersQuery.include('orderProducts.awaitingInventory');
-  ordersQuery.include('orderProducts.awaitingInventory.vendorOrder');
+  ordersQuery.include('orderProducts.awaitingInventoryVendorOrders');
   ordersQuery.include('orderShipments');
   
   if (paginate) {

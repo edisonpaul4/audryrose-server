@@ -1125,7 +1125,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
           isNewOrder = true;
           vendorOrder = new VendorOrder();
           vendorOrder.set('vendor', vendor);
-//           vendorOrder.set('vendorOrderVariants', [vendorOrderVariant]);
+          vendorOrder.set('vendorOrderVariants', [vendorOrderVariant]);
           vendorOrder.set('orderedAll', false);
           vendorOrder.set('receivedAll', false);
           
@@ -1811,6 +1811,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
             orderProductsToQueue.push(orderProduct);
           } else {
             orderProduct.unset('awaitingInventory');
+            orderProduct.unset('awaitingInventoryVendorOrders');
             orderProductsIneligible.push(orderProduct);
           }
         });
@@ -1822,6 +1823,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
       var totalOrderProductsQueued = 0;
       _.each(orderProductsToQueue, function(orderProduct) {
         var orderProductAwaitingInventory = [];
+        var orderProductAwaitingInventoryVendorOrders = [];
         var variants = orderProduct.has('variants') ? orderProduct.get('variants') : [];
         _.each(variants, function(variant) {
           var awaitingInventoryEdited = [];
@@ -1839,6 +1841,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
                 logInfo('No more available for ' + variant.get('variantId'));
               }
               orderProductAwaitingInventory.push(item.object);
+              if (item.vendorOrder) orderProductAwaitingInventoryVendorOrders.push(item.vendorOrder);
               index = i;
 //               break;
             } 
@@ -1850,8 +1853,14 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
         if (orderProductAwaitingInventory.length > 0) {
           totalOrderProductsQueued++;
           orderProduct.set('awaitingInventory', orderProductAwaitingInventory);
+          if (orderProductAwaitingInventoryVendorOrders.length > 0) {
+            orderProduct.set('awaitingInventoryVendorOrders', orderProductAwaitingInventoryVendorOrders);
+          } else {
+            orderProduct.unset('awaitingInventoryVendorOrders');
+          }
         } else {
           orderProduct.unset('awaitingInventory');
+          if (orderProduct.has('awaitingInventoryVendorOrders')) orderProduct.unset('awaitingInventoryVendorOrders');
         }
       });
       logInfo('Total order products in vendor order queue: ' + totalOrderProductsQueued);
@@ -2214,7 +2223,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
           _.each(vendorOrders, function(vendorOrder) {
             _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
               if (variant.id == vendorOrderVariant.get('variant').id && vendorOrderVariant.get('ordered') == true) {
-                variantVendorOrderVariants.push(vendorOrderVariant);
+//                 variantVendorOrderVariants.push(vendorOrderVariant);
                 var awaiting = vendorOrderVariant.get('units') - vendorOrderVariant.get('received');
                 if (awaiting < 0) awaiting = 0;
                 variantTotalAwaiting += awaiting;
