@@ -1125,7 +1125,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
           isNewOrder = true;
           vendorOrder = new VendorOrder();
           vendorOrder.set('vendor', vendor);
-          vendorOrder.set('vendorOrderVariants', [vendorOrderVariant]);
+//           vendorOrder.set('vendorOrderVariants', [vendorOrderVariant]);
           vendorOrder.set('orderedAll', false);
           vendorOrder.set('receivedAll', false);
           
@@ -2235,7 +2235,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
           });
         }
         logInfo('Variant has ' + variantTotalAwaiting + ' total awaiting inventory');
-        variant.set('vendorOrderVariants', variantVendorOrderVariants);
+//         variant.set('vendorOrderVariants', variantVendorOrderVariants);
         variant.set('resizes', variantResizes);
         variant.set('totalAwaitingInventory', variantTotalAwaiting);
         editedVariants.push(variant);
