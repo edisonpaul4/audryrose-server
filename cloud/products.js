@@ -1142,10 +1142,12 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
       }).then(function(result) {
         logInfo('Vendor saved');
         
+/*
         if (vendorOrder) vendorOrderVariant.set('vendorOrder', vendorOrder);
         return vendorOrderVariant.save(null, {useMasterKey:true});
         
       }).then(function(result) {
+*/
         
         if (orderProduct) {
           orderProduct.addUnique('vendorOrders', vendorOrder);
@@ -1761,7 +1763,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
           if (vendorOrderVariant.get('done') == false && !vendorOrderVariant.has('orderProducts')) {
 //             logInfo('vendorOrderVariant ' + vendorOrderVariant.id + ' is available for queue');
             var numAvailable = vendorOrderVariant.get('units') - vendorOrderVariant.get('received');
-            awaitingInventory.push({object: vendorOrderVariant, available: numAvailable});
+            awaitingInventory.push({object: vendorOrderVariant, available: numAvailable, vendorOrder: vendorOrder});
           }
         });
       });

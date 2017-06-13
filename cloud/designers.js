@@ -311,7 +311,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
               vendorOrderVariant.set('done', true);
             }
           }
-          vendorOrderVariant.set('vendorOrder', vendorOrder);
+//           vendorOrderVariant.set('vendorOrder', vendorOrder);
           return vendorOrderVariant.save(null, {useMasterKey:true});
         } else {
           logInfo('VendorOrderVariant not found');

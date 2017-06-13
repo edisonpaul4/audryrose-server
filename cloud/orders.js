@@ -1104,7 +1104,6 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
     ordersQuery.include('orderProducts.vendorOrders.vendor');
     ordersQuery.include('orderProducts.resizes');
     ordersQuery.include('orderProducts.awaitingInventory');
-    ordersQuery.include('orderProducts.awaitingInventory.vendorOrder');
     ordersQuery.include('orderShipments');
     return ordersQuery.first();
     
