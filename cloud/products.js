@@ -2192,7 +2192,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
           var matchesProduct = false;
           _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
             var variant = vendorOrderVariant.get('variant');
-            if (variant.get('productId') == product.get('productId')) matchesProduct = true;
+            if (variant.get('productId') == product.get('productId') && vendorOrderVariant.get('done') == false) matchesProduct = true;
           });
           if (matchesProduct) hasVendorOrder = true;
         });
