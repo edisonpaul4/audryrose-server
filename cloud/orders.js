@@ -1,5 +1,5 @@
 var _ = require('underscore');
-var moment = require('moment');
+var moment = require('moment-timezone');
 var numeral = require('numeral');
 var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
@@ -2524,7 +2524,7 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   var paymentMethod = writePdfText(cxt, paymentMethodText, boldFont, 10, 0x000000, 'left', margin, orderNumber.y, 12, pageWidth, pageHeight);
   
   // Order Date
-  var orderDateText = 'Order Date: ' + moment(order.get('date_created').iso).format('M/D/YY');
+  var orderDateText = 'Order Date: ' + moment(order.get('date_created').iso).tz('America/Los_Angeles').format('M/D/YY');
   var orderDate = writePdfText(cxt, orderDateText, boldFont, 10, 0x000000, 'left', pageCenterX, orderNumberY, padding, pageWidth, pageHeight);
   
   // Shipping Method

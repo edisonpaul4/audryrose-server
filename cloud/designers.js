@@ -1,5 +1,5 @@
 var _ = require('underscore');
-var moment = require('moment');
+var moment = require('moment-timezone');
 var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 var Mailgun = require('mailgun-js');
@@ -224,6 +224,11 @@ Parse.Cloud.define("saveVendor", function(request, response) {
     designerQuery = new Parse.Query(Designer);
     designerQuery.equalTo('objectId', designerId);
     designerQuery.include('vendors');
+    designerQuery.include('vendors.vendorOrders');
+    designerQuery.include('vendors.vendorOrders.vendorOrderVariants');
+    designerQuery.include('vendors.vendorOrders.vendorOrderVariants.orderProducts');
+    designerQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
+    designerQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
     return designerQuery.first();
     
   }).then(function(designerObject) {
@@ -276,6 +281,9 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
         vendorOrderVariantQuery.include('variant');
         vendorOrderVariantQuery.include('resizeVariant');
         vendorOrderVariantQuery.include('orderProducts');
+        vendorOrderVariantQuery.include('orderProducts.vendorOrders');
+        vendorOrderVariantQuery.include('orderProducts.awaitingInventory');
+        vendorOrderVariantQuery.include('orderProducts.awaitingInventoryVendorOrders');
         return vendorOrderVariantQuery.first();
         
       }).then(function(vendorOrderVariant) {
@@ -319,7 +327,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
         }
         
       }).then(function(vendorOrderVariant) {
-        if (vendorOrderVariant && vendorOrderVariant.has('units') && vendorOrderVariant.get('units') > 0) {
+        if (vendorOrderVariant && vendorOrderVariant.has('units')) {
           logInfo('VendorOrderVariant saved');
           logInfo('Variant has ' + vendorOrderVariant.get('units') + ' units');
           vendorOrderVariants.push(vendorOrderVariant);
@@ -353,8 +361,12 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
 		
 	}).then(function() {
     vendorOrder.set('vendorOrderVariants', vendorOrderVariants);
-    logInfo('Total ' + vendorOrderVariants.length + ' vendorOrderVariants');
-    if (vendorOrderVariants.length > 0) {
+    var totalWithUnits = 0;
+    _.each(vendorOrderVariants, function(vendorOrderVariant) {
+      if (vendorOrderVariant.get('units') > 0) totalWithUnits++;
+    });
+    logInfo('Total ' + vendorOrderVariants.length + ' vendorOrderVariants, ' + totalWithUnits + ' are requesting units');
+    if (totalWithUnits > 0) {
       logInfo('Save changes to vendor order');
       vendorOrder.set('message', message);
       if (numReceived >= vendorOrderVariants.length) {
@@ -366,7 +378,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
     } else {
       logInfo('All variants removed, destroy the vendor order');
       vendor.remove('vendorOrders', vendorOrder);
-      return vendorOrder.destroy();
+      return destroyVendorOrder(vendorOrder);
     }
     
   }, function(error) {
@@ -512,7 +524,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
       to: vendor.get('name') + ' <' + vendor.get('email') + '>',
       cc: 'Audry Rose <orders@loveaudryrose.com>',
       bcc: 'male@jeremyadam.com',
-      subject: 'Audry Rose Order ' + vendorOrder.get('vendorOrderNumber') + ' - ' + moment().format('M.D.YY'),
+      subject: 'Audry Rose Order ' + vendorOrder.get('vendorOrderNumber') + ' - ' + moment().tz('America/Los_Angeles').format('M.D.YY'),
       text: messageProductsText,
       html: messageProductsHTML
     }
@@ -610,59 +622,83 @@ Parse.Cloud.beforeSave("Vendor", function(request, response) {
   var vendor = request.object;
   var hasPendingVendorOrder = false;
   var hasSentVendorOrder = false;
-  var vendorDesigners;
   
   if (!vendor.has('abbreviation')) {
     var abbreviation = getAbbreviation(vendor.get('name'));
     vendor.set('abbreviation', abbreviation);
   }
-  
-  if (vendor.has('vendorOrders')) {
-    var vendorOrders = vendor.get('vendorOrders');
-    Parse.Object.fetchAll(vendorOrders).then(function(vendorOrderObjects) {
-      _.each(vendorOrderObjects, function(vendorOrder) {
-        var orderedAll = vendorOrder.get('orderedAll');
-        var receivedAll = vendorOrder.get('receivedAll');
-        if (!orderedAll) {
-          hasPendingVendorOrder = true;
-        } else if (orderedAll && !receivedAll) {
-          hasSentVendorOrder = true;
-        }
-      });
-      logInfo('Vendor hasPendingVendorOrder: ' + hasPendingVendorOrder);
-      logInfo('Vendor hasSentVendorOrder: ' + hasSentVendorOrder);
-      vendorDesigners = vendor.get('designers');
-      return Parse.Object.fetchAll(vendorDesigners);
-      
-    }).then(function(designers) {
-      _.each(designers, function(designer) {
-        designer.set('hasPendingVendorOrder', hasPendingVendorOrder);
-        designer.set('hasSentVendorOrder', hasSentVendorOrder);
-      });
-      return Parse.Object.saveAll(designers, {useMasterKey: true});
-      
-    }).then(function() {
-      response.success();
+    
+  delay(10).then(function() {
+    if (vendor.has('vendorOrders') && vendor.get('vendorOrders').length > 0) {
+      return Parse.Object.fetchAll(vendor.get('vendorOrders'));
+    } else {
+      return [];
+    }
+    
+  }).then(function(vendorOrders) {
+    logInfo('vendor has ' + vendorOrders.length + ' vendor orders');
+    _.each(vendorOrders, function(vendorOrder) {
+      var orderedAll = vendorOrder.get('orderedAll');
+      var receivedAll = vendorOrder.get('receivedAll');
+      if (!orderedAll) {
+        hasPendingVendorOrder = true;
+      } else if (orderedAll && !receivedAll) {
+        hasSentVendorOrder = true;
+      }
     });
-  } else {
-    vendorDesigners = vendor.get('designers');
-    Parse.Object.fetchAll(vendorDesigners).then(function(designers) {
-      _.each(designers, function(designer) {
-        designer.set('hasPendingVendorOrder', hasPendingVendorOrder);
-        designer.set('hasSentVendorOrder', hasSentVendorOrder);
-      });
+    logInfo('Vendor hasPendingVendorOrder: ' + hasPendingVendorOrder);
+    logInfo('Vendor hasSentVendorOrder: ' + hasSentVendorOrder);
+    
+    if (vendor.has('designers') && vendor.get('designers').length > 0) {
+      return Parse.Object.fetchAll(vendor.get('designers'));
+    } else {
+      return [];
+    }
+    
+  }).then(function(designers) {
+    logInfo('vendor has ' + designers.length + ' vendor orders');
+    _.each(designers, function(designer) {
+      designer.set('hasPendingVendorOrder', hasPendingVendorOrder);
+      designer.set('hasSentVendorOrder', hasSentVendorOrder);
+    });
+    if (designers.length > 0) {
       return Parse.Object.saveAll(designers, {useMasterKey: true});
-    }).then(function() {
-      response.success();
-    })
-  }
+    } else {
+      return [];
+    }
+    
+  }).then(function() {
+    logInfo('Vendor beforeSave complete');
+    response.success();
+  });
+  
 });
 
 Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
+  logInfo('VendorOrder beforeSave --------------------------------');
   var vendorOrder = request.object;
   
-  // Create a unique vendor order number
-  vendorOrder.get('vendor').fetch().then(function(vendor){
+  delay(10).then(function() {
+    logInfo('go');
+    // Remove any vendor order variants who have 0 units to order
+    if (vendorOrder.has('vendorOrderVariants') && vendorOrder.get('vendorOrderVariants').length > 0) {
+      logInfo('vendor order has ' + vendorOrder.get('vendorOrderVariants').length + ' vendor order variants to fetch');
+      return Parse.Object.fetchAll(vendorOrder.get('vendorOrderVariants'));
+    } else {
+      return [];
+    }
+    
+  }).then(function(vendorOrderVariants) {
+    logInfo('vendor order has ' + vendorOrderVariants.length + ' vendor order variants');
+    _.each(vendorOrderVariants, function(vendorOrderVariant) {
+      if (vendorOrderVariant.has('units')) logInfo('vendor order variant has ' + vendorOrderVariant.get('units') + ' units');
+      if (vendorOrderVariant.get('units') == 0) vendorOrder.remove('vendorOrderVariants', vendorOrderVariant);
+    });
+  
+    // Create a unique vendor order number
+    return vendorOrder.get('vendor').fetch();
+    
+  }).then(function(vendor){
     if (!vendorOrder.has('vendorOrderNumber')) {
       vendor.increment('vendorOrderCount', 1);
       var vendorOrderNumber = vendor.get('abbreviation') + vendor.get('vendorOrderCount');
@@ -675,6 +711,7 @@ Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
     }
     
   }).then(function(result) {
+    logInfo('VendorOrder beforeSave complete');
     response.success();
   });
 });
@@ -772,6 +809,56 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
 /*   message = '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>Billing e.g. invoices and receipts</title></head><body itemscope="" itemtype="http://schema.org/EmailMessage" style="-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:none;box-sizing:border-box;font-family:\'Helvetica Neue\',Helvetica,Arial,sans-serif;height:100%;line-height:1.6em;width:100%!important" margin: 0; padding: 0;><style>@media only screen and (max-width:640px){h1,h2,h3,h4{font-weight:800!important;margin:20px 0 5px!important}h1{font-size:22px!important}h2{font-size:18px!important}h3{font-size:16px!important}.order{width:100%!important}}</style>' + message + '</body></html>'; */
   
   return message;
+}
+
+var destroyVendorOrder = function(vendorOrder) {
+  var vendorOrderVariants = vendorOrder.get('vendorOrderVariants');
+  var orderProductsToSave = [];
+
+  // Get all VendorOrderVariants and their OrderProducts
+  _.each(vendorOrderVariants, function(vendorOrderVariant) {
+    _.each(vendorOrderVariant.get('orderProducts'), function(orderProduct) {
+      var addedToSave = false;
+      _.each(orderProduct.get('vendorOrders'), function(orderProductVendorOrder) {
+        if (orderProductVendorOrder.id == vendorOrder.id) {
+          logInfo('removing vendorOrder from order product ' + orderProduct.get('orderProductId') + ' vendorOrders');
+          orderProduct.remove('vendorOrders', orderProductVendorOrder);
+          if (!addedToSave) orderProductsToSave.push(orderProduct);
+          addedToSave = true;
+        }
+      });
+      _.each(orderProduct.get('awaitingInventoryVendorOrders'), function(orderProductVendorOrder) {
+        if (orderProductVendorOrder.id == vendorOrder.id) {
+          logInfo('removing vendorOrder from order product ' + orderProduct.get('orderProductId') + ' awaitingInventoryVendorOrders');
+          orderProduct.remove('awaitingInventoryVendorOrders', orderProductVendorOrder);
+          if (!addedToSave) orderProductsToSave.push(orderProduct);
+          addedToSave = true;
+        }
+      });
+      _.each(orderProduct.get('awaitingInventory'), function(orderProductVendorOrderVariant) {
+        if (orderProductVendorOrderVariant.id == vendorOrderVariant.id) {
+          logInfo('removing vendorOrderVariant from order product ' + orderProduct.get('orderProductId') + ' awaitingInventory');
+          orderProduct.remove('awaitingInventory', vendorOrderVariant);
+          if (!addedToSave) orderProductsToSave.push(orderProduct);
+          addedToSave = true;
+        }
+      });
+    });
+  });
+    
+  return Parse.Object.saveAll(orderProductsToSave, {useMasterKey: true}).then(function() {
+    logInfo('order products saved');
+    return Parse.Object.destroyAll(vendorOrderVariants);
+    
+  }).then(function() {
+    logInfo('destroy vendorOrder ' + vendorOrder.get('vendorOrderNumber'));
+    return vendorOrder.destroy();
+    
+  }, function(error) {
+    logError(error);
+    return error;
+    
+  });
 }
 
 var delay = function(t) {

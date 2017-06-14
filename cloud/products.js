@@ -1,5 +1,5 @@
 var _ = require('underscore');
-var moment = require('moment');
+var moment = require('moment-timezone');
 var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 
@@ -1807,9 +1807,10 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
       _.each(orders, function(order) {
         _.each(order.get('orderProducts'), function(orderProduct) {
           if (orderProduct.get('quantity_shipped') < orderProduct.get('quantity') && !orderProduct.has('vendorOrders') && !orderProduct.has('resizes') && orderProduct.get('shippable') == false) {
-//             logInfo('orderProduct ' + orderProduct.id + ' is available for queue');
+//             logInfo('orderProduct ' + orderProduct.get('orderProductId') + ' from order ' + orderProduct.get('order_id') + ' is available for queue');
             orderProductsToQueue.push(orderProduct);
           } else {
+//             logInfo('orderProduct ' + orderProduct.get('orderProductId') + ' from order ' + orderProduct.get('order_id') + ' not being queued');
             orderProduct.unset('awaitingInventory');
             orderProduct.unset('awaitingInventoryVendorOrders');
             orderProductsIneligible.push(orderProduct);

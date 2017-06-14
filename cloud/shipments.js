@@ -1,5 +1,5 @@
 var _ = require('underscore');
-var moment = require('moment');
+var moment = require('moment-timezone');
 var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 
