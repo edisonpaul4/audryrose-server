@@ -1805,7 +1805,12 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     if (orders.length) {
       _.each(orders, function(order) {
         _.each(order.get('orderProducts'), function(orderProduct) {
-          if (orderProduct.get('quantity_shipped') < orderProduct.get('quantity') && !orderProduct.has('vendorOrders') && !orderProduct.has('resizes') && orderProduct.get('shippable') == false) {
+          var eligible = true;
+          if (orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) eligible = false;
+          if (orderProduct.has('vendorOrders') && orderProduct.get('vendorOrders').length > 0) eligible = false;
+          if (orderProduct.has('resizes') && orderProduct.get('resizes').length > 0) eligible = false;
+          if (orderProduct.get('shippable') == true) eligible = false;
+          if (eligible) {
 //             logInfo('orderProduct ' + orderProduct.get('orderProductId') + ' from order ' + orderProduct.get('order_id') + ' is available for queue');
             orderProductsToQueue.push(orderProduct);
           } else {
@@ -1873,7 +1878,6 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
       _.each(allOrderProducts, function(orderProduct) {
         var totalAwaitingInventoryItems = orderProduct.has('awaitingInventory') ? orderProduct.get('awaitingInventory').length : 0;
         logInfo(orderProduct.get('order_id') + ' ' + orderProduct.get('orderProductId') + ' has ' + totalAwaitingInventoryItems + ' awaiting inventory items');
-        if (orderProduct.get('order_id') == 7668) logInfo(JSON.stringify(orderProduct))
       });
 */
       return Parse.Object.saveAll(allOrderProducts, {useMasterKey: true});
