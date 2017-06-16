@@ -1791,7 +1791,6 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     }
     
     var ordersQuery = new Parse.Query(Order);
-    ordersQuery.equalTo('fullyShippable', false);
     ordersQuery.equalTo('is_deleted', false);
     ordersQuery.containedIn('status_id', PENDING_ORDER_STATUSES);
     ordersQuery.ascending('date_created');
@@ -1818,7 +1817,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
         });
       });
     }
-    logInfo('Total to process queue: ' + awaitingInventory.length + ' items, ' + orderProductsToQueue.length + ' orderProducts');
+    logInfo('Total to process queue: ' + awaitingInventory.length + ' items, ' + orderProductsToQueue.length + ' eligible, ' + orderProductsIneligible.length + ' ineligible');
     
     if (orderProductsToQueue.length > 0) {
       var orderProductsEdited = [];
@@ -1828,27 +1827,29 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
         var orderProductAwaitingInventoryVendorOrders = [];
         var variants = orderProduct.has('variants') ? orderProduct.get('variants') : [];
         _.each(variants, function(variant) {
-          var awaitingInventoryEdited = [];
-          for (var i = 0; i < awaitingInventory.length; i++) {
-            var item = awaitingInventory[i];
+          awaitingInventory = awaitingInventory.map(function(item) {
             if (item.object.get('variant').id == variant.id) {
               var numNeeded = orderProduct.get('quantity') - orderProduct.get('quantity_shipped');
+              if (variant.get('inventoryLevel') > 0) numNeeded - variant.get('inventoryLevel');
+              if (numNeeded < 0) numNeeded = 0;
 //               logInfo('Matched variant ' + variant.get('variantId') + '. In stock ' + variant.get('inventoryLevel') + ', need ' + numNeeded + ', available ' + item.available);
               if (item.available >= numNeeded) {
                 var numToSubtract = numNeeded < item.available ? numNeeded : item.available;
 //                 logInfo('Subtract ' + numToSubtract + ' for ' + variant.get('variantId'));
                 item.available -= numToSubtract;
 //                 logInfo(item.available + ' now available for ' + variant.get('variantId'));
+//                 logInfo('set awaiting inventory ' + variant.get('variantId') + ' for order ' + orderProduct.get('order_id'));
                 orderProductAwaitingInventory.push(item.object);
-                if (item.vendorOrder) orderProductAwaitingInventoryVendorOrders.push(item.vendorOrder);
+                if (item.vendorOrder) {
+//                   logInfo('set awaiting inventory vendor order ' + item.vendorOrder.get('vendorOrderNumber') + ' for order ' + orderProduct.get('order_id'));
+                  orderProductAwaitingInventoryVendorOrders.push(item.vendorOrder);
+                }
               } else {
 //                 logInfo('No more available for ' + variant.get('variantId'));
               }
             } 
-            awaitingInventoryEdited.push(item); // subtract added then add to array if has any awaiting left
-          }
-          awaitingInventory = awaitingInventoryEdited;
-
+            return item;
+          });
         });
         if (orderProductAwaitingInventory.length > 0) {
           totalOrderProductsQueued++;
@@ -1872,6 +1873,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
       _.each(allOrderProducts, function(orderProduct) {
         var totalAwaitingInventoryItems = orderProduct.has('awaitingInventory') ? orderProduct.get('awaitingInventory').length : 0;
         logInfo(orderProduct.get('order_id') + ' ' + orderProduct.get('orderProductId') + ' has ' + totalAwaitingInventoryItems + ' awaiting inventory items');
+        if (orderProduct.get('order_id') == 7668) logInfo(JSON.stringify(orderProduct))
       });
 */
       return Parse.Object.saveAll(allOrderProducts, {useMasterKey: true});
