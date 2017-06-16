@@ -39,6 +39,7 @@ const BIGCOMMERCE_BATCH_SIZE = 250;
 const PRODUCTS_PER_PAGE = 25;
 const yearLetters = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"];
 const PENDING_ORDER_STATUSES = [3, 7, 8, 9, 11, 12];
+const SIZE_PRODUCT_OPTIONS = [18,32,24];
 const isProduction = process.env.NODE_ENV == 'production';
 const isDebug = process.env.DEBUG == 'true';
 
@@ -99,6 +100,10 @@ Parse.Cloud.define("getProducts", function(request, response) {
       var classQuery = new Parse.Query(Classification);
       classQuery.equalTo('name', filters.class);
       productsQuery.matchesQuery('classification', classQuery);
+    }
+    
+    if (filters.sizeInStock && filters.sizeInStock != 'all') {
+      productsQuery.containedIn('sizesInStock', [parseFloat(filters.sizeInStock)]);
     }
     
     productsQuery = getProductSort(productsQuery, currentSort);
@@ -2108,6 +2113,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
     var totalStock = 0;
     var variantsOutOfStock = 0;
     var sizes = [];
+    var sizesInStock = [];
     Parse.Object.fetchAll(variants).then(function(variantObjects) {
       variants = variantObjects;
       _.each(variants, function(variant) {
@@ -2118,11 +2124,16 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
         } else {
           variantsOutOfStock++;
         }
-  			if (!variant.variantOptions) {
+  			if (!variant.has('variantOptions')) {
     			logInfo('variant has no options: ' + variant.productName + ' ' + variant.variantId); 
   			} else {
-    			_.each(variant.variantOptions, function(variantOption) {
-      			if (variantOption.option_id === 32) sizes.push(parseFloat(variantOption.value));
+    			_.each(variant.get('variantOptions'), function(variantOption) {
+      			if (SIZE_PRODUCT_OPTIONS.indexOf(variantOption.option_id) >= 0) {
+        			var optionValue = parseFloat(variantOption.value);
+        			if (sizes.indexOf(optionValue) < 0) sizes.push(optionValue);
+        			logInfo('variant size: ' + optionValue);
+        			if (inventory && inventory > 0 && sizesInStock.indexOf(optionValue) < 0) sizesInStock.push(optionValue);
+      			}
     			});
   			}
       });
@@ -2134,6 +2145,9 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
       var sizeScale = (sizes.length > 0) ? sizes[0] + '-' + sizes[sizes.length-1] : 'OS' ;
       logInfo('set size scale: ' + sizeScale);
       product.set('sizeScale', sizeScale);
+      sizesInStock.sort((a, b) => (a - b));
+      product.set('sizes', sizes);
+      product.set('sizesInStock', sizesInStock);
       
       if (product && !product.has('designer')) {
         logInfo('product does not have designer');
@@ -2257,8 +2271,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
             }
           });
         }
-        logInfo('Variant has ' + variantTotalAwaiting + ' total awaiting inventory');
-//         variant.set('vendorOrderVariants', variantVendorOrderVariants);
+//         logInfo('Variant has ' + variantTotalAwaiting + ' total awaiting inventory');
         variant.set('resizes', variantResizes);
         variant.set('totalAwaitingInventory', variantTotalAwaiting);
         editedVariants.push(variant);
@@ -2299,7 +2312,7 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
       colorCodeQuery.equalTo('option_value_id', parseInt(variantOption.option_value_id));
   		colorCodeQuery.first().then(function(colorCodeResult) {
         if (colorCodeResult) {
-          logInfo('ColorCode matched: ' + colorCodeResult.get('label'));
+//           logInfo('ColorCode matched: ' + colorCodeResult.get('label'));
           colorCodes.push(colorCodeResult);
         }
         var stoneCodeQuery = new Parse.Query(StoneCode);
@@ -2309,13 +2322,13 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 
       }).then(function(stoneCodeResult) {
         if (stoneCodeResult) {
-          logInfo('StoneCode matched: ' + stoneCodeResult.get('label'));
+//           logInfo('StoneCode matched: ' + stoneCodeResult.get('label'));
           stoneCodes.push(stoneCodeResult);
         }
         optionsChecked++;
         if (optionsChecked == totalOptions) {
-          logInfo('total color codes: ' + colorCodes.length);
-          logInfo('total stone codes: ' + stoneCodes.length);
+//           logInfo('total color codes: ' + colorCodes.length);
+//           logInfo('total stone codes: ' + stoneCodes.length);
           if (colorCodes.length > 1) {
             productVariant.set('colorCodes', colorCodes);
             productVariant.unset('colorCode');
@@ -2341,7 +2354,7 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
             return codeObj.has('manualCode') ? codeObj.get('manualCode') : codeObj.get('generatedCode'); 
           });
           var codeString = allCodes.join('');
-          logInfo('code: ' + codeString);
+//           logInfo('code: ' + codeString);
           productVariant.set('code', codeString);
           
           response.success();
