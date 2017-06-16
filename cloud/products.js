@@ -1408,7 +1408,8 @@ Parse.Cloud.define("createResize", function(request, response) {
         if (result) {
           logInfo('Source ProductVariant saved');
           product.addUnique('resizes', resizeObj);
-          product.set('hasResizeRequest', true);
+          var hasResizeRequest = product.has('resizes') && product.get('resizes').length > 0 ? true : false;
+          product.set('hasResizeRequest', hasResizeRequest);
           return product.save(null, {useMasterKey:true});
         } else {
           return false;
