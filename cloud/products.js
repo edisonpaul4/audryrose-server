@@ -1760,7 +1760,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     if (vendorOrders.length) {
       _.each(vendorOrders, function(vendorOrder) {
         _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
-          if (vendorOrderVariant.get('done') == false && !vendorOrderVariant.has('orderProducts')) {
+          if (vendorOrderVariant.get('done') == false /*&& !vendorOrderVariant.has('orderProducts')*/) {
 //             logInfo('vendorOrderVariant ' + vendorOrderVariant.id + ' is available for queue');
             var numAvailable = vendorOrderVariant.get('units') - vendorOrderVariant.get('received');
             awaitingInventory.push({object: vendorOrderVariant, available: numAvailable, vendorOrder: vendorOrder});
@@ -1782,7 +1782,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     logInfo(resizeObjects.length ? resizeObjects.length + ' resizes to parse' : 'No resizes to parse');
     if (resizeObjects.length) {
       _.each(resizeObjects, function(resizeObject) {
-          if (resizeObject.get('done') == false && !resizeObject.has('orderProduct')) {
+          if (resizeObject.get('done') == false/* && !resizeObject.has('orderProduct')*/) {
 //             logInfo('resize ' + resizeObject.id + ' is available for queue');
             var numAvailable = resizeObject.get('units') - resizeObject.get('received');
             awaitingInventory.push({object: resizeObject, available: numAvailable});
@@ -1821,6 +1821,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     logInfo('Total to process queue: ' + awaitingInventory.length + ' items, ' + orderProductsToQueue.length + ' orderProducts');
     
     if (orderProductsToQueue.length > 0) {
+      var orderProductsEdited = [];
       var totalOrderProductsQueued = 0;
       _.each(orderProductsToQueue, function(orderProduct) {
         var orderProductAwaitingInventory = [];
@@ -1828,23 +1829,21 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
         var variants = orderProduct.has('variants') ? orderProduct.get('variants') : [];
         _.each(variants, function(variant) {
           var awaitingInventoryEdited = [];
-          var index;
           for (var i = 0; i < awaitingInventory.length; i++) {
             var item = awaitingInventory[i];
             if (item.object.get('variant').id == variant.id) {
               var numNeeded = orderProduct.get('quantity') - orderProduct.get('quantity_shipped');
-              logInfo('Matched variant ' + variant.get('variantId') + '. In stock ' + variant.get('inventoryLevel') + ', need ' + numNeeded + ', available ' + item.available);
+//               logInfo('Matched variant ' + variant.get('variantId') + '. In stock ' + variant.get('inventoryLevel') + ', need ' + numNeeded + ', available ' + item.available);
               if (item.available >= numNeeded) {
                 var numToSubtract = numNeeded < item.available ? numNeeded : item.available;
-                logInfo('Subtract ' + numToSubtract + ' for ' + variant.get('variantId'));
+//                 logInfo('Subtract ' + numToSubtract + ' for ' + variant.get('variantId'));
                 item.available -= numToSubtract;
+//                 logInfo(item.available + ' now available for ' + variant.get('variantId'));
+                orderProductAwaitingInventory.push(item.object);
+                if (item.vendorOrder) orderProductAwaitingInventoryVendorOrders.push(item.vendorOrder);
               } else {
-                logInfo('No more available for ' + variant.get('variantId'));
+//                 logInfo('No more available for ' + variant.get('variantId'));
               }
-              orderProductAwaitingInventory.push(item.object);
-              if (item.vendorOrder) orderProductAwaitingInventoryVendorOrders.push(item.vendorOrder);
-              index = i;
-//               break;
             } 
             awaitingInventoryEdited.push(item); // subtract added then add to array if has any awaiting left
           }
@@ -1853,6 +1852,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
         });
         if (orderProductAwaitingInventory.length > 0) {
           totalOrderProductsQueued++;
+//           logInfo('set ' + orderProductAwaitingInventory.length + ' awaiting inventory items for order ' + orderProduct.get('order_id'));
           orderProduct.set('awaitingInventory', orderProductAwaitingInventory);
           if (orderProductAwaitingInventoryVendorOrders.length > 0) {
             orderProduct.set('awaitingInventoryVendorOrders', orderProductAwaitingInventoryVendorOrders);
@@ -1863,13 +1863,20 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
           orderProduct.unset('awaitingInventory');
           if (orderProduct.has('awaitingInventoryVendorOrders')) orderProduct.unset('awaitingInventoryVendorOrders');
         }
+        orderProductsEdited.push(orderProduct);
       });
       logInfo('Total order products in vendor order queue: ' + totalOrderProductsQueued);
-      var allOrderProducts = orderProductsToQueue.concat(orderProductsIneligible);
+      var allOrderProducts = orderProductsIneligible.length > 0 ? orderProductsEdited.concat(orderProductsIneligible) : orderProductsEdited;
+      logInfo('Total order products to save: ' + allOrderProducts.length);
+/*
+      _.each(allOrderProducts, function(orderProduct) {
+        var totalAwaitingInventoryItems = orderProduct.has('awaitingInventory') ? orderProduct.get('awaitingInventory').length : 0;
+        logInfo(orderProduct.get('order_id') + ' ' + orderProduct.get('orderProductId') + ' has ' + totalAwaitingInventoryItems + ' awaiting inventory items');
+      });
+*/
       return Parse.Object.saveAll(allOrderProducts, {useMasterKey: true});
     } else {
       return Parse.Object.saveAll(orderProductsIneligible, {useMasterKey: true});
-      return false;
     }
     
   }).then(function(results) {

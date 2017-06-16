@@ -672,6 +672,28 @@ Parse.Cloud.job("updateVendorOrders", function(request, status) {
   
 });
 
+Parse.Cloud.job("updateAwaitingInventoryQueue", function(request, status) {
+  logInfo('updateAwaitingInventoryQueue job --------------------', true);
+  var startTime = moment();
+  
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  }, 20000);
+  
+  var bcOrderId = request.params.orderId;
+  
+  Parse.Cloud.run('updateAwaitingInventoryQueue').then(function(res) {
+    completed = true;
+    status.success('updateAwaitingInventoryQueue completion time: ' + moment().diff(startTime, 'seconds') + ' seconds');
+    
+  }, function(error) {
+    logError(error);
+    status.error(error.message);
+		
+	});
+});
+
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
