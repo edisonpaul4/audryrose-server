@@ -1380,7 +1380,7 @@ Parse.Cloud.define("createResize", function(request, response) {
           return false;
         }
         
-        resizeObj.set('dateSent', moment().toDate());
+        //resizeObj.set('dateSent', moment().toDate());
         if (orderProduct) resizeObj.set('orderProduct', orderProduct);
         
         if (resizeSourceVariant.has('inventoryLevel') && resizeSourceVariant.get('inventoryLevel') < resizeObj.get('units')) {
@@ -1543,6 +1543,9 @@ Parse.Cloud.define("saveResize", function(request, response) {
   var units = parseFloat(request.params.data.units);
   var received = parseFloat(request.params.data.received);
   var orderId = parseFloat(request.params.data.resizeId);
+  var send = request.params.data.send && (request.params.data.send == true || request.params.data.send == 'true') ? true : false;
+  console.log(request.params.data.send)
+  console.log('send: ' + send);
   var resizeObj;
   var variant;
   var resizeSourceVariant;
@@ -1599,6 +1602,8 @@ Parse.Cloud.define("saveResize", function(request, response) {
         
         logInfo('received ' + resizeObj.get('received') + ' of ' + resizeObj.get('units') + ' units');
         if (resizeObj.get('received') >= resizeObj.get('units')) resizeObj.set('done', true);
+        
+        if (send) resizeObj.set('dateSent', moment().toDate());
         
         return resizeObj.save(null, {useMasterKey:true});
       }
@@ -2041,6 +2046,7 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
   	
 //     var productQuery = new Parse.Query(Product);
 //     productQuery.equalTo('objectId', bundleProductId);
+    productQuery.equalTo('productId', productId);
     productQuery.include('variants');
     productQuery.include('variants.colorCode');
     productQuery.include('variants.stoneCode');
