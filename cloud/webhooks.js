@@ -169,7 +169,7 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     var queue = reloadQueue.has('queue') ? reloadQueue.get('queue') : [];
     logInfo('addToReloadQueue ' + objectClass + 's queued: ' + queue.join(','), true);
     
-    return delay(5000);
+    return delay(Math.round(Math.random() * (5000 - 1000)) + 1000);
     
   }).then(function() {
     return reloadQueueQuery.first();

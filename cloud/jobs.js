@@ -9,6 +9,8 @@ var bugsnag = require("bugsnag");
 var Product = Parse.Object.extend('Product');
 var ColorCode = Parse.Object.extend('ColorCode');
 var StoneCode = Parse.Object.extend('StoneCode');
+var SizeCode = Parse.Object.extend('SizeCode');
+var MiscCode = Parse.Object.extend('MiscCode');
 var Order = Parse.Object.extend('Order');
 var VendorOrder = Parse.Object.extend('VendorOrder');
 
@@ -28,6 +30,8 @@ const BIGCOMMERCE_BATCH_SIZE = 250;
 const NUM_HOURS_TO_EXPIRE = 24;
 const COLORS_IDS = [31, 3, 36, 30, 23];
 const STONE_IDS = [33];
+const SIZE_IDS = [32, 18];
+const MISC_IDS = [35, 27, 26, 24];
 const isProduction = process.env.NODE_ENV == 'production';
 const isDebug = process.env.DEBUG == 'true';
 
@@ -513,9 +517,13 @@ Parse.Cloud.job("updateOptions", function(request, status) {
   var totalOptionsAdded = 0;
   var colorOptionValues = [];
   var stoneOptionValues = [];
+  var sizeOptionValues = [];
+  var miscOptionValues = [];
   var bcOptions = [];
   
   var allIds = COLORS_IDS.concat(STONE_IDS);
+  allIds = allIds.concat(SIZE_IDS);
+  allIds = allIds.concat(MISC_IDS);
   var totalOptions = allIds.length;
   
   var startTime = moment();
@@ -540,6 +548,8 @@ Parse.Cloud.job("updateOptions", function(request, status) {
   				_.each(response, function(option) {
     				if (COLORS_IDS.indexOf(id) >= 0) colorOptionValues.push(option);
     				if (STONE_IDS.indexOf(id) >= 0) stoneOptionValues.push(option);
+    				if (SIZE_IDS.indexOf(id) >= 0) sizeOptionValues.push(option);
+    				if (MISC_IDS.indexOf(id) >= 0) miscOptionValues.push(option);
           });
           return true;
         }, function(error) {
@@ -556,16 +566,16 @@ Parse.Cloud.job("updateOptions", function(request, status) {
 		_.each(colorOptionValues, function(colorOptionValue) {
   		logInfo('process color options id: ' + colorOptionValue.id);
   		promise = promise.then(function() {
-    		return delay(500).then(function() {
-          var colorCodeQuery = new Parse.Query(ColorCode);
-          colorCodeQuery.equalTo('option_id', parseInt(colorOptionValue.option_id));
-          colorCodeQuery.equalTo('option_value_id', parseInt(colorOptionValue.id));
-          return colorCodeQuery.first();
+    		return delay(50).then(function() {
+          var query = new Parse.Query(ColorCode);
+          query.equalTo('option_id', parseInt(colorOptionValue.option_id));
+          query.equalTo('option_value_id', parseInt(colorOptionValue.id));
+          return query.first();
           
-        }).then(function(colorCodeResult) {
-          if (colorCodeResult) {
+        }).then(function(result) {
+          if (result) {
             logInfo('ColorCode exists.');
-            return createOptionObject(bcOptions, colorOptionValue, 'color', colorCodeResult).save(null, {useMasterKey: true});
+            return createOptionObject(bcOptions, colorOptionValue, 'color', result).save(null, {useMasterKey: true});
           } else {
             logInfo('ColorCode is new.');
             totalOptionsAdded++;
@@ -591,20 +601,90 @@ Parse.Cloud.job("updateOptions", function(request, status) {
 		_.each(stoneOptionValues, function(stoneOptionValue) {
   		logInfo('process stone options id: ' + stoneOptionValue.id);
   		promise = promise.then(function() {
-    		return delay(500).then(function() {
-          var stoneCodeQuery = new Parse.Query(StoneCode);
-          stoneCodeQuery.equalTo('option_id', parseInt(stoneOptionValue.option_id));
-          stoneCodeQuery.equalTo('option_value_id', parseInt(stoneOptionValue.id));
-          return stoneCodeQuery.first();
+    		return delay(50).then(function() {
+          var query = new Parse.Query(StoneCode);
+          query.equalTo('option_id', parseInt(stoneOptionValue.option_id));
+          query.equalTo('option_value_id', parseInt(stoneOptionValue.id));
+          return query.first();
 
-        }).then(function(stoneCodeResult) {
-          if (stoneCodeResult) {
+        }).then(function(result) {
+          if (result) {
             logInfo('StoneCode exists.');
-            return createOptionObject(bcOptions, stoneOptionValue, 'stone', stoneCodeResult).save(null, {useMasterKey: true});
+            return createOptionObject(bcOptions, stoneOptionValue, 'stone', result).save(null, {useMasterKey: true});
           } else {
             logInfo('StoneCode is new.');
             totalOptionsAdded++;
             return createOptionObject(bcOptions, stoneOptionValue, 'stone').save(null, {useMasterKey: true});
+          }
+      		
+    		}).then(function(response) {
+          return response;
+          
+        }, function(error) {
+          logError(error);
+      		return error;
+    			
+    		});
+  		});
+    });			
+    return promise;
+    
+  }).then(function() {
+    logInfo('Number of size options to search: ' + sizeOptionValues.length);
+    
+    var promise = Parse.Promise.as();
+		_.each(sizeOptionValues, function(sizeOptionValue) {
+  		logInfo('process size options id: ' + sizeOptionValue.id);
+  		promise = promise.then(function() {
+    		return delay(50).then(function() {
+          var query = new Parse.Query(SizeCode);
+          query.equalTo('option_id', parseInt(sizeOptionValue.option_id));
+          query.equalTo('option_value_id', parseInt(sizeOptionValue.id));
+          return query.first();
+
+        }).then(function(result) {
+          if (result) {
+            logInfo('SizeCode exists.');
+            return createOptionObject(bcOptions, sizeOptionValue, 'size', result).save(null, {useMasterKey: true});
+          } else {
+            logInfo('SizeCode is new.');
+            totalOptionsAdded++;
+            return createOptionObject(bcOptions, sizeOptionValue, 'size').save(null, {useMasterKey: true});
+          }
+      		
+    		}).then(function(response) {
+          return response;
+          
+        }, function(error) {
+          logError(error);
+      		return error;
+    			
+    		});
+  		});
+    });			
+    return promise;
+    
+  }).then(function() {
+    logInfo('Number of misc options to search: ' + miscOptionValues.length);
+    
+    var promise = Parse.Promise.as();
+		_.each(miscOptionValues, function(miscOptionValue) {
+  		logInfo('process misc options id: ' + miscOptionValue.id);
+  		promise = promise.then(function() {
+    		return delay(50).then(function() {
+          var query = new Parse.Query(MiscCode);
+          query.equalTo('option_id', parseInt(miscOptionValue.option_id));
+          query.equalTo('option_value_id', parseInt(miscOptionValue.id));
+          return query.first();
+
+        }).then(function(result) {
+          if (result) {
+            logInfo('MiscCode exists.');
+            return createOptionObject(bcOptions, miscOptionValue, 'misc', result).save(null, {useMasterKey: true});
+          } else {
+            logInfo('MiscCode is new.');
+            totalOptionsAdded++;
+            return createOptionObject(bcOptions, miscOptionValue, 'misc').save(null, {useMasterKey: true});
           }
       		
     		}).then(function(response) {
@@ -737,6 +817,12 @@ var createOptionObject = function(bcOptions, optionData, type, currentOption) {
       case 'stone':
         option = new StoneCode();
         break;
+      case 'size':
+        option = new SizeCode();
+        break;
+      case 'misc':
+        option = new MiscCode();
+        break;
       default:
         return false;
     }
@@ -767,10 +853,12 @@ var getOptionCode = function(type, label) {
   cleanedLabel = cleanedLabel.replace(/-/g, ' ');
   cleanedLabel = cleanedLabel.replace(/\//g, ' ');
   cleanedLabel = cleanedLabel.replace(/\./g, ' ');
+  cleanedLabel = cleanedLabel.replace(/\"/g, ' ');
+  cleanedLabel = cleanedLabel.replace(/\+/g, ' ');
   var firstLetters = cleanedLabel.match(/\b(\w)/g);
   var firstTwoLetters = cleanedLabel.match(/\b(\S\w)/g);
-  if (!isNaN(firstLetters[0])) firstLetters[0] = cleanedLabel.slice(0, cleanedLabel.indexOf(' '));
-  if (!isNaN(firstTwoLetters[0])) firstTwoLetters[0] = cleanedLabel.slice(0, cleanedLabel.indexOf(' '));
+  if (firstLetters && !isNaN(firstLetters[0])) firstLetters[0] = cleanedLabel.slice(0, cleanedLabel.indexOf(' '));
+  if (firstTwoLetters && !isNaN(firstTwoLetters[0])) firstTwoLetters[0] = cleanedLabel.slice(0, cleanedLabel.indexOf(' '));
     
   switch (type) {
     case 'color':
@@ -779,7 +867,15 @@ var getOptionCode = function(type, label) {
       break;
     case 'stone':
       // Return first 2 letters of first word, and first 1 letter of 2nd
-      return firstTwoLetters.length > 1 ? firstTwoLetters[0] + firstLetters[1] : cleanedLabel;
+      return firstTwoLetters && firstTwoLetters.length > 1 ? firstTwoLetters[0] + firstLetters[1] : cleanedLabel;
+      break;
+    case 'size':
+      // Return size
+      return label;
+      break;
+    case 'misc':
+      // Return first 2 letters of first word, and first 1 letter of 2nd
+      return firstTwoLetters && firstTwoLetters.length > 1 ? firstTwoLetters[0] + firstLetters[1] : cleanedLabel;
       break;
     default:
       console.error("Error with getOptionCode: Option type was not provided.");

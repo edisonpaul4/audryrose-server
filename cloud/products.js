@@ -1504,6 +1504,8 @@ Parse.Cloud.define("createResize", function(request, response) {
       orderQuery.include('orderProducts');
       orderQuery.include('orderProducts.variants');
       orderQuery.include('orderProducts.variants.designer');
+      orderQuery.include('orderProducts.editedVariants');
+      orderQuery.include('orderProducts.editedVariants.designer');
       orderQuery.include('orderProducts.vendorOrders');
       orderQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
       orderQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
@@ -1716,6 +1718,8 @@ Parse.Cloud.define("saveResize", function(request, response) {
       orderQuery.include('orderProducts');
       orderQuery.include('orderProducts.variants');
       orderQuery.include('orderProducts.variants.designer');
+      orderQuery.include('orderProducts.editedVariants');
+      orderQuery.include('orderProducts.editedVariants.designer');
       orderQuery.include('orderProducts.vendorOrders');
       orderQuery.include('orderProducts.vendorOrders.vendorOrderVariants');
       orderQuery.include('orderProducts.vendorOrders.vendorOrderVariants.vendor');
@@ -1807,6 +1811,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     ordersQuery.ascending('date_created');
     ordersQuery.include('orderProducts');
     ordersQuery.include('orderProducts.variants');
+    ordersQuery.include('orderProducts.editedVariants');
     ordersQuery.limit(10000);
     return ordersQuery.find();
     
@@ -1841,7 +1846,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
       _.each(orderProductsToQueue, function(orderProduct) {
         var orderProductAwaitingInventory = [];
         var orderProductAwaitingInventoryVendorOrders = [];
-        var variants = orderProduct.has('variants') ? orderProduct.get('variants') : [];
+        var variants = orderProduct.has('editedVariants') ? orderProduct.get('editedVariants') : orderProduct.has('variants') ? orderProduct.get('variants') : [];
         _.each(variants, function(variant) {
           awaitingInventory = awaitingInventory.map(function(item) {
             if (item.object.get('variant').id == variant.id) {
