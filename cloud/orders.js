@@ -3046,6 +3046,10 @@ var createOrderProductCustomVariant = function(variantData) {
       variant.set('size_label', sizeCode.get('label'));
       variant.set('size_value', sizeCode.get('value'));
       variant.set('sizeCode', sizeCode);
+    } else if (variantData.selectedSize) {
+      logInfo('set size to manual value: ' + variantData.selectedSize);
+      variant.set('size_label', variantData.selectedSize);
+      variant.set('size_value', variantData.selectedSize);      
     }
     
     if (variantData.selectedMisc) {
