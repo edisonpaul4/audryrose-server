@@ -1478,8 +1478,10 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
               }
               if (totalReserved > 0) totalToSubtract -= totalReserved;
               
-              variant.increment('inventoryLevel', (totalToSubtract * -1));
-              logInfo('Set inventory for variant ' + variant.get('variantId') + ' to ' + variant.get('inventoryLevel'), true);
+              var newInventoryLevel = variant.get('inventoryLevel') - totalToSubtract;
+              logInfo('Set inventory for variant ' + variant.get('variantId') + ' from ' + variant.get('inventoryLevel') + ' to ' + newInventoryLevel, true);
+              variant.set('inventoryLevel', newInventoryLevel);
+              
               if (variant.get('inventoryLevel') < 0) {
                 variant.set('inventoryLevel', 0);
                 // TODO: Add activity log here for negative inventory level
@@ -2188,8 +2190,9 @@ var getOrderProductVariants = function(orderProduct) {
       var variantMatches = [];
       if (parentProduct.has('isBundle') && parentProduct.get('isBundle') == true) {
         orderProduct.set('isBundle', true);
-        var variantsToMatch = parentProduct.has('bundleVariants') ? parentProduct.get('bundleVariants') : [];
-        var bundleVariantMatches = getOrderProductVariantMatches(orderProduct, variants);
+        var bundleVariants = parentProduct.has('bundleVariants') ? parentProduct.get('bundleVariants') : [];
+        variantMatches = getOrderProductVariantMatches(orderProduct, variants, bundleVariants);
+/*
         for (var i = 0; i < variantsToMatch.length; i++) {
           var variant = variantsToMatch[i];
           if (bundleVariantMatches && bundleVariantMatches.length > 0) {
@@ -2197,6 +2200,10 @@ var getOrderProductVariants = function(orderProduct) {
               var bundleVariant = bundleVariantMatches[j];
               if (variant.get('productId') == bundleVariant.get('productId')) {
                 logInfo('getOrderProductVariants: add ' + bundleVariant.get('productId') + ' to bundle');
+                _.each(bundleVariant.get('variantOptions'), function(variantOption) {
+                  
+                });
+                console.log(bundleVariant.get('variantOptions'))
                 variantMatches.push(bundleVariant);
                 bundleVariantMatches.splice(j, 1);
                 break;
@@ -2206,6 +2213,7 @@ var getOrderProductVariants = function(orderProduct) {
             variantMatches.push(variant);
           }
         }
+*/
       } else {
         orderProduct.set('isBundle', false);
         variantMatches = getOrderProductVariantMatches(orderProduct, variants);
@@ -2234,10 +2242,10 @@ var getOrderProductVariants = function(orderProduct) {
       }
       
     } else if (parentProduct) {
-      logInfo('getOrderProductVariants: product ordered has no variants');
+//       logInfo('getOrderProductVariants: product ordered has no variants');
       return false;
     } else {
-      logInfo('getOrderProductVariants: custom product ordered without variants');
+//       logInfo('getOrderProductVariants: custom product ordered without variants');
       orderProduct.set('isCustom', true);
     }
     return orderProduct;
@@ -2272,68 +2280,114 @@ var getOrderProductShippingAddress = function(orderProduct) {
   return promise;
 }
 
-var getOrderProductVariantMatches = function(orderProduct, variants) {
+var getOrderProductVariantMatches = function(orderProduct, variants, bundleVariants) {
+  
   var totalVariants = variants ? variants.length : 0;
-  logInfo('getOrderProductVariantMatches: ' + totalVariants + ' variants found for product ' + orderProduct.get('product_id'));
+  var totalBundleVariants = bundleVariants ? bundleVariants.length : 0;
   var productOptions = orderProduct.get('product_options');
   var totalProductOptions = productOptions ? productOptions.length : 0;
-  logInfo('getOrderProductVariantMatches: product has ' + totalProductOptions + ' options');
+  
+  // Get the options ordered by the customer
+  var productOptionIds = [];
+  if (totalProductOptions > 0) {
+    _.each(productOptions, function(productOption) {
+      if (productOptionIds.indexOf(productOption.option_id) < 0) productOptionIds.push(productOption.option_id);
+    });
+    logInfo('getOrderProductVariantMatches: order product options are ' + productOptionIds.join(','));
+  }
   
   if (totalVariants == 1 && totalProductOptions == 0) {
-    logInfo('getOrderProductVariantMatches: Matched 1 variant');
+    
+    // If product has only 1 variant and no options ordered by customer, return simple order product with 1 variant
+    logInfo('getOrderProductVariantMatches: Product has 1 variant and no order product options');
     return variants;
     
-  } else {
-
+  } else if (totalBundleVariants > 0 && totalProductOptions == 0) {
+    
+    // If product is a bundle and no options ordered by customer, return the default bundle variants
+    logInfo('getOrderProductVariantMatches: Product has ' + totalBundleVariants + ' bundle variant and no order product options');
+    return bundleVariants;
+    
+  } else if (totalBundleVariants > 0) {
+    
+    // If product is a bundle, match variants to default variants
+    logInfo('getOrderProductVariantMatches: Product has ' + totalBundleVariants + ' bundle variant and no order product options');
+    
     var matchingVariants = [];
-    _.each(variants, function(variant) {
+    _.each(bundleVariants, function(bundleVariant) {
+      // Get the default options for a bundle variant
+      var bundleDefaultOptions = [];
+      if (bundleVariant.has('variantOptions')) {
+        _.each(bundleVariant.get('variantOptions'), function(bundleOption) {
+          var valid = true;
+          _.map(bundleDefaultOptions, function(option) {
+            if (option.option_id == bundleOption.option_id) valid = false;
+            return option;
+          });
+          if (productOptionIds.indexOf(bundleOption.option_id) >= 0) valid = false;
+          if (valid) bundleDefaultOptions.push(bundleOption);
+        });
+      }
+      logInfo('getOrderProductVariantMatches: bundle variant has ' + bundleDefaultOptions.length + ' defaults');
+      
+      logInfo('getOrderProductVariantMatches: ' + variants.length + ' variants to check');
+      // Get variants that match default options
+      var variantsMatchingDefaults = _.filter(variants, function(variant) {
+        var matches = true;
+        var variantOptions = variant.has('variantOptions') ? variant.get('variantOptions') : [];
+        _.each(variantOptions, function(vo) {
+          _.each(bundleDefaultOptions, function(o) {
+            if (o.option_id == vo.option_id && o.option_value_id != vo.option_value_id) matches = false;
+          });
+        });
+        return matches;
+      });
+      logInfo('getOrderProductVariantMatches: ' + variantsMatchingDefaults.length + ' variants match defaults');
+      
+      // Get variants that match order product options
+      var variantsMatchingProductOptions = _.filter(variantsMatchingDefaults, function(variant) {
+        var matches = true;
+        var variantOptions = variant.has('variantOptions') ? variant.get('variantOptions') : [];
+        _.each(variantOptions, function(vo) {
+          _.each(productOptions, function(o) {
+            if (o.option_id == vo.option_id) {
+//               console.log(bundleVariant.get('productId') + ':' + variant.get('productId') + ' - ' + o.option_id + ':' + o.value + ' - ' + vo.option_id + ':' + vo.option_value_id)
+              if (o.value != vo.option_value_id || bundleVariant.get('productId') != variant.get('productId')) matches = false;
+            }
+          });
+        });
+        return matches;
+      });
+      logInfo('getOrderProductVariantMatches: ' + variantsMatchingProductOptions.length + ' variants match order product options');
+      
+      matchingVariants = matchingVariants.concat(variantsMatchingProductOptions);
+      
+    });
+    return matchingVariants;
+    
+  } else {
+    
+    var matchingVariants = [];
+    
+    // Get variants that match order product options
+    var variantsMatchingProductOptions = _.filter(variants, function(variant) {
+      var matches = true;
       var variantOptions = variant.has('variantOptions') ? variant.get('variantOptions') : [];
-      
-      var matchesProductOptions = false;
-      var totalOptionsToCheck = totalProductOptions;
-      var optionsChecked = 0;
-      var optionMatches = 0;
-      
-//       logInfo('getOrderProductVariantMatches: variant ' + variant.get('variantId') + ' ' + ' totalOptionsToCheck:' + totalOptionsToCheck);
-
-      _.each(productOptions, function(productOption) {
-        optionsChecked++;
-        _.each(variantOptions, function(variantOption) {
-//           logInfo('check po:' + productOption.option_id + ' vo:' + variantOption.option_id + ', pv:' + productOption.value + ' vv:' + variantOption.option_value_id);
-          if (productOption.option_id == variantOption.option_id && productOption.value == variantOption.option_value_id) {
-//             logInfo('getOrderProductVariantMatches: matched option_id:' + productOption.option_id + ' option_value_id:' + productOption.value);
-            optionMatches++;
+      _.each(variantOptions, function(vo) {
+        _.each(productOptions, function(o) {
+          if (o.option_id == vo.option_id) {
+//             console.log(o.option_id + ':' + o.value + ' - ' + vo.option_id + ':' + vo.option_value_id)
+            if (o.value != vo.option_value_id) matches = false;
           }
         });
-        if (CUSTOM_PRODUCT_OPTIONS.indexOf(productOption.option_id) >= 0) {
-          // Option is customizable, force it to match
-          optionMatches++;
-        } 
-        if (optionsChecked == totalOptionsToCheck && optionMatches == totalOptionsToCheck) {
-          // All options checked
-          matchesProductOptions = true;
-        }
       });
-      
-      if (matchesProductOptions) {
-        logInfo('getOrderProductVariantMatches: Matched variant ' + variant.id);
-        matchingVariants.push(variant);
-      }
+      return matches;
     });
-    logInfo('getOrderProductVariantMatches: ' + matchingVariants.length + ' variants match');
+    logInfo('getOrderProductVariantMatches: ' + variantsMatchingProductOptions.length + ' variants match order product options');
     
-    if (matchingVariants.length > 0 && orderProduct.has('isBundle') && orderProduct.get('isBundle') == true) {
-      logInfo('getOrderProductVariantMatches: Is bundle, matched multiple variants');
-      return matchingVariants; // TODO: MAKE SURE VARIANTS MATCH DEFAULT PRODUCT OPTIONS
-      
-    } else if (matchingVariants.length > 0) {
-      matchedVariant = matchingVariants[0];
-      logInfo('getOrderProductVariantMatches: Matched variant ' + matchedVariant.get('variantId'));
-      return [matchedVariant];
-    } else {
-      logInfo('getOrderProductVariantMatches: Matched no variants');
-      return matchingVariants;
-    }
+    matchingVariants = matchingVariants.concat(variantsMatchingProductOptions);
+    
+    return matchingVariants;
   }
 
 }
@@ -2353,7 +2407,6 @@ var getOrderProductsStatus = function(orderProducts) {
     	logInfo('Get status for OrderProduct ' + orderProduct.get('orderProductId'));
     	
     	var orderProductVariants = orderProduct.has('editedVariants') ? orderProduct.get('editedVariants') : orderProduct.has('variants') ? orderProduct.get('variants') : null;
-    	console.log(orderProductVariants)
     	var vendorOrders = orderProduct.has('vendorOrders') ? orderProduct.get('vendorOrders') : null;
     	var resizes = orderProduct.has('resizes') ? orderProduct.get('resizes') : null;
     	
@@ -2523,6 +2576,7 @@ var createOrderShipmentObject = function(shipmentData, shippoLabel, currentShipm
   shipment.set('comments', shipmentData.comments);
   shipment.set('billing_address', shipmentData.billing_address);
   shipment.set('shipping_address', shipmentData.shipping_address);
+  if (!currentShipment) shipment.set('inventoryUpdated', false);
   
   var parseItemObject = function(item) {
     var obj = {};
