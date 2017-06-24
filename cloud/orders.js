@@ -1434,7 +1434,15 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
             _.each(variants, function(variant) {
               logInfo('order product variant ' + variant.get('variantId'));
               var totalToSubtract = parseInt(item.quantity);
-              if (!variant.has('inventoryLevel')) variant.set('inventoryLevel', 0);
+              
+              // If variant has already been edited, use edited one instead
+              var variantPreviouslyEdited = false;
+              _.each(variantsToSave, function(variantToSave) {
+                if (variant.id == variantToSave.id) {
+                  variant = variantToSave;
+                  variantPreviouslyEdited = true;
+                }
+              });
               
               // Check for received vendor orders and resizes with reserved inventory
               var totalReserved = 0;
@@ -1478,17 +1486,34 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
               }
               if (totalReserved > 0) totalToSubtract -= totalReserved;
               
-              var newInventoryLevel = variant.get('inventoryLevel') - totalToSubtract;
-              logInfo('Set inventory for variant ' + variant.get('variantId') + ' from ' + variant.get('inventoryLevel') + ' to ' + newInventoryLevel, true);
-              variant.set('inventoryLevel', newInventoryLevel);
-              
-              if (variant.get('inventoryLevel') < 0) {
-                variant.set('inventoryLevel', 0);
+              var startInventoryLevel = variant.has('inventoryLevel') ? variant.get('inventoryLevel') : 0;
+              var newInventoryLevel = startInventoryLevel - totalToSubtract;
+              if (newInventoryLevel < 0) {
+                newInventoryLevel = 0
                 // TODO: Add activity log here for negative inventory level
                 logInfo('Variant ' + variant.get('variantId') + ' was prevented from setting inventory to negative value', true);
               }
-              variantsToSave.push(variant);
+              logInfo('Set inventory for all variants that match this variant: ' + variant.get('variantId'));
+              _.each(variants, function(variantToUpdate) {
+                if (variant.id == variantToUpdate.id) {
+                  logInfo('Set inventory for variant ' + variant.get('variantId') + ' from ' + variant.get('inventoryLevel') + ' to ' + newInventoryLevel, true);
+                  variant.set('inventoryLevel', newInventoryLevel);
+                }
+              })
+              
+              // If variant has already been edited, replace the previously edited one
+              if (variantPreviouslyEdited) {
+                var index;
+                _.each(variantsToSave, function(variantToSave, i) {
+                  if (variant.id == variantToSave.id) index = i;
+                });
+                variantsToSave[index] = variant;
+              } else {
+                variantsToSave.push(variant);
+              }
+              
             });
+            variantsToSave = variantsToSave.concat(variants);
           } else {
             logInfo('no variants for order product ' + orderProduct.get('orderProductId'));
           }
