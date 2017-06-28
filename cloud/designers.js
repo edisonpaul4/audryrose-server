@@ -790,13 +790,13 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
     productsTable += '</td>';
     var optionsList = '';
 		if (variant.has('isCustom') && variant.get('isCustom')) {
-  		if (variant.has('color_value')) options += 'COLOR: ' + variant.get('color_value') + '<br/>';
-  		if (variant.has('size_value')) options += 'SIZE: ' + variant.get('size_value') + '<br/>';
-  		if (variant.has('gemstone_value')) options += 'STONE: ' + variant.get('gemstone_value') + '<br/>';
-  		if (variant.has('length_value')) options += 'LENGTH: ' + variant.get('length_value') + '<br/>';
-  		if (variant.has('font_value')) options += 'FONT: ' + variant.get('font_value') + '<br/>';
-  		if (variant.has('letter_value')) options += 'LETTER: ' + variant.get('letter_value') + '<br/>';
-  		if (variant.has('singlepair_value')) options += 'SINGLE/PAIR: ' + variant.get('singlepair_value') + '<br/>';
+  		if (variant.has('color_value')) optionsList += 'COLOR: ' + variant.get('color_value') + '<br/>';
+  		if (variant.has('size_value')) optionsList += 'SIZE: ' + variant.get('size_value') + '<br/>';
+  		if (variant.has('gemstone_value')) optionsList += 'STONE: ' + variant.get('gemstone_value') + '<br/>';
+  		if (variant.has('length_value')) optionsList += 'LENGTH: ' + variant.get('length_value') + '<br/>';
+  		if (variant.has('font_value')) optionsList += 'FONT: ' + variant.get('font_value') + '<br/>';
+  		if (variant.has('letter_value')) optionsList += 'LETTER: ' + variant.get('letter_value') + '<br/>';
+  		if (variant.has('singlepair_value')) optionsList += 'SINGLE/PAIR: ' + variant.get('singlepair_value') + '<br/>';
   		
 		} else if (variant.has('variantOptions')) {
       _.each(variant.get('variantOptions'), function(option) {
