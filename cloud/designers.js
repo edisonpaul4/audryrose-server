@@ -312,7 +312,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
                 logInfo('add ' + inventoryDiff + ' to variant inventory');
                 variant.increment('inventoryLevel', inventoryDiff); 
               }
-              logInfo('Set inventory for variant ' + variant.get('variantId') + ' to ' + variant.get('inventoryLevel'), true);
+              logInfo('Set inventory for variant ' + variant.id + ' to ' + variant.get('inventoryLevel'), true);
             }
             vendorOrderVariant.set('received', parseFloat(variantData.received));
             if (vendorOrderVariant.get('received') >= vendorOrderVariant.get('units')) {
@@ -789,9 +789,20 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
     productsTable += variant.has('designerProductName') ? variant.get('designerProductName') : variant.get('productName');
     productsTable += '</td>';
     var optionsList = '';
-    _.each(variant.get('variantOptions'), function(option) {
-      optionsList += option.display_name + ': ' + option.label + '<br/>';
-    });
+		if (variant.has('isCustom') && variant.get('isCustom')) {
+  		if (variant.has('color_value')) options += 'COLOR: ' + variant.get('color_value') + '<br/>';
+  		if (variant.has('size_value')) options += 'SIZE: ' + variant.get('size_value') + '<br/>';
+  		if (variant.has('gemstone_value')) options += 'STONE: ' + variant.get('gemstone_value') + '<br/>';
+  		if (variant.has('length_value')) options += 'LENGTH: ' + variant.get('length_value') + '<br/>';
+  		if (variant.has('font_value')) options += 'FONT: ' + variant.get('font_value') + '<br/>';
+  		if (variant.has('letter_value')) options += 'LETTER: ' + variant.get('letter_value') + '<br/>';
+  		if (variant.has('singlepair_value')) options += 'SINGLE/PAIR: ' + variant.get('singlepair_value') + '<br/>';
+  		
+		} else if (variant.has('variantOptions')) {
+      _.each(variant.get('variantOptions'), function(option) {
+        optionsList += option.display_name + ': ' + option.label + '<br/>';
+      });
+    }
     productsTable += tdTag + optionsList + '</td>';
     var notes = vendorOrderVariant.get('notes');
     if (vendorOrderVariant.get('isResize') == true && vendorOrderVariant.has('resizeVariant')) {
