@@ -3076,6 +3076,8 @@ var createOrderProductCustomVariant = function(variantData) {
   }).then(function(product) {
     if (product) {
       variant.set('productId', variantData.selectedProduct);
+      if (product.has('name')) variant.set('productName', product.get('name'));
+      if (product.has('designerProductName')) variant.set('designerProductName', product.get('designerProductName'));
       if (product.has('designer')) variant.set('designer', product.get('designer'));
     }
     
