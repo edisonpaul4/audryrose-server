@@ -522,7 +522,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     var data = {
       from: 'orders@loveaudryrose.com',
       to: vendor.get('name') + ' <' + vendor.get('email') + '>',
-      cc: 'Audry Rose <orders@loveaudryrose.com>',
+      cc: isProduction ? 'Audry Rose <orders@loveaudryrose.com>' : 'Testing <hello@jeremyadam.com>',
       bcc: 'male@jeremyadam.com',
       subject: 'Audry Rose Order ' + vendorOrder.get('vendorOrderNumber') + ' - ' + moment().tz('America/Los_Angeles').format('M.D.YY'),
       text: messageProductsText,
@@ -789,7 +789,7 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
     productsTable += variant.has('designerProductName') ? variant.get('designerProductName') : variant.get('productName');
     productsTable += '</td>';
     var optionsList = '';
-		if (variant.has('isCustom') && variant.get('isCustom')) {
+		if (variant) {
   		if (variant.has('color_value')) optionsList += 'COLOR: ' + variant.get('color_value') + '<br/>';
   		if (variant.has('size_value')) optionsList += 'SIZE: ' + variant.get('size_value') + '<br/>';
   		if (variant.has('gemstone_value')) optionsList += 'STONE: ' + variant.get('gemstone_value') + '<br/>';
@@ -797,12 +797,7 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
   		if (variant.has('font_value')) optionsList += 'FONT: ' + variant.get('font_value') + '<br/>';
   		if (variant.has('letter_value')) optionsList += 'LETTER: ' + variant.get('letter_value') + '<br/>';
   		if (variant.has('singlepair_value')) optionsList += 'SINGLE/PAIR: ' + variant.get('singlepair_value') + '<br/>';
-  		
-		} else if (variant.has('variantOptions')) {
-      _.each(variant.get('variantOptions'), function(option) {
-        optionsList += option.display_name + ': ' + option.label + '<br/>';
-      });
-    }
+		}
     productsTable += tdTag + optionsList + '</td>';
     var notes = vendorOrderVariant.get('notes');
     if (vendorOrderVariant.get('isResize') == true && vendorOrderVariant.has('resizeVariant')) {

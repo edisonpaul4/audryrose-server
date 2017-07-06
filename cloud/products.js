@@ -331,6 +331,28 @@ Parse.Cloud.define("getProductFilters", function(request, response) {
   });
 });
 
+Parse.Cloud.define("getProductOptions", function(request, response) {  
+  logInfo('getProductOptions cloud function --------------------------', true);
+  var startTime = moment();
+  
+  var colors = [];
+  var colorsQuery = new Parse.Query(ColorCode);
+  colorsQuery.ascending('value');
+  colorsQuery.limit(10000);
+  
+  colorsQuery.find().then(function(result) {
+    colors = result;
+
+    logInfo('getProductOptions completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+	  response.success({colors: colors});
+	  
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+	  
+  });
+});
+
 Parse.Cloud.define("loadProduct", function(request, response) {
   var startTime = moment();
   
@@ -888,6 +910,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
     _.each(variants, function(variant) {
       var objectId = variant.objectId;
       var inventory = variant.inventory;
+      var color = variant.color;
       promise = promise.then(function() {
         logInfo('saving variant: ' + objectId);
         
@@ -903,7 +926,15 @@ Parse.Cloud.define("saveVariants", function(request, response) {
           } else {
             variant.set('inventoryLevel', 0);
           }
+          if (color) {
+            variant.set('color_label', color);
+            variant.set('color_value', color);
+          } else {
+            variant.unset('color_label');
+            variant.unset('color_value');            
+          }
           logInfo('Set inventory for variant ' + variant.get('variantId') + ' to ' + variant.get('inventoryLevel'), true);
+          logInfo('Set color for variant ' + variant.get('variantId') + ' to ' + variant.get('color_value'), true);
           return variant.save(null, {useMasterKey: true});
         } else {
           logError(error);
@@ -2659,7 +2690,16 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
 		});
 		
 		variantObj.set('variantOptions', variantOptions);
+	} else {
+  	
 	}
+	
+	// Manually set color if none
+	if (!variantObj.has('color_value')) {
+  	variantObj.set('color_label', 'Yellow Gold');
+  	variantObj.set('color_value', 'Yellow Gold');
+	}
+	
 	variantObj.set('optionValueIds', optionValueIds);
 	variantObj.set('adjustedPrice', adjustedPrice);
 	
