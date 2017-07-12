@@ -1827,7 +1827,7 @@ var loadOrder = function(bcOrderId) {
     
     logInfo('Process order shipments');
     
-    if (bcOrderShipments <= 0) {
+    if (bcOrderShipments.length <= 0) {
       logInfo('No shipments found');
       if (bcOrder.status_id == 2) {
         // Set the Bigcommerce order status to 'Awaiting Fulfillment' (resets order when shipments are deleted)
@@ -1840,7 +1840,39 @@ var loadOrder = function(bcOrderId) {
       }
     } else {      
       logInfo(bcOrderShipments.length + ' shipments found');
+      return true;
     }
+    
+  }).then(function(result) {
+    
+    // Check for any order product vendor order variants that are marked as shipped but do not have bigcommerce shipment
+    var vendorOrderVariantsToSave = [];
+    if (bcOrderShipments.length <= 0) {
+      _.each(orderProducts, function(orderProduct) {
+        if (orderProduct.has('vendorOrders')) {
+          _.each(orderProduct.get('vendorOrders'), function(vendorOrder) {
+            _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
+              if (vendorOrderVariant.has('orderProducts')) {
+                _.each(vendorOrderVariant.get('orderProducts'), function(vendorOrderOrderProduct) {
+                  if (vendorOrderOrderProduct.id == orderProduct.id && vendorOrderVariant.get('shipped') > 0) {
+                    logInfo('set vendor order variant shipped value to 0');
+                    vendorOrderVariant.set('shipped', 0);
+                    vendorOrderVariantsToSave.push(vendorOrderVariant);
+                  }
+                });
+              }
+            });
+          });
+        }
+      });
+    }
+    if (vendorOrderVariantsToSave.length > 0) {
+      return Parse.Object.saveAll(vendorOrderVariantsToSave, {useMasterKey: true});
+    } else {
+      return true;
+    }
+    
+  }).then(function(result) {
     
     var promise = Parse.Promise.as();
 		_.each(bcOrderShipments, function(orderShipment) {
@@ -2754,7 +2786,10 @@ var getInventoryLevel = function(orderProductVariants, vendorOrders, resizes) {
           var variant = vendorOrderVariant.get('variant');
           if (variant.id == orderProductVariant.id) {
             var reserved = vendorOrderVariant.get('received');
-            if (vendorOrderVariant.get('shipped')) reserved -= vendorOrderVariant.get('shipped');
+            if (vendorOrderVariant.get('shipped')) {
+              reserved -= vendorOrderVariant.get('shipped');
+            }
+            logInfo('add ' + reserved + ' from reserved to inventory');
             inventoryLevel = reserved;
           }
         });        
