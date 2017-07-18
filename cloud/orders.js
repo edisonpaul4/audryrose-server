@@ -1784,7 +1784,7 @@ var loadOrder = function(bcOrderId) {
     });
     
     // Set order shippable status
-    if (numShippable == orderProducts.length || numShippable == (orderProducts.length - numShipped)) {
+    if ((numShippable > 0 && numShippable == orderProducts.length) || (numShippable > 0 && numShippable == (orderProducts.length - numShipped))) {
       logInfo('set as fully shippable');
       orderObj.set('fullyShippable', true);
       orderObj.set('partiallyShippable', false);
