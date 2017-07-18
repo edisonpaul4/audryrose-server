@@ -774,6 +774,67 @@ Parse.Cloud.job("updateAwaitingInventoryQueue", function(request, status) {
 	});
 });
 
+Parse.Cloud.job("removeDuplicateOrders", function(request, status) {
+  logInfo('removeDuplicateOrders job --------------------------', true);
+  var totalOrders = 0;
+  var totalOrdersRemoved = 0;
+  var ordersToRemove = [];
+  
+  var startTime = moment();
+    
+  var ordersQuery = new Parse.Query(Order);
+  ordersQuery.descending('updatedAt');
+  ordersQuery.limit(5000);
+  ordersQuery.find().then(function(orders) {
+    var orderIds = [];
+    var duplicateOrders = [];
+    _.each(orders, function(order) {
+      if (orderIds.indexOf(order.get('orderId')) >= 0) {
+        duplicateOrders.push(order);
+      } else {
+        orderIds.push(order.get('orderId'));
+      }
+    });
+    
+    _.each(duplicateOrders, function(duplicateOrder) {
+      var orderShipments = duplicateOrder.has('orderShipments') ? duplicateOrder.get('orderShipments') : [];
+      var isOldest = true;
+      var hasLeastShipments = true;
+      _.each(orders, function(order) {
+        if (order.get('orderId') === duplicateOrder.get('orderId')) {
+          // Make sure duplicate order is the the oldest
+          if (moment(order.get('date_modified')).isBefore(moment(duplicateOrder.get('date_modified')))) {
+            isOldest = false;
+          }
+          // Make sure duplicate order does not have more shipments than others
+          if (order.has('orderShipments') && orderShipments.length > order.get('orderShipments').length) {
+            hasLeastShipments = false;
+          }
+        }
+      });
+      var remove = isOldest && hasLeastShipments;
+      logInfo('order ' + duplicateOrder.get('orderId') + ' to be removed: ' + remove, true);
+      if (remove) ordersToRemove.push(duplicateOrder);
+    });
+    
+    if (ordersToRemove.length > 0) {
+      return Parse.Object.destroyAll(ordersToRemove)
+    } else {
+      return false;
+    }
+    
+ }).then(function() {
+    logInfo(ordersToRemove.length + ' orders removed');
+    var message = 'removeDuplicateOrders completion time: ' + moment().diff(startTime, 'seconds') + ' seconds';
+    logInfo(message, true);
+    status.success(message);
+    
+  }, function(error){
+    logError(error);
+    status.error(error);
+  });
+});
+
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
