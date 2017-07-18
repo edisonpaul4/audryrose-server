@@ -301,15 +301,15 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
                 _.each(vendorOrderVariant.get('orderProducts'), function(orderProduct) {
                   var need = orderProduct.get('quantity') - orderProduct.get('quantity_shipped');
                   var reservable = inventoryDiff > 0 ? inventoryDiff : 0;
-                  logInfo('need:' + need + ' reservable:' + reservable);
+                  logInfo('Order product #' + orderProduct.get('orderProductId') + ' needs:' + need + ' reservable:' + reservable, true);
                   if (need > 0 && reservable > 0) totalReserved += reservable > need ? need : reservable;
                 });
                 var inventoryNotReserved = totalReserved < inventoryDiff ? inventoryDiff - totalReserved : 0;
-                logInfo('totalReserved: ' + totalReserved + 'inventoryNotReserved: ' + inventoryNotReserved);
-                logInfo('add ' + inventoryNotReserved + ' to variant inventory');
+                logInfo('Order product #' + orderProduct.get('orderProductId') + ' totalReserved: ' + totalReserved + 'inventoryNotReserved: ' + inventoryNotReserved, true);
+                logInfo('Order product #' + orderProduct.get('orderProductId') + ' add ' + inventoryNotReserved + ' to variant inventory', true);
                 variant.increment('inventoryLevel', inventoryNotReserved);
               } else {
-                logInfo('add ' + inventoryDiff + ' to variant inventory');
+                logInfo('Variant ' + variant.id + ' add ' + inventoryDiff + ' to variant inventory', true);
                 variant.increment('inventoryLevel', inventoryDiff); 
               }
               logInfo('Set inventory for variant ' + variant.id + ' to ' + variant.get('inventoryLevel'), true);
