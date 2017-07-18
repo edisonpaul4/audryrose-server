@@ -796,6 +796,8 @@ Parse.Cloud.job("removeDuplicateOrders", function(request, status) {
       }
     });
     
+    logInfo('There are ' + duplicateOrders.length + ' duplicate orders');
+    
     _.each(duplicateOrders, function(duplicateOrder) {
       var orderShipments = duplicateOrder.has('orderShipments') ? duplicateOrder.get('orderShipments') : [];
       var isOldest = true;
@@ -826,6 +828,68 @@ Parse.Cloud.job("removeDuplicateOrders", function(request, status) {
  }).then(function() {
     logInfo(ordersToRemove.length + ' orders removed');
     var message = 'removeDuplicateOrders completion time: ' + moment().diff(startTime, 'seconds') + ' seconds';
+    logInfo(message, true);
+    status.success(message);
+    
+  }, function(error){
+    logError(error);
+    status.error(error);
+  });
+});
+
+Parse.Cloud.job("removeDuplicateProducts", function(request, status) {
+  logInfo('removeDuplicateProducts job --------------------------', true);
+  var totalProductsRemoved = 0;
+  var productsToRemove = [];
+  
+  var startTime = moment();
+    
+  var productsQuery = new Parse.Query(Product);
+  productsQuery.descending('updatedAt');
+  productsQuery.limit(5000);
+  productsQuery.find().then(function(products) {
+    var productIds = [];
+    var duplicateProducts = [];
+    _.each(products, function(product) {
+      if (productIds.indexOf(product.get('productId')) >= 0) {
+        duplicateProducts.push(product);
+      } else {
+        productIds.push(product.get('productId'));
+      }
+    });
+    
+    logInfo('There are ' + duplicateProducts.length + ' duplicate products');
+    
+    _.each(duplicateProducts, function(duplicateProduct) {
+      var productShipments = duplicateProduct.has('productShipments') ? duplicateProduct.get('productShipments') : [];
+      var isOldest = true;
+      var hasNoVendorOrders = true;
+      _.each(products, function(product) {
+        if (product.get('productId') === duplicateProduct.get('productId')) {
+          // Make sure duplicate product is the the oldest
+          if (moment(product.get('date_modified')).isBefore(moment(duplicateProduct.get('date_modified')))) {
+            isOldest = false;
+          }
+          // Make sure duplicate product does not have any vendor orders
+          if (product.has('hasVendorOrder') && product.get('hasVendorOrder') == true) {
+            hasNoVendorOrders = false;
+          }
+        }
+      });
+      var remove = isOldest && hasNoVendorOrders;
+      logInfo('product ' + duplicateProduct.get('productId') + ' to be removed: ' + remove, true);
+      if (remove) productsToRemove.push(duplicateProduct);
+    });
+
+    if (productsToRemove.length > 0) {
+      return Parse.Object.destroyAll(productsToRemove)
+    } else {
+      return false;
+    }
+    
+ }).then(function() {
+    logInfo(productsToRemove.length + ' products removed');
+    var message = 'removeDuplicateProducts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds';
     logInfo(message, true);
     status.success(message);
     
