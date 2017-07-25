@@ -13,6 +13,7 @@ var SizeCode = Parse.Object.extend('SizeCode');
 var MiscCode = Parse.Object.extend('MiscCode');
 var Order = Parse.Object.extend('Order');
 var VendorOrder = Parse.Object.extend('VendorOrder');
+var JobStatus = Parse.Object.extend('_JobStatus');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -913,6 +914,21 @@ Parse.Cloud.define("getRecentJobs", function(request, response) {
   
   recentJobs.find({useMasterKey:true}).then(function(jobs) {
 	  response.success(jobs);
+	  
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);	  
+  });
+});
+
+Parse.Cloud.define("getJobStatus", function(request, response) {
+  var jobId = request.params.jobId;
+
+  var jobsQuery = new Parse.Query(JobStatus);
+  jobsQuery.equalTo('objectId', jobId)
+  
+  jobsQuery.first({useMasterKey:true}).then(function(job) {
+	  response.success(job ? job.toJSON() : null);
 	  
   }, function(error) {
 	  logError(error);

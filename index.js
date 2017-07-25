@@ -1,5 +1,6 @@
 if (process.env.NODE_ENV == 'production') require('newrelic');
 var express = require('express');
+var cors = require('cors');
 var throng = require('throng');
 var ParseServer = require('parse-server').ParseServer;
 var S3Adapter = require('parse-server').S3Adapter;
@@ -65,8 +66,13 @@ var start = function() {
     "useEncryptedPasswords": false
   }, allowInsecureHTTP);
   
+  var corsOptions = {
+    exposedHeaders: ['Content-Type', 'X-Parse-Job-Status-Id']
+  };
+  
   // Set up the app
   var app = express();
+  app.use(cors(corsOptions));
   app.use(compression());
   app.use(express.static(path.join(__dirname, '/public')));
   app.engine('handlebars', exphbs({defaultLayout: 'main'}));
