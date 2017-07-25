@@ -305,8 +305,8 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
                   if (need > 0 && reservable > 0) totalReserved += reservable > need ? need : reservable;
                 });
                 var inventoryNotReserved = totalReserved < inventoryDiff ? inventoryDiff - totalReserved : 0;
-                logInfo('Order product #' + orderProduct.get('orderProductId') + ' totalReserved: ' + totalReserved + 'inventoryNotReserved: ' + inventoryNotReserved, true);
-                logInfo('Order product #' + orderProduct.get('orderProductId') + ' add ' + inventoryNotReserved + ' to variant inventory', true);
+                logInfo('totalReserved: ' + totalReserved + 'inventoryNotReserved: ' + inventoryNotReserved, true);
+                logInfo('add ' + inventoryNotReserved + ' to variant inventory', true);
                 variant.increment('inventoryLevel', inventoryNotReserved);
               } else {
                 logInfo('Variant ' + variant.id + ' add ' + inventoryDiff + ' to variant inventory', true);
