@@ -930,7 +930,7 @@ Parse.Cloud.job("removeIncompleteOrders", function(request, status) {
     		
   		}).then(function(result) {
     		if (result) {
-      		logInfo('remove order ' + orderId + ' with status ' + result.get('status'));
+      		logInfo('remove order ' + orderId + ' with status ' + result.get('status'), true);
       		return result.destroy(null, {useMasterKey: true});
     		} else {
       		return false;
