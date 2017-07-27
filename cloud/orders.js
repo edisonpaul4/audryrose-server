@@ -2240,6 +2240,10 @@ var loadOrder = function(bcOrderId) {
     bcOrder = res;
     logInfo('\nOrder ' + bcOrderId + ' is ' + bcOrder.status + ' ------------------------');
     
+    if (bcOrder.status_id === 0 || bcOrder.status_id === '0' || bcOrder.status_id === 1 || bcOrder.status_id === '1') {
+      return;
+    }
+    
     var orderQuery = new Parse.Query(Order);
     orderQuery.equalTo('orderId', parseInt(bcOrderId));
     return orderQuery.first();
