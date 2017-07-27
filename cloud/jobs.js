@@ -900,6 +900,68 @@ Parse.Cloud.job("removeDuplicateProducts", function(request, status) {
   });
 });
 
+Parse.Cloud.job("removeIncompleteOrders", function(request, status) {
+  logInfo('removeIncompleteOrders job --------------------------', true);
+  var totalOrdersToRemove = 0;
+  var totalOrdersRemoved = 0;
+  var orderIds = [];
+  var orderStatuses = [
+    {name: 'Incomplete', id: '0'},
+    {name: 'Pending', id: '1'}
+  ];
+  
+  var startTime = moment();
+  
+	var orderQuery = new Parse.Query(Order);
+	orderQuery.containedIn('status_id', [0,1]);
+	orderQuery.ascending('orderId');
+	orderQuery.limit(250);
+	orderQuery.find().then(function(results) {
+  	orderIds = results.map((result) => result.get('orderId'));
+  	
+    totalOrdersToRemove = orderIds.length;
+    logInfo('Number of orders to remove: ' + totalOrdersToRemove);
+    var promise = Parse.Promise.as();
+		_.each(orderIds, function(orderId) {
+  		promise = promise.then(function() {
+    		var orderQuery = new Parse.Query(Order);
+    		orderQuery.equalTo('orderId', orderId);
+    		return orderQuery.first();
+    		
+  		}).then(function(result) {
+    		if (result) {
+      		logInfo('remove order ' + orderId + ' with status ' + result.get('status'));
+      		return result.destroy(null, {useMasterKey: true});
+    		} else {
+      		return false;
+    		}
+  		}).then(function(result) {
+    		if (result) totalOrdersRemoved++;
+    		return true;
+        
+      }, function(error) {
+    		logError(error);
+  			
+  		});
+    });			
+    return promise;
+    
+  }).then(function() {
+    
+    var now = moment();
+    var jobTime = moment.duration(now.diff(startTime)).humanize();
+    var message = totalOrdersToRemove + ' orders to remove. ';
+    message += totalOrdersRemoved + ' orders removed. ';
+    message += 'Job time: ' + jobTime;
+    logInfo(message, true);
+    status.success(message);
+    
+  }, function(error) {
+  	logError(error);
+		status.error(error);
+  });
+});
+
 
 /////////////////////////
 //  CLOUD FUNCTIONS    //
