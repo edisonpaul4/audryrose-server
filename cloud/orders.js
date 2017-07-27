@@ -2652,7 +2652,11 @@ var getPendingOrderQuery = function() {
   afQuery.equalTo('status', 'Awaiting Fulfillment');
   var psQuery = new Parse.Query(Order);
   psQuery.equalTo('status', 'Partially Shipped');
-  return Parse.Query.or(afQuery, psQuery);
+  var asQuery = new Parse.Query(Order);
+  asQuery.equalTo('status', 'Awaiting Shipment');
+  var apQuery = new Parse.Query(Order);
+  apQuery.equalTo('status', 'Awaiting Pickup');
+  return Parse.Query.or(afQuery, psQuery, asQuery, apQuery);
 }
 
 var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
