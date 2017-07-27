@@ -162,7 +162,11 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     		
   		}).then(function(result) {
     		totalProductsProcessed++;
-    		totalVariantsAdded += result;
+    		if (!isNaN(parseFloat(result))) {
+      		totalVariantsAdded += result;
+    		} else {
+      		logInfo('loadProductVariants result ' + result, true);
+    		}
         return true;
         
       }, function(error) {
