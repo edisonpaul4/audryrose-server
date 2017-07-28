@@ -57,19 +57,22 @@ Parse.Cloud.define("getDesigners", function(request, response) {
         break; 
       case 'sent':
         designersQuery.equalTo('hasSentVendorOrder', true);
+      default:
         break; 
     }
   }
   
   designersQuery.limit(10000);
   designersQuery.include('vendors');
-  designersQuery.include('vendors.vendorOrders');
-  designersQuery.include('vendors.vendorOrders.vendorOrderVariants');
-  designersQuery.include('vendors.vendorOrders.vendorOrderVariants.orderProducts');
-  designersQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
-  designersQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
+  if (subpage !== 'completed') {
+    designersQuery.include('vendors.vendorOrders');
+    designersQuery.include('vendors.vendorOrders.vendorOrderVariants');
+    designersQuery.include('vendors.vendorOrders.vendorOrderVariants.orderProducts');
+    designersQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
+    designersQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
+  }
   
-  designersQuery.count().then(function(count) {
+  Parse.Promise.as().then(function(count) {
     totalDesigners = count;
     totalPages = Math.ceil(totalDesigners / 10000);
     designersQuery.skip((currentPage - 1) * 10000);
@@ -78,7 +81,25 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   }).then(function(results) {
     designers = results;
     
-	  response.success({designers: designers, totalPages: totalPages});
+    if (subpage === 'completed' || search) {
+      var vendorOrderQuery = new Parse.Query(VendorOrder);
+      vendorOrderQuery.equalTo('receivedAll', true);
+      vendorOrderQuery.include('vendorOrderVariants.orderProducts');
+      vendorOrderQuery.include('vendorOrderVariants.variant');
+      vendorOrderQuery.include('vendorOrderVariants.resizeVariant');
+      vendorOrderQuery.descending('dateReceived');
+      vendorOrderQuery.limit(1000);
+      return vendorOrderQuery.find();
+    } else {
+      return true;
+    }
+    
+  }).then(function(results) {
+    var completedVendorOrders;
+    if (results && results.length > 0) {
+      completedVendorOrders = results;
+    };
+	  response.success({designers: designers, totalPages: totalPages, completedVendorOrders: completedVendorOrders});
 	  
   }, function(error) {
 	  logError(error);
@@ -289,25 +310,27 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
       }).then(function(vendorOrderVariant) {
         if (vendorOrderVariant) {
           variant = vendorOrderVariant.get('variant');
+          var beforeInventory = variant.get('inventoryLevel');
           logInfo('VendorOrderVariant found, set to ' + parseFloat(variantData.units) + ' units');
           if (variantData.units != undefined) vendorOrderVariant.set('units', parseFloat(variantData.units));
           if (variantData.notes != undefined) vendorOrderVariant.set('notes', variantData.notes);
           if (variantData.received != undefined) {
             logInfo('received:' + parseFloat(variantData.received))
             if (parseFloat(variantData.received) > vendorOrderVariant.get('received')) {
-              var inventoryDiff = parseFloat(variantData.received) - vendorOrderVariant.get('received');
+              var receivedDiff = parseFloat(variantData.received) - vendorOrderVariant.get('received');
               var totalReserved = 0;
               if (vendorOrderVariant.get('orderProducts') && vendorOrderVariant.get('orderProducts').length > 0) {
                 _.each(vendorOrderVariant.get('orderProducts'), function(orderProduct) {
                   var need = orderProduct.get('quantity') - orderProduct.get('quantity_shipped');
-                  var reservable = inventoryDiff > 0 ? inventoryDiff : 0;
+                  var reservable = receivedDiff > 0 ? receivedDiff : 0;
                   logInfo('Order product #' + orderProduct.get('orderProductId') + ' needs:' + need + ' reservable:' + reservable, true);
                   if (need > 0 && reservable > 0) totalReserved += reservable > need ? need : reservable;
                 });
-                var inventoryNotReserved = totalReserved < inventoryDiff ? inventoryDiff - totalReserved : 0;
+                var inventoryNotReserved = totalReserved < receivedDiff ? receivedDiff - totalReserved : 0;
                 logInfo('totalReserved: ' + totalReserved + 'inventoryNotReserved: ' + inventoryNotReserved, true);
                 logInfo('add ' + inventoryNotReserved + ' to variant inventory', true);
                 variant.increment('inventoryLevel', inventoryNotReserved);
+
               } else {
                 logInfo('Variant ' + variant.id + ' add ' + inventoryDiff + ' to variant inventory', true);
                 variant.increment('inventoryLevel', inventoryDiff); 
@@ -340,6 +363,9 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
         }
         
         if (variant) {
+          var afterInventory = variant.get('inventoryLevel');
+          var inventoryDiff = afterInventory - beforeInventory;
+          logInfo('inventory change ' + (inventoryDiff >= 0 ? '+' : '-') + Math.abs(inventoryDiff), true);
           if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
           return variant.save(null, {useMasterKey:true});
         } else {
