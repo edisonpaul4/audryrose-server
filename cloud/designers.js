@@ -365,7 +365,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
         if (variant) {
           var afterInventory = variant.get('inventoryLevel');
           var inventoryDiff = afterInventory - beforeInventory;
-          logInfo('inventory change ' + (inventoryDiff >= 0 ? '+' : '-') + Math.abs(inventoryDiff), true);
+          logInfo('inventory change ' + (inventoryDiff >= 0 ? '+' : '-') + Math.abs(inventoryDiff) + ' for variant ' + variant.get('variantId'), true);
           if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
           return variant.save(null, {useMasterKey:true});
         } else {
