@@ -2766,7 +2766,6 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
 
 var createOrderObject = function(orderData, currentOrder) {
   var order = (currentOrder) ? currentOrder : new Order();
-  
   order.set('orderId', parseInt(orderData.id));
   order.set('date_created', moment.utc(orderData.date_created, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
   order.set('date_modified', moment.utc(orderData.date_modified, 'ddd, DD MMM YYYY HH:mm:ss Z').toDate());
@@ -2815,6 +2814,8 @@ var createOrderObject = function(orderData, currentOrder) {
   order.set('coupon_discount', parseFloat(orderData.coupon_discount));
   order.set('shipping_address_count', parseInt(orderData.shipping_address_count));
   order.set('is_deleted', orderData.is_deleted == 'true');
+  order.set('geoip_country', orderData.geoip_country);
+  order.set('geoip_country_iso2', orderData.geoip_country_iso2);
   
   return order;
 }
