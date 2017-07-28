@@ -341,10 +341,10 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
             if (vendorOrderVariant.get('received') >= vendorOrderVariant.get('units')) {
               vendorOrderVariant.set('done', true);
             }
-            var afterInventory = variant.get('inventoryLevel');
-            var inventoryDiff = afterInventory - beforeInventory;
-            logInfo('inventory change ' + (inventoryDiff >= 0 ? '+' : '-') + Math.abs(inventoryDiff) + ' for variant ' + variant.get('variantId'), true);
           }
+          var afterInventory = variant.get('inventoryLevel');
+          var inventoryDiff = afterInventory - beforeInventory;
+          if (inventoryDiff !== 0) logInfo('inventory change ' + (inventoryDiff >= 0 ? '+' : '-') + Math.abs(inventoryDiff) + ' for variant ' + variant.get('variantId'), true);
 //           vendorOrderVariant.set('vendorOrder', vendorOrder);
           return vendorOrderVariant.save(null, {useMasterKey:true});
         } else {
