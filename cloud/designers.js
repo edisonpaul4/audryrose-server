@@ -84,6 +84,7 @@ Parse.Cloud.define("getDesigners", function(request, response) {
     if (subpage === 'completed' || search) {
       var vendorOrderQuery = new Parse.Query(VendorOrder);
       vendorOrderQuery.equalTo('receivedAll', true);
+      vendorOrderQuery.include('vendor');
       vendorOrderQuery.include('vendorOrderVariants.orderProducts');
       vendorOrderQuery.include('vendorOrderVariants.variant');
       vendorOrderQuery.include('vendorOrderVariants.resizeVariant');
@@ -162,6 +163,8 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
 
 Parse.Cloud.define("saveVendor", function(request, response) {
   logInfo('saveVendor cloud function --------------------------', true);
+  
+  var startTime = moment();
   
   var completed = false;
   setTimeout(function() {
@@ -254,7 +257,8 @@ Parse.Cloud.define("saveVendor", function(request, response) {
     
   }).then(function(designerObject) {
     completed = true;
-    response.success(designerObject);
+    logInfo('saveVendor completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    response.success({updatedDesigner: designerObject});
     
   }, function(error) {
 		logError(error);
@@ -266,6 +270,8 @@ Parse.Cloud.define("saveVendor", function(request, response) {
 
 Parse.Cloud.define("saveVendorOrder", function(request, response) {
   logInfo('saveVendorOrder cloud function --------------------------', true);
+  
+  var startTime = moment();
   
   var completed = false;
   setTimeout(function() {
@@ -281,6 +287,8 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
   var vendor;
   var numReceived = 0;
   var productIds = [];
+  var updatedDesigner;
+  var completedVendorOrders = [];
   
   logInfo('saveVendorOrder #' + orderId + ' ---------------------');
   
@@ -332,8 +340,8 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
                 variant.increment('inventoryLevel', inventoryNotReserved);
 
               } else {
-                logInfo('Variant ' + variant.id + ' add ' + inventoryDiff + ' to variant inventory', true);
-                variant.increment('inventoryLevel', inventoryDiff); 
+                logInfo('Variant ' + variant.id + ' add ' + receivedDiff + ' to variant inventory', true);
+                variant.increment('inventoryLevel', receivedDiff); 
               }
               logInfo('Set inventory for variant ' + variant.id + ' to ' + variant.get('inventoryLevel'), true);
             }
@@ -470,8 +478,42 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
 		response.error(error.message);
 		
 	}).then(function(designerObject) {
+  	updatedDesigner = designerObject;
+  	
+    var promise = Parse.Promise.as();
+    
+    _.each(updatedDesigner.get('vendors'), function(vendor) {
+      
+      promise = promise.then(function() {
+        logInfo('get completed vendor orders for ' + vendor.id);
+        var vendorOrderQuery = new Parse.Query(VendorOrder);
+        vendorOrderQuery.equalTo('receivedAll', true);
+        vendorOrderQuery.equalTo('vendor', vendor);
+        vendorOrderQuery.include('vendor');
+        vendorOrderQuery.include('vendorOrderVariants.orderProducts');
+        vendorOrderQuery.include('vendorOrderVariants.variant');
+        vendorOrderQuery.include('vendorOrderVariants.resizeVariant');
+        vendorOrderQuery.descending('dateReceived');
+        vendorOrderQuery.limit(20);
+        return vendorOrderQuery.find();
+      
+      }).then(function(results) {
+        logInfo(results.length + ' completed vendor order results for ' + vendor.id);
+        completedVendorOrders = completedVendorOrders.concat(results);
+        
+      }, function(error) {
+    		logError(error);
+    		
+    	});
+  	});
+  	
+  	return promise;
+    
+  }).then(function() {
   	completed = true;
-    response.success(designerObject);
+  	logInfo(completedVendorOrders.length + ' total completed vendor order results');
+  	logInfo('saveVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    response.success({updatedDesigner: updatedDesigner, completedVendorOrders: completedVendorOrders});
     
   }, function(error) {
 		logError(error);
@@ -483,6 +525,8 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
 
 Parse.Cloud.define("sendVendorOrder", function(request, response) {
   logInfo('sendVendorOrder cloud function --------------------------', true);
+  
+  var startTime = moment();
   
   var completed = false;
   setTimeout(function() {
@@ -529,13 +573,6 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     _.each(vendorOrderVariants, function(vendorOrderVariant) {
       vendorOrderVariant.set('ordered', true);
       var variant = vendorOrderVariant.get('variant');
-      if (vendorOrderVariant.get('isResize') == true) {
-        var resizeVariant = vendorOrderVariant.get('resizeVariant');
-        var subtractForResize = parseFloat(vendorOrderVariant.get('units')) * -1;
-        resizeVariant.increment('inventoryLevel', subtractForResize);
-        logInfo('Set inventory for variant ' + resizeVariant.get('variantId') + ' to ' + resizeVariant.get('inventoryLevel'), true);
-        resizeVariants.push(resizeVariant);
-      }
       if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
     });
     messageProductsHTML = convertVendorOrderMessage(messageProductsHTML, vendorOrderVariants);
@@ -549,7 +586,6 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
       from: 'orders@loveaudryrose.com',
       to: vendor.get('name') + ' <' + vendor.get('email') + '>',
       cc: isProduction ? 'Audry Rose <orders@loveaudryrose.com>' : 'Testing <hello@jeremyadam.com>',
-      bcc: 'male@jeremyadam.com',
       subject: 'Audry Rose Order ' + vendorOrder.get('vendorOrderNumber') + ' - ' + moment().tz('America/Los_Angeles').format('M.D.YY'),
       text: messageProductsText,
       html: messageProductsHTML
@@ -628,6 +664,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
   }).then(function(designerObject) {
     logInfo('sendVendorOrder complete');
     completed = true;
+    logInfo('sendVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     response.success({updatedDesigner: designerObject, successMessage: successMessage, errors: errors});
     
   }, function(error) {
@@ -826,10 +863,6 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
 		}
     productsTable += tdTag + optionsList + '</td>';
     var notes = vendorOrderVariant.get('notes');
-    if (vendorOrderVariant.get('isResize') == true && vendorOrderVariant.has('resizeVariant')) {
-      var resizeVariant = vendorOrderVariant.get('resizeVariant');
-      notes = 'Resize from size ' + resizeVariant.get('size_value') + '<br/>' + notes;
-    }
     productsTable += tdTag + notes + '</td>';
     productsTable += tdRightTag + vendorOrderVariant.get('units') + '</td>';
     productsTable += '</tr>';
