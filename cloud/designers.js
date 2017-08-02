@@ -326,6 +326,7 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
             logInfo('received:' + parseFloat(variantData.received))
             if (parseFloat(variantData.received) > vendorOrderVariant.get('received')) {
               var receivedDiff = parseFloat(variantData.received) - vendorOrderVariant.get('received');
+/*
               var totalReserved = 0;
               if (vendorOrderVariant.get('orderProducts') && vendorOrderVariant.get('orderProducts').length > 0) {
                 _.each(vendorOrderVariant.get('orderProducts'), function(orderProduct) {
@@ -340,9 +341,10 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
                 variant.increment('inventoryLevel', inventoryNotReserved);
 
               } else {
+*/
                 logInfo('Variant ' + variant.id + ' add ' + receivedDiff + ' to variant inventory', true);
                 variant.increment('inventoryLevel', receivedDiff); 
-              }
+//               }
               logInfo('Set inventory for variant ' + variant.id + ' to ' + variant.get('inventoryLevel'), true);
             }
             vendorOrderVariant.set('received', parseFloat(variantData.received));
