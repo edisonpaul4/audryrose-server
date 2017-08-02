@@ -1797,7 +1797,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
   resizesQuery.equalTo('done', false);
   resizesQuery.include('variant');
   resizesQuery.include('orderProduct');
-  resizesQuery.ascending('dateSent');
+  resizesQuery.ascending('createdAt');
   resizesQuery.limit(10000);
   resizesQuery.find().then(function(results) {
     var resizeObjects = results;
@@ -1819,7 +1819,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     vendorOrdersQuery.include('vendorOrderVariants.variant');
     vendorOrdersQuery.include('vendorOrderVariants.orderProducts');
     vendorOrdersQuery.include('resizeSourceVariant');
-    vendorOrdersQuery.ascending('dateOrdered');
+    vendorOrdersQuery.ascending('createdAt');
     vendorOrdersQuery.limit(10000);
     return vendorOrdersQuery.find();
     
@@ -1885,7 +1885,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
         var variants = orderProduct.has('editedVariants') ? orderProduct.get('editedVariants') : orderProduct.has('variants') ? orderProduct.get('variants') : [];
         _.each(variants, function(variant) {          
           awaitingInventory = awaitingInventory.map(function(item) {
-//             if (orderProduct.get('order_id') === 8599) logInfo(item.object.get('variant').id + ':' + variant.id)
+//             if (orderProduct.get('order_id') === 8655) logInfo(item.object.get('variant').id + ':' + variant.id)
             if (item.object.get('variant').id == variant.id && item.available > 0) {
               var numNeeded = orderProduct.get('quantity') - orderProduct.get('quantity_shipped');
               if (variant.get('inventoryLevel') > 0) numNeeded - variant.get('inventoryLevel');
@@ -1899,23 +1899,23 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
                 });
               }
               if (numNeeded < 0) numNeeded = 0;
-              logInfo((item.vendorOrder ? 'Vendor Order': 'Resize') + ' matched variant ' + variant.get('variantId') + '. In stock ' + variant.get('inventoryLevel') + ', need ' + numNeeded + ', available ' + item.available + ', reserved ' + item.reserved);
+              logInfo((item.vendorOrder ? 'Vendor Order '+item.vendorOrder.get('vendorOrderNumber') : 'Resize') + ' matched variant ' + variant.get('variantId') + '. In stock ' + variant.get('inventoryLevel') + ', need ' + numNeeded + ', available ' + item.available + ', reserved ' + item.reserved);
               if (numNeeded > 0 && item.available >= numNeeded) {
                 var numToSubtract = numNeeded < item.available ? numNeeded : item.available;
-//                 if (orderProduct.get('order_id') === 8599) logInfo('Subtract ' + numToSubtract + ' for ' + variant.get('variantId'));
+                if (orderProduct.get('order_id') === 8655) logInfo('Subtract ' + numToSubtract + ' for ' + variant.get('variantId'));
                 item.available -= numToSubtract;
                 item.reserved += numToSubtract;
                 orderProductReservations.push({orderProductId: orderProduct.get('orderProductId'), numReserved: numToSubtract});
-//                 if (orderProduct.get('order_id') === 8599) logInfo(item.available + ' now available for ' + variant.get('variantId'));
-//                 if (orderProduct.get('order_id') === 8599) logInfo(item.reserved + ' now reserved for ' + variant.get('variantId'));
-//                 if (orderProduct.get('order_id') === 8599) logInfo('set awaiting inventory ' + variant.get('variantId') + ' for order ' + orderProduct.get('order_id'));
+                if (orderProduct.get('order_id') === 8655) logInfo(item.available + ' now available for ' + variant.get('variantId'));
+                if (orderProduct.get('order_id') === 8655) logInfo(item.reserved + ' now reserved for ' + variant.get('variantId'));
+                if (orderProduct.get('order_id') === 8655) logInfo('set awaiting inventory ' + variant.get('variantId') + ' for order ' + orderProduct.get('order_id'));
                 orderProductAwaitingInventory.push(item.object);
                 if (item.vendorOrder) {
 //                   logInfo('set awaiting inventory vendor order ' + item.vendorOrder.get('vendorOrderNumber') + ' for order ' + orderProduct.get('order_id'));
                   orderProductAwaitingInventoryVendorOrders.push(item.vendorOrder);
                 }
               } else {
-//                 if (orderProduct.get('order_id') === 8599) logInfo('No more available for ' + variant.get('variantId'));
+                if (orderProduct.get('order_id') === 8655) logInfo('No more available for ' + variant.get('variantId'));
               }
             } 
             return item;
