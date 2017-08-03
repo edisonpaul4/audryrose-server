@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 var request = require('request');
 
-var url = process.env.WORKER_SERVER_URL + '/jobs/updateOptions';
+var url = process.env.SERVER_URL + '/jobs/updateOptions';
 var options = {
   method: "GET",
   url: url,
   headers: {
     'User-Agent': 'request',
-    'X-Parse-Application-Id': process.env.WORKER_APP_ID,
+    'X-Parse-Application-Id': process.env.APP_ID,
     'X-Parse-Master-Key': process.env.MASTER_KEY,
     'Content-Type': "application/json"    
   }
