@@ -2248,6 +2248,9 @@ var loadOrder = function(bcOrderId) {
     orderQuery.equalTo('orderId', parseInt(bcOrderId));
     return orderQuery.first();
     
+  }, function(error) {
+    logError(error);
+    
   }).then(function(orderResult) {
 //     hd = new memwatch.HeapDiff();
     
@@ -2260,6 +2263,9 @@ var loadOrder = function(bcOrderId) {
       return createOrderObject(bcOrder).save(null, {useMasterKey: true});
     }
     
+  }, function(error) {
+    logError(error);
+    
   }).then(function(result) {
 //     var diff = hd.end();
 //     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
@@ -2271,6 +2277,9 @@ var loadOrder = function(bcOrderId) {
     var request = '/orders/' + bcOrderId + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
     return bigCommerce.get(request);
     
+  }, function(error) {
+    logError(error);
+    
   }).then(function(result) {
 //     var diff = hd.end();
 //     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
@@ -2281,6 +2290,9 @@ var loadOrder = function(bcOrderId) {
     // Load order products
     var request = '/orders/' + bcOrderId + '/products?limit=' + BIGCOMMERCE_BATCH_SIZE;
     return bigCommerce.get(request);
+    
+  }, function(error) {
+    logError(error);
     
   }).then(function(bcOrderProducts) {
 //     var diff = hd.end();
@@ -2377,7 +2389,10 @@ var loadOrder = function(bcOrderId) {
         orderProductQuery.include('resizes');
     		return orderProductQuery.first();
     		
-  		}).then(function(result) {
+  		}, function(error) {
+        logError(error);
+        
+      }).then(function(result) {
     		
         logInfo('add OrderProduct ' + result.get('orderProductId') + ' to orderProducts array');
     		orderProducts.push(result);
@@ -2404,6 +2419,9 @@ var loadOrder = function(bcOrderId) {
     } else {
       return true;
     }
+    
+  }, function(error) {
+    logError(error);
     
   }).then(function(result) {
     if (result.length > 0) orderProducts = result;
@@ -2463,6 +2481,9 @@ var loadOrder = function(bcOrderId) {
     
     return true;
     
+  }, function(error) {
+    logError(error);
+    
   }).then(function(result) {
 //     var diff = hd.end();
 //     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
@@ -2485,6 +2506,9 @@ var loadOrder = function(bcOrderId) {
       logInfo(bcOrderShipments.length + ' shipments found');
       return true;
     }
+    
+  }, function(error) {
+    logError(error);
     
   }).then(function(result) {
     
@@ -2515,6 +2539,9 @@ var loadOrder = function(bcOrderId) {
       return true;
     }
     
+  }, function(error) {
+    logError(error);
+    
   }).then(function(result) {
     
     var promise = Parse.Promise.as();
@@ -2527,7 +2554,10 @@ var loadOrder = function(bcOrderId) {
         orderShipmentQuery.equalTo('shipmentId', parseInt(orderShipment.id));
     		return orderShipmentQuery.first()
     		
-  		}).then(function(orderShipmentResult) {
+  		}, function(error) {
+        logError(error);
+        
+      }).then(function(orderShipmentResult) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
@@ -2541,7 +2571,10 @@ var loadOrder = function(bcOrderId) {
           return createOrderShipmentObject(orderShipment, null);
         }
     		
-  		}).then(function(result) {
+  		}, function(error) {
+        logError(error);
+        
+      }).then(function(result) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
@@ -2553,7 +2586,10 @@ var loadOrder = function(bcOrderId) {
     		}
     		return createOrderShipmentPackingSlip(orderObj, orderShipmentObject);
     		
-  		}).then(function(result) {
+  		}, function(error) {
+        logError(error);
+        
+      }).then(function(result) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
@@ -2565,7 +2601,10 @@ var loadOrder = function(bcOrderId) {
     		}
     		return combinePdfs([orderShipmentObject.get('packingSlipUrl'), orderShipmentObject.get('shippo_label_url')]);
     		
-  		}).then(function(result) {
+  		}, function(error) {
+        logError(error);
+        
+      }).then(function(result) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
@@ -2577,14 +2616,20 @@ var loadOrder = function(bcOrderId) {
     		}
     		return orderShipmentObject.save(null, {useMasterKey: true});
     		
-  		}).then(function(result) {
+  		}, function(error) {
+        logError(error);
+        
+      }).then(function(result) {
 //         var diff = hd.end();
 //         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
 //         hd = new memwatch.HeapDiff();
         
     		orderShipments.push(result);
     		return true;
-  		});
+  		}, function(error) {
+        logError(error);
+        
+      });
     });
     return promise;
     
@@ -2602,6 +2647,9 @@ var loadOrder = function(bcOrderId) {
     }
     logInfo('save order...');
     return orderObj.save(null, {useMasterKey: true});
+    
+  }, function(error) {
+    logError(error);
     
   }).then(function() {
 //     var diff = hd.end();
