@@ -128,11 +128,6 @@ Parse.Cloud.define("deleteWebhook", function(request, response) {
 Parse.Cloud.define("addToReloadQueue", function(request, response) {
   logInfo('addToReloadQueue cloud function --------------------------', true);
   
-  var completed = false;
-  setTimeout(function() {
-    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
-  }, 20000);
-  
   var objectClass = request.params.objectClass;
   var items = request.params.items;
   var reloadQueue;
@@ -166,6 +161,10 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
       logInfo('ReloadQueue saved');
       reloadQueue = result;
     }
+    
+    // Send success response, then proceed to process queue
+    response.success('addToReloadQueue completed without response');
+    
     var queue = reloadQueue.has('queue') ? reloadQueue.get('queue') : [];
     logInfo('addToReloadQueue ' + objectClass + 's queued: ' + queue.join(','), true);
     
@@ -245,8 +244,6 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     
   }).then(function() {
     logInfo('addToReloadQueue success', true);
-    completed = true;
-    response.success('addToReloadQueue completed');
     
   });
     

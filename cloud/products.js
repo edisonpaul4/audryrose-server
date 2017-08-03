@@ -2437,7 +2437,7 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 Parse.Cloud.afterSave("Product", function(request) {  
   var productId = request.object.get('productId');
   
-  delay(5000).then(function() {
+  delay(Math.round(Math.random() * (5000 - 1000)) + 1000).then(function() {
     logInfo('Product afterSave '  + productId + ' --------------------------', true);
   
     var ordersQuery = new Parse.Query(Order);
