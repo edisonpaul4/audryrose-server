@@ -38,8 +38,7 @@ var start = function() {
       options: {
         logLevel: 'error'
       }
-    },
-    filesAdapter: "parse-server-s3-adapter"
+    }
   });
   
   var dashboard = new ParseDashboard({
