@@ -162,11 +162,6 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     		
   		}).then(function(result) {
     		totalProductsProcessed++;
-    		if (!isNaN(parseFloat(result))) {
-      		totalVariantsAdded += parseFloat(result);
-    		} else {
-      		logInfo('loadProductVariants result ' + result, true);
-    		}
         return true;
         
       }, function(error) {
@@ -183,7 +178,6 @@ Parse.Cloud.job("updateProductVariants", function(request, status) {
     var jobTime = moment.duration(now.diff(startTime)).humanize();
     var message = totalProducts + ' products need variants updated. ';
     message += totalProductsProcessed + ' products processed. ';
-    message += totalVariantsAdded + ' variants added. ';
     message += 'Job time: ' + jobTime;
     logInfo(message, true);
     status.success(message);

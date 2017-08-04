@@ -464,8 +464,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   setTimeout(function() {
     if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
   }, 20000); 
-    
-  var totalVariantsAdded = 0;
+
   var product;
   var bcProduct;
   var bcProductRules;
@@ -498,7 +497,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   
   }, function(error) {
   	logInfo('Error loading product ' + productId + ' from Bigcommerce.' + JSON.stringify(error), true);
-  	response.success(totalVariantsAdded);
+  	response.success();
 		
   }).then(function(res) {
     bcProductRules = res;
@@ -577,7 +576,6 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
           return createProductVariantObject(product, variantId, null, variantResult);
         } else {
           logInfo('Variant ' + variantId + ' is new.');
-          totalVariantsAdded++;
           return createProductVariantObject(product, variantId, null);
         }
         
@@ -674,7 +672,6 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
             return createProductVariantObject(product, variantId, variantOptions, variantResult);
           } else {
             logInfo('Variant ' + variantId + ' is new.');
-            totalVariantsAdded++;
             return createProductVariantObject(product, variantId, variantOptions);
           }
           
@@ -723,7 +720,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   }).then(function(savedProduct) {
     logInfo('loadProductVariants completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
-    response.success(totalVariantsAdded);
+    response.success();
     
   }, function(error) {
   	logError(error);
@@ -2097,9 +2094,6 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
   	return Parse.Cloud.run('loadProductVariants', {productId: bundleProductId});
     
   }).then(function(result) {
-  	
-//     var productQuery = new Parse.Query(Product);
-//     productQuery.equalTo('objectId', bundleProductId);
     productQuery.equalTo('productId', productId);
     productQuery.include('variants');
     productQuery.include('variants.colorCode');
