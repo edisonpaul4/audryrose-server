@@ -720,7 +720,7 @@ Parse.Cloud.define("loadProductVariants", function(request, response) {
   }).then(function(savedProduct) {
     logInfo('loadProductVariants completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
-    response.success();
+    response.success('success');
     
   }, function(error) {
   	logError(error);
