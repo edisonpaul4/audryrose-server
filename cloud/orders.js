@@ -1546,7 +1546,7 @@ Parse.Cloud.job("batchCreateShipments", function(request, status) {
         if (customShipment) {
           logInfo('customShipment: ' + customShipment, true);
         } else {
-          logInfo('no customShipment');
+          logInfo('Order #' + orderId + ' no customShipment');
         }
 
         // Load order shipments
@@ -1604,15 +1604,16 @@ Parse.Cloud.job("batchCreateShipments", function(request, status) {
           totalWeight += parseFloat(p.weight * p.quantity); 
           return p;
         });
+        logInfo('Order #' + orderId + ' total price: ' + totalPrice, true);
         
         var shipmentExtra = {
           bypass_address_validation: true
         };
         if (totalPrice >= 1000) {
           shipmentExtra.signature_confirmation = 'STANDARD';
-          logInfo('shipment: signature required', true);
+          logInfo('Order #' + orderId + ' shipment: signature required', true);
         } else {
-          logInfo('shipment: no signature required', true);
+          logInfo('Order #' + orderId + ' shipment: no signature required', true);
         }
         
         // Set default parcel to USPS_SmallFlatRateBox
@@ -1683,7 +1684,7 @@ Parse.Cloud.job("batchCreateShipments", function(request, status) {
         logInfo(carrier.object_id, true)
         logInfo(serviceLevel, true)
         
-        logInfo('do the shippo', true);
+        logInfo('Order #' + orderId + ' do the shippo', true);
         
         return Parse.Cloud.httpRequest({
           method: 'post',
