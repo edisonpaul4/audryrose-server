@@ -147,9 +147,9 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     // Add items to the queue if new and not currently processing
 		_.each(items, function(item) {
   		var processing = reloadQueue.has('processing') ? reloadQueue.get('processing') : [];
-      if (reloadQueue.has('queue')) {
+      if (processing.indexOf(item) < 0 && reloadQueue.has('queue')) {
         reloadQueue.addUnique('queue', item);
-      } else {
+      } else if (processing.indexOf(item) < 0) {
         reloadQueue.set('queue', [item]);
       }
     });
