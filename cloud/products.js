@@ -435,7 +435,11 @@ Parse.Cloud.define("loadProduct", function(request, response) {
 		response.error(error);
 		
 	}).then(function(productObject) {
-    return productObject.save(null, {useMasterKey: true});
+  	if (productObject) {
+    	return productObject.save(null, {useMasterKey: true});
+  	} else {
+    	return false;
+  	}
     
 /*
   }, function(error) {
@@ -2537,7 +2541,7 @@ var allCombinations = function(array) {
 
 var createProductObject = function(productData, classes, departments, designers, currentProduct) {
   var productObj = (currentProduct) ? currentProduct : new Product();
-  
+  if (!productData) return false;
   productObj.set('productId', parseInt(productData.id));
   productObj.set('name', productData.name);
   productObj.set('sku', productData.sku);
