@@ -38,7 +38,7 @@
     "numeral": "^2.0.4",
     "parse": "^1.10.0",
     "parse-dashboard": "^1.0.25",
-    "parse-server": "^2.4.0",
+    "parse-server": "^2.5.3",
     "request": "^2.79.0",
     "throng": "^4.0.0",
     "underscore": "^1.8.3",

@@ -97,18 +97,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     var promise = Parse.Promise.as();
     //products = products.slice(0,5);// REMOVE
 		_.each(products, function(productId) {
-  		promise = promise.then(function() {
-    		return Parse.Cloud.run('loadProduct', {productId: productId});
-    		
-  		}).then(function(result) {
-        return true;
-        
-      }, function(error) {
-        logError(error);
-    		return error;
-  			
-  		});
-  		allPromises.push(promise);
+  		allPromises.push(Parse.Cloud.run('loadProduct', {productId: productId}));
     });
     return Parse.Promise.when(allPromises);
     
