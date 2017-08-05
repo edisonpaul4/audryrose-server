@@ -2396,7 +2396,7 @@ var loadOrder = function(bcOrderId) {
     logError(error);
     
   }).then(function(result) {
-    if (result.length > 0) orderProducts = result;
+    if (result && result.length > 0) orderProducts = result;
     
     // Count the order's products shippable/resizable status
     logInfo('Count the orders products shippable/resizable status');
