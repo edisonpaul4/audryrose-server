@@ -1,1 +1,1 @@
-web: node --optimize_for_size --max_semi_space_size=4 --max_old_space_size=256 index.js
+web: node --optimize_for_size --max_semi_space_size=8 --max_old_space_size=512 index.js

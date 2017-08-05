@@ -1,3 +1,4 @@
+if (process.env.NODE_ENV == 'production') require('@risingstack/trace');
 var _ = require('underscore');
 var moment = require('moment-timezone');
 var BigCommerce = require('node-bigcommerce');
@@ -436,12 +437,14 @@ Parse.Cloud.define("loadProduct", function(request, response) {
 	}).then(function(productObject) {
     return productObject.save(null, {useMasterKey: true});
     
+/*
   }, function(error) {
 		logError(error);
 		response.error(error);
 		
 	}).then(function(result) {
   	return Parse.Cloud.run('updateAwaitingInventoryQueue');
+*/
   	
 	}).then(function(result) {
   	logInfo('loadProduct completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
