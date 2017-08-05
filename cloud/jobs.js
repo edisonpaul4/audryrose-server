@@ -97,9 +97,11 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     var promise = Parse.Promise.as();
     //products = products.slice(0,5);// REMOVE
 		_.each(products, function(productId) {
-  		allPromises.push(Parse.Cloud.run('loadProduct', {productId: productId}));
+  		promise = promise.then(function() {
+    		return Parse.Cloud.run('loadProduct', {productId: productId});
+  		});
     });
-    return Parse.Promise.when(allPromises);
+    return promise;
     
   }).then(function() {
     
