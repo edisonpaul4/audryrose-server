@@ -6,7 +6,6 @@ var bugsnag = require("bugsnag");
 var hummus = require('hummus');
 var streams = require('memory-streams');
 var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
-// var memwatch = require('memwatch-next');
 
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
@@ -2232,7 +2231,6 @@ var loadOrder = function(bcOrderId) {
   var totalProductsAdded = 0;
   var totalShipmentsAdded = 0;
   var orderAdded = false;
-  var hd;
   
   var orderRequest = '/orders/' + bcOrderId;
   logInfo(orderRequest);
@@ -2253,7 +2251,6 @@ var loadOrder = function(bcOrderId) {
     logError(error);
     
   }).then(function(orderResult) {
-//     hd = new memwatch.HeapDiff();
     
     if (orderResult) {
       logInfo('Order exists.');
@@ -2268,9 +2265,6 @@ var loadOrder = function(bcOrderId) {
     logError(error);
     
   }).then(function(result) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
     
     orderObj = result;
     
@@ -2282,9 +2276,6 @@ var loadOrder = function(bcOrderId) {
     logError(error);
     
   }).then(function(result) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
     
     if (result.length > 0) bcOrderShipments = result;
     
@@ -2296,12 +2287,9 @@ var loadOrder = function(bcOrderId) {
     logError(error);
     
   }).then(function(bcOrderProducts) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     
     var promise = Parse.Promise.as();
 		_.each(bcOrderProducts, function(orderProduct) {
-//   		hd = new memwatch.HeapDiff();
   		promise = promise.then(function() {
     		logInfo('Process orderProduct id: ' + orderProduct.id);
         var orderProductQuery = new Parse.Query(OrderProduct);
@@ -2315,9 +2303,6 @@ var loadOrder = function(bcOrderId) {
     		logError(error);
     		
   		}).then(function(orderProductResult) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
         if (orderProductResult) {
           logInfo('OrderProduct ' + orderProductResult.get('orderProductId') + ' exists.');
           return createOrderProductObject(orderProduct, orderObj, orderProductResult);
@@ -2331,9 +2316,6 @@ var loadOrder = function(bcOrderId) {
     		logError(error);
     		
   		}).then(function(orderProductObject) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
         logInfo('getOrderProductVariants for OrderProduct ' + orderProductObject.get('orderProductId'));
     		return getOrderProductVariants(orderProductObject);
     		
@@ -2341,9 +2323,6 @@ var loadOrder = function(bcOrderId) {
     		logError(error);
     		
   		}).then(function(orderProductObject) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
         logInfo('getOrderProductShippingAddress for OrderProduct ' + orderProductObject.get('orderProductId'));
     		return getOrderProductShippingAddress(orderProductObject);
     		
@@ -2351,9 +2330,6 @@ var loadOrder = function(bcOrderId) {
     		logError(error);
     		
   		}).then(function(orderProductObject) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
     		// Set order product quantity shippped each time to update based on BC shipment changes
     		if (bcOrderShipments.length <= 0) {
       		logInfo('Set OrderProduct quantity shipped: 0');
@@ -2375,9 +2351,6 @@ var loadOrder = function(bcOrderId) {
     		logError(error);
     		
   		}).then(function(orderProductObject) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
 
         var orderProductQuery = new Parse.Query(OrderProduct);
         orderProductQuery.equalTo('objectId', orderProductObject.id);
@@ -2407,9 +2380,6 @@ var loadOrder = function(bcOrderId) {
     return promise;
     
   }).then(function(result) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
     
     logInfo('total orderProducts: ' + orderProducts.length);
     orderObj.set('orderProducts', orderProducts);
@@ -2426,9 +2396,6 @@ var loadOrder = function(bcOrderId) {
     
   }).then(function(result) {
     if (result.length > 0) orderProducts = result;
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
     
     // Count the order's products shippable/resizable status
     logInfo('Count the orders products shippable/resizable status');
@@ -2486,9 +2453,6 @@ var loadOrder = function(bcOrderId) {
     logError(error);
     
   }).then(function(result) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
     
     logInfo('Process order shipments');
     
@@ -2547,7 +2511,6 @@ var loadOrder = function(bcOrderId) {
     
     var promise = Parse.Promise.as();
 		_.each(bcOrderShipments, function(orderShipment) {
-//   		hd = new memwatch.HeapDiff();
   		var orderShipmentObject;
   		promise = promise.then(function() {
     		logInfo('Process shipment id: ' + orderShipment.id);
@@ -2559,9 +2522,6 @@ var loadOrder = function(bcOrderId) {
         logError(error);
         
       }).then(function(orderShipmentResult) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
         
         if (orderShipmentResult) {
           logInfo('OrderShipment ' + orderShipmentResult.get('shipmentId') + ' exists.');
@@ -2576,9 +2536,6 @@ var loadOrder = function(bcOrderId) {
         logError(error);
         
       }).then(function(result) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
         
     		orderShipmentObject = result;
     		if (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('packingSlip')) {
@@ -2591,9 +2548,6 @@ var loadOrder = function(bcOrderId) {
         logError(error);
         
       }).then(function(result) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
         
     		orderShipmentObject = result;
     		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url') || (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('labelWithPackingSlip'))) {
@@ -2606,9 +2560,6 @@ var loadOrder = function(bcOrderId) {
         logError(error);
         
       }).then(function(result) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
             		
     		if (result) {
       		logInfo('Save labelWithPackingSlip');
@@ -2621,9 +2572,6 @@ var loadOrder = function(bcOrderId) {
         logError(error);
         
       }).then(function(result) {
-//         var diff = hd.end();
-//         if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//         hd = new memwatch.HeapDiff();
         
     		orderShipments.push(result);
     		return true;
@@ -2635,9 +2583,6 @@ var loadOrder = function(bcOrderId) {
     return promise;
     
   }).then(function(result) {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
-//     hd = new memwatch.HeapDiff();
     
     if (orderShipments.length > 0) {
       logInfo('set ' + orderShipments.length + ' shipments to the order');
@@ -2653,8 +2598,6 @@ var loadOrder = function(bcOrderId) {
     logError(error);
     
   }).then(function() {
-//     var diff = hd.end();
-//     if (diff.change.size_bytes > 0) logInfo('    + loadOrder memory increase:' + diff.change.size + ' total:' + diff.after.size);
     
     logInfo('order saved');
     return {added: orderAdded};

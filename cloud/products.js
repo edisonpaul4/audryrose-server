@@ -364,7 +364,6 @@ Parse.Cloud.define("loadProduct", function(request, response) {
   var productId = parseFloat(request.params.productId);
   logInfo('loadProduct cloud function ' + productId + ' --------------------------', true);
   var product;
-  var added = false;
   
   var classes = [];
   var departments = [];
@@ -427,7 +426,6 @@ Parse.Cloud.define("loadProduct", function(request, response) {
       return createProductObject(product, classes, departments, designers, productResult);
     } else {
       logInfo('Product ' + productId + ' is new.');
-      added = true;
       return createProductObject(product, classes, departments, designers);
     }
     
@@ -448,7 +446,7 @@ Parse.Cloud.define("loadProduct", function(request, response) {
 	}).then(function(result) {
   	logInfo('loadProduct completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
   	completed = true;
-    response.success({added: added});
+    response.success('success');
     
   }, function(error) {
 		logError(error);
@@ -1793,7 +1791,6 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
   var resizesQuery = new Parse.Query(Resize);
   resizesQuery.equalTo('done', false);
   resizesQuery.include('variant');
-  resizesQuery.include('orderProduct');
   resizesQuery.ascending('createdAt');
   resizesQuery.limit(10000);
   resizesQuery.find().then(function(results) {
@@ -1810,11 +1807,9 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     }
   
     var vendorOrdersQuery = new Parse.Query(VendorOrder);
-  //   vendorOrdersQuery.equalTo('orderedAll', true);
     vendorOrdersQuery.equalTo('receivedAll', false);
     vendorOrdersQuery.include('vendorOrderVariants');
     vendorOrdersQuery.include('vendorOrderVariants.variant');
-    vendorOrdersQuery.include('vendorOrderVariants.orderProducts');
     vendorOrdersQuery.include('resizeSourceVariant');
     vendorOrdersQuery.ascending('createdAt');
     vendorOrdersQuery.limit(10000);
@@ -1896,7 +1891,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
                 });
               }
               if (numNeeded < 0) numNeeded = 0;
-              logInfo((item.vendorOrder ? 'Vendor Order '+item.vendorOrder.get('vendorOrderNumber') : 'Resize') + ' matched variant ' + variant.get('variantId') + '. In stock ' + variant.get('inventoryLevel') + ', need ' + numNeeded + ', available ' + item.available + ', reserved ' + item.reserved);
+//               logInfo((item.vendorOrder ? 'Vendor Order '+item.vendorOrder.get('vendorOrderNumber') : 'Resize') + ' matched variant ' + variant.get('variantId') + '. In stock ' + variant.get('inventoryLevel') + ', need ' + numNeeded + ', available ' + item.available + ', reserved ' + item.reserved);
               if (numNeeded > 0 && item.available >= numNeeded) {
                 var numToSubtract = numNeeded < item.available ? numNeeded : item.available;
 //                 if (orderProduct.get('order_id') === 8751) logInfo('Subtract ' + numToSubtract + ' for ' + variant.get('variantId'));
@@ -1950,7 +1945,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
   }).then(function(results) {
     logInfo('updateAwaitingInventoryQueue completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
-    response.success({errors: errors});
+    response.success('success');
     
   }, function(error) {
 		logError(error);
