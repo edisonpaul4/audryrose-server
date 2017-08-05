@@ -3572,8 +3572,10 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
       shippedProducts.push(orderProduct);
     }
     var rowColor = inShipment ? 0x000000 : 0x999999;
-    var quantityText = writePdfText(cxt, orderProduct.get('quantity').toString(), regularFont, 9, rowColor, 'left', margin, rowY, 10, pageWidth, pageHeight);
-    var shippedText = writePdfText(cxt, orderProduct.get('quantity_shipped').toString(), regularFont, 9, rowColor, 'left', margin + 50, rowY, 10, pageWidth, pageHeight);
+    var quantity = orderProduct.has('quantity') ? orderProduct.get('quantity').toString() : '';
+    var quantity_shipped = orderProduct.has('quantity_shipped') ? orderProduct.get('quantity_shipped').toString() : '';
+    var quantityText = writePdfText(cxt, quantity, regularFont, 9, rowColor, 'left', margin, rowY, 10, pageWidth, pageHeight);
+    var shippedText = writePdfText(cxt, quantity_shipped, regularFont, 9, rowColor, 'left', margin + 50, rowY, 10, pageWidth, pageHeight);
     var skuText = writePdfText(cxt, orderProduct.get('sku'), regularFont, 9, rowColor, 'left', margin + 100, rowY, 10, pageWidth, pageHeight);
     var nameText = writePdfText(cxt, orderProduct.get('name'), regularFont, 9, rowColor, 'left', margin + 180, rowY, 10, pageWidth, pageHeight);
     var options = orderProduct.get('product_options');
