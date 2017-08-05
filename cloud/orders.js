@@ -2083,49 +2083,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
                   variantPreviouslyEdited = true;
                 }
               });
-              
-              // Check for received vendor orders and resizes with reserved inventory
-              var totalReserved = 0;
-              if (orderProduct.has('vendorOrders')) {
-                _.each(orderProduct.get('vendorOrders'), function(vendorOrder) {
-                  _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
-                    var reserved = vendorOrderVariant.get('received');
-                    if (vendorOrderVariant.has('shipped')) {
-                      reserved -= vendorOrderVariant.get('shipped');
-                    } else {
-                      vendorOrderVariant.set('shipped', 0);
-                    }
-                    _.each(vendorOrderVariant.get('orderProducts'), function(vendorOrderVariantProduct) {
-                      if (vendorOrderVariantProduct.get('orderProductId') == orderProduct.get('orderProductId')) {
-                        logInfo('order product ' + orderProduct.get('orderProductId') + ' has ' + reserved + ' inventory reserved from vendor order');
-                        totalReserved += parseInt(item.quantity) > reserved ? reserved : parseInt(item.quantity);
-                      }
-                    });
-                    if (totalReserved > 0 && reserved > 0) {
-                      vendorOrderVariant.increment('shipped', reserved);
-                    }
-                    vendorOrderVariantsToSave.push(vendorOrderVariant);
-                  });
-                });
-              }
-              if (orderProduct.has('resizes')) {
-                _.each(orderProduct.get('resizes'), function(resize) {
-                  var reserved = resize.get('received');
-                  if (resize.has('shipped')) {
-                    reserved -= resize.get('shipped');
-                  } else {
-                    resize.set('shipped', 0);
-                  }
-                  logInfo('order product ' + orderProduct.get('orderProductId') + ' has ' + reserved + ' inventory reserved from resize');
-                  totalReserved += parseInt(item.quantity) > reserved ? reserved : parseInt(item.quantity);
-                  if (totalReserved > 0 && reserved > 0) {
-                    resize.increment('shipped', reserved);
-                  }
-                  resizesToSave.push(resize);
-                });
-              }
-              if (totalReserved > 0) totalToSubtract -= totalReserved;
-              
+
               var startInventoryLevel = variant.has('inventoryLevel') ? variant.get('inventoryLevel') : 0;
               var newInventoryLevel = startInventoryLevel - totalToSubtract;
               if (newInventoryLevel < 0) {
@@ -3116,7 +3074,7 @@ var getOrderProductsStatus = function(orderProducts) {
       logInfo('OrderProduct has inventory: ' + inventoryLevel);
       
       var quantityToShip = orderProduct.has('quantity_shipped') ? orderProduct.get('quantity') - orderProduct.get('quantity_shipped') : orderProduct.get('quantity');
-      logInfo('OrderProduct quantity to ship: ' + quantityToShip);
+      logInfo('OrderProduct quantity: ' + orderProduct.get('quantity') + ', quantity shipped: ' + (orderProduct.has('quantity_shipped') ? orderProduct.get('quantity_shipped') : 0) + ', quantity to ship: ' + quantityToShip);
     	
     	if (orderProduct.has('quantity_shipped') && orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) {
       	logInfo('OrderProduct ' + orderProduct.get('orderProductId') + ' has already shipped');
@@ -3420,34 +3378,6 @@ var getInventoryLevel = function(orderProductVariants, vendorOrders, resizes) {
   var lowestInventoryLevel;
   _.each(orderProductVariants, function(orderProductVariant) {
     var inventoryLevel = orderProductVariant.has('inventoryLevel') && orderProductVariant.get('inventoryLevel') > 0 ? orderProductVariant.get('inventoryLevel') : 0;
-    if (vendorOrders) {
-      // Check for vendor order reserved inventory
-      _.each(vendorOrders, function(vendorOrder) {
-        _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
-          var variant = vendorOrderVariant.get('variant');
-          if (variant.id == orderProductVariant.id) {
-            var reserved = vendorOrderVariant.get('received');
-            if (vendorOrderVariant.get('shipped')) {
-              reserved -= vendorOrderVariant.get('shipped');
-            }
-            logInfo('add ' + reserved + ' from reserved to inventory');
-            inventoryLevel = reserved;
-          }
-        });        
-      });
-    }
-    if (resizes) {
-      // Check for resizes reserved inventory
-      _.each(resizes, function(resize) {
-        var variant = resize.get('variant');
-        if (variant.id == orderProductVariant.id) {
-          var reserved = resize.get('received');
-          if (resize.get('shipped')) reserved -= resize.get('shipped');
-          logInfo('add ' + reserved + ' from reserved to inventory');
-          inventoryLevel = reserved;
-        }
-      });
-    }
     if (lowestInventoryLevel == undefined) {
       lowestInventoryLevel = inventoryLevel;
     } else if (inventoryLevel < lowestInventoryLevel) {
