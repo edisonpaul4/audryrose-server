@@ -1,4 +1,5 @@
 if (process.env.NODE_ENV == 'production') require('newrelic');
+if (process.env.NODE_ENV == 'production') require('@risingstack/trace');
 var express = require('express');
 var cors = require('cors');
 var throng = require('throng');
