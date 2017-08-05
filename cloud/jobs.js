@@ -99,9 +99,15 @@ Parse.Cloud.job("updateProducts", function(request, status) {
 		_.each(products, function(productId) {
   		promise = promise.then(function() {
     		return Parse.Cloud.run('loadProduct', {productId: productId});
+    		
+  		}).then(function(result) {
+    		return true;
   		});
     });
     return promise;
+    
+	}).then(function() {
+  	return Parse.Cloud.run('updateAwaitingInventoryQueue');
     
   }).then(function() {
     
@@ -112,6 +118,7 @@ Parse.Cloud.job("updateProducts", function(request, status) {
     message += 'Job time: ' + jobTime;
     logInfo(message, true);
     status.success(message);
+    
   }, function(error) {
   	logError(error);
 		status.error(error);

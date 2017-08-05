@@ -749,6 +749,9 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   Parse.Cloud.run('loadProduct', {productId: productId}).then(function(result) {
     return Parse.Cloud.run('loadProductVariants', {productId: productId});
     
+	}).then(function(result) {
+  	return Parse.Cloud.run('updateAwaitingInventoryQueue');
+    
   }).then(function(result) {
     var productsQuery = new Parse.Query(Product);
     productsQuery.equalTo("productId", productId);
