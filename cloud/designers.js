@@ -413,41 +413,6 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
 
 	}).then(function() {
     logInfo('vendor saved');
-  	logInfo(productIds.length + ' product ids to save');
-
-    var promise = Parse.Promise.as();
-
-    _.each(productIds, function(productId) {
-      logInfo('get product id: ' + productId);
-
-      promise = promise.then(function() {
-        var productQuery = new Parse.Query(Product);
-        productQuery.equalTo('productId', productId);
-        return productQuery.first();
-
-      }).then(function(product) {
-        return product.save(null, {useMasterKey: true});
-
-      }).then(function() {
-        return;
-
-      }, function(error) {
-    		logError(error);
-
-    	});
-  	});
-
-  	return promise;
-
-  }, function(error) {
-		logError(error);
-		response.error(error.message);
-
-	}).then(function(result) {
-    logInfo('products saved');
-    return Parse.Cloud.run('updateAwaitingInventoryQueue');
-
-  }).then(function(result) {
 
     var designerQuery = new Parse.Query(Designer);
     designerQuery.equalTo('objectId', designerId);
@@ -495,10 +460,47 @@ Parse.Cloud.define("saveVendorOrder", function(request, response) {
   	return promise;
 
   }).then(function() {
-  	completed = true;
+    // Send the cloud function response
+    response.success({updatedDesigner: updatedDesigner, completedVendorOrders: completedVendorOrders});
+
+    logInfo(productIds.length + ' product ids to save');
+
+    var promise = Parse.Promise.as();
+
+    _.each(productIds, function(productId) {
+      logInfo('get product id: ' + productId);
+
+      promise = promise.then(function() {
+        var productQuery = new Parse.Query(Product);
+        productQuery.equalTo('productId', productId);
+        return productQuery.first();
+
+      }).then(function(product) {
+        return product.save(null, {useMasterKey: true});
+
+      }).then(function() {
+        return;
+
+      }, function(error) {
+    		logError(error);
+
+    	});
+  	});
+
+  	return promise;
+
+  }, function(error) {
+		logError(error);
+		response.error(error.message);
+
+	}).then(function(result) {
+    logInfo('products saved');
+    return Parse.Cloud.run('updateAwaitingInventoryQueue');
+
+  }).then(function(result) {
+    completed = true;
   	logInfo(completedVendorOrders.length + ' total completed vendor order results');
   	logInfo('saveVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
-    response.success({updatedDesigner: updatedDesigner, completedVendorOrders: completedVendorOrders});
 
   }, function(error) {
 		logError(error);
