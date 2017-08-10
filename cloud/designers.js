@@ -633,9 +633,6 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
 
   }).then(function(result) {
     logInfo('products saved');
-    return Parse.Cloud.run('updateAwaitingInventoryQueue');
-
-  }).then(function(result) {
 
     var designerQuery = new Parse.Query(Designer);
     designerQuery.equalTo('objectId', designerId);
