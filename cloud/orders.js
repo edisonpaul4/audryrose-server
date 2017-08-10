@@ -1897,7 +1897,6 @@ Parse.Cloud.job("batchPrintShipments", function(request, status) {
   var startTime = moment();
 
   var ordersToPrint = request.params.ordersToPrint;
-  console.log(ordersToPrint)
   var generatedFile;
   var errors = [];
 
