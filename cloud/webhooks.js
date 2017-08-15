@@ -66,11 +66,11 @@ Parse.Cloud.define("getWebhooks", function(request, response) {
   logInfo('getWebhooks cloud function --------------------------', true);
   bigCommerce.get('/hooks').then(function(webhooks) {
 	  response.success({webhooks: webhooks, webhookEndpoints: WEBHOOK_ENDPOINTS});
-	  
+
   }, function(error) {
 	  logError(error);
 	  response.error(error);
-	  
+
   });
 });
 
@@ -78,7 +78,7 @@ Parse.Cloud.define("createWebhook", function(request, response) {
   logInfo('createWebhook cloud function --------------------------', true);
   var endpoint = request.params.endpoint;
   var destination = request.params.destination;
-  
+
   var bcWebhookData = {
     scope: endpoint,
     destination: destination,
@@ -88,47 +88,47 @@ Parse.Cloud.define("createWebhook", function(request, response) {
     },
     is_active: true
   }
-  
+
   logInfo(bcWebhookData);
-  
+
   bigCommerce.post('/hooks', bcWebhookData).then(function(webhook) {
     logInfo(webhook);
     return bigCommerce.get('/hooks');
-    
+
   }).then(function(webhooks) {
 	  response.success({webhooks: webhooks, webhookEndpoints: WEBHOOK_ENDPOINTS});
-    
+
   }, function(error) {
 		logError(error);
 		response.error(error);
-		
+
 	});
-  
+
 });
 
 Parse.Cloud.define("deleteWebhook", function(request, response) {
   logInfo('deleteWebhook cloud function --------------------------', true);
   var id = request.params.id;
-  
+
   var request = '/hooks/' + id;
   bigCommerce.delete(request).then(function() {
     logInfo('deleted ' + id);
     return bigCommerce.get('/hooks');
-    
+
   }).then(function(webhooks) {
 	  response.success({webhooks: webhooks, webhookEndpoints: WEBHOOK_ENDPOINTS});
-    
+
   }, function(error) {
 		logError(error);
 		response.error(error);
-		
+
 	});
-  
+
 });
 
 Parse.Cloud.define("addToReloadQueue", function(request, response) {
   logInfo('addToReloadQueue cloud function --------------------------', true);
-  
+
   var objectClass = request.params.objectClass;
   var items = request.params.items;
   var reloadQueue;
@@ -144,7 +144,7 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
       reloadQueue = new ReloadQueue();
       reloadQueue.set('objectClass', objectClass);
     }
-    
+
     // Add items to the queue if new and not currently processing
 		_.each(items, function(item) {
   		var processing = reloadQueue.has('processing') ? reloadQueue.get('processing') : [];
@@ -154,35 +154,35 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
         reloadQueue.set('queue', [item]);
       }
     });
-    
+
     return reloadQueue.save(null, {useMasterKey: true});
-    
+
   }).then(function(result) {
     if (result) {
       logInfo('ReloadQueue saved');
       reloadQueue = result;
     }
-    
+
     // Send success response, then proceed to process queue
     response.success('addToReloadQueue completed without response');
-    
+
     var queue = reloadQueue.has('queue') ? reloadQueue.get('queue') : [];
     logInfo('addToReloadQueue ' + objectClass + 's queued: ' + queue.join(','), true);
-    
+
     return delay(Math.round(Math.random() * (5000 - 1000)) + 1000);
-    
+
   }).then(function() {
     return reloadQueueQuery.first();
-    
+
   }).then(function(result) {
     reloadQueue = result;
-    
+
     // Take all items from queue and move to processing
     queueToProcess = reloadQueue.get('queue');
-    
+
     // Skip processing if queue is empty
     if (queueToProcess.length < 1) return false;
-    
+
     _.each(queueToProcess, function(queueItem) {
       if (reloadQueue.has('queue')) {
         reloadQueue.addUnique('processing', queueItem);
@@ -191,9 +191,9 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
       }
       reloadQueue.remove('queue', queueItem);
     });
-    
+
     return reloadQueue.save(null, {useMasterKey: true});
-    
+
   }).then(function(result) {
     if (result) {
       logInfo('ReloadQueue queue copied to processing');
@@ -201,16 +201,16 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
     } else {
       return false;
     }
-    
+
     // Skip processing if queue is empty
     if (queueToProcess.length < 1) return false;
-    
+
     logInfo('addToReloadQueue ' + objectClass + 's processing: ' + queueToProcess.join(','), true);
-    
+
     var allPromises = [];
     var promise = Parse.Promise.as();
 		_.each(queueToProcess, function(queueItem) {
-  		
+
   		promise = promise.then(function() {
     		switch (objectClass) {
       		case 'Order':
@@ -221,33 +221,37 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
       		  logInfo('addToReloadQueue reloadProduct id: ' + queueItem, true);
       		  return Parse.Cloud.run('loadProduct', {productId: queueItem});
       		  break;
+          case 'Customer':
+      		  logInfo('addToReloadQueue reloadCustomer id: ' + queueItem, true);
+      		  return Parse.Cloud.run('loadCustomer', {customerId: queueItem});
+      		  break;
     		  default:
     		    return true;
     		    break;
     		}
-    		
+
       }).then(function(result) {
         logInfo('addToReloadQueue item success for ' + queueItem, true);
         reloadQueue.remove('processing', queueItem);
         return reloadQueue.save(null, {useMasterKey: true});
-        
+
       }).then(function(result) {
         reloadQueue = result;
         logInfo('addToReloadQueue ' + queueItem + ' removed from queue', true);
-        
+
       }, function(error) {
     		logError(error);
-    		
+
     	});
       allPromises.push(promise);
     });
     return Parse.Promise.when(allPromises);
-    
+
   }).then(function() {
     logInfo('addToReloadQueue success', true);
-    
+
   });
-    
+
 });
 
 /////////////////////////
@@ -256,51 +260,51 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
 
 Parse.Cloud.define("ordersWebhook", function(request, response) {
   var startTime = moment();
-  
+
   var completed = false;
   setTimeout(function() {
     if (!completed) response.success('ordersWebhook completed');
   }, 5000);
-  
+
   var webhookData = request.params.data;
   var requestedOrderId = parseInt(webhookData.id);
 
   logInfo('ordersWebhook cloud function order ' + requestedOrderId + ' --------------------------', true);
-  
+
   Parse.Cloud.run('addToReloadQueue', {objectClass: 'Order', items: [requestedOrderId]}).then(function(result) {
     logInfo('ordersWebhook completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
     response.success('ordersWebhook completed');
-	  
+
   }, function(error) {
 		logError(error);
 		response.error(error);
-		
+
 	});
 });
 
 Parse.Cloud.define("productsWebhook", function(request, response) {
   var startTime = moment();
-  
+
   var completed = false;
   setTimeout(function() {
     if (!completed) response.success('productsWebhook completed');
   }, 5000);
-  
+
   var webhookData = request.params.data;
   var requestedProductId = parseInt(webhookData.id);
 
   logInfo('productsWebhook cloud function order ' + requestedProductId + ' --------------------------', true);
-  
+
   Parse.Cloud.run('addToReloadQueue', {objectClass: 'Product', items: [requestedProductId]}).then(function(result) {
     logInfo('productsWebhook completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
     response.success('productsWebhook completed');
-	  
+
   }, function(error) {
 		logError(error);
 		response.error(error);
-		
+
 	});
 });
 
@@ -311,7 +315,7 @@ Parse.Cloud.define("productsWebhook", function(request, response) {
 /////////////////////////
 
 var delay = function(t) {
-  return new Promise(function(resolve) { 
+  return new Promise(function(resolve) {
     setTimeout(resolve, t)
   });
 }
