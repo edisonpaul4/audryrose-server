@@ -9,6 +9,7 @@ var streams = require('memory-streams');
 var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
 
 var Order = Parse.Object.extend('Order');
+var Customer = Parse.Object.extend('Customer');
 var OrderProduct = Parse.Object.extend('OrderProduct');
 var OrderShipment = Parse.Object.extend('OrderShipment');
 var Product = Parse.Object.extend('Product');
@@ -2161,6 +2162,7 @@ var loadOrder = function(bcOrderId) {
   var bcOrder;
   var bcOrderShipments = [];
   var orderObj;
+  var customerObj;
   var orderProducts = [];
   var orderShipments = [];
   var totalProductsAdded = 0;
@@ -2200,7 +2202,30 @@ var loadOrder = function(bcOrderId) {
     logError(error);
 
   }).then(function(result) {
+    orderObj = result;
 
+    // Create customer record
+    logInfo('get customer ' + orderObj.get('customer_id'));
+    var customerQuery = new Parse.Query(Customer);
+    customerQuery.equalTo('customerId', parseInt(orderObj.get('customer_id')));
+    return customerQuery.first();
+
+  }).then(function(customerResult) {
+    if (customerResult) {
+      logInfo('Customer exists.');
+      return createCustomerObject(orderObj, customerResult).save(null, {useMasterKey: true});
+    } else {
+      logInfo('Customer is new.');
+      return createCustomerObject(orderObj).save(null, {useMasterKey: true});
+    }
+
+  }).then(function(result) {
+    customerObj = result;
+    // Save customer pointer to order
+    orderObj.set('customer', customerObj);
+    return orderObj.save(null, {useMasterKey: true});
+
+  }).then(function(result) {
     orderObj = result;
 
     // Load order shipments
@@ -2733,6 +2758,19 @@ var createOrderObject = function(orderData, currentOrder) {
   order.set('geoip_country_iso2', orderData.geoip_country_iso2);
 
   return order;
+}
+
+var createCustomerObject = function(orderData, currentCustomer) {
+  var customer = (currentCustomer) ? currentCustomer : new Customer();
+  customer.set('customerId', parseInt(orderData.get('customer_id')));
+  var billingAddress = orderData.get('billing_address');
+  if (billingAddress) {
+    customer.set('billingAddress', billingAddress);
+    customer.set('firstName', billingAddress.first_name);
+    customer.set('lastName', billingAddress.last_name);
+  }
+
+  return customer;
 }
 
 var createOrderProductObject = function(orderProductData, order, currentOrderProduct) {
