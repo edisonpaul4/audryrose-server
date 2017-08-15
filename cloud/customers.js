@@ -30,25 +30,32 @@ Parse.Cloud.beforeSave("Customer", function(request, response) {
   var customer = request.object;
   var customerId = customer.get('customerId');
   logInfo('Customer beforeSave '  + customerId + ' --------------------------', true);
-  var ordersQuery = new Parse.Query(Order);
-  ordersQuery.equalTo('customer_id', customerId);
-  ordersQuery.limit(1000);
-  ordersQuery.find().then(function(orders) {
-    if (!orders) {
-      customer.unset('totalOrders');
-      customer.unset('totalSpend');
-    } else {
-      customer.set('totalOrders', orders.length);
-      var totalSpend = 0;
-      _.each(orders, function(order) {
-        if (NO_SPEND_ORDER_STATUSES.indexOf(order.get('status_id')) < 0) totalSpend += order.get('total_inc_tax');
-      });
-      customer.set('totalSpend', totalSpend);
-    }
-
+  if (customerId == 0) {
+    // Do not save totals for "guest" customer
+    customer.unset('totalOrders');
+    customer.unset('totalSpend');
     response.success();
+  } else {
+    var ordersQuery = new Parse.Query(Order);
+    ordersQuery.equalTo('customer_id', customerId);
+    ordersQuery.limit(1000);
+    ordersQuery.find().then(function(orders) {
+      if (!orders) {
+        customer.unset('totalOrders');
+        customer.unset('totalSpend');
+      } else {
+        customer.set('totalOrders', orders.length);
+        var totalSpend = 0;
+        _.each(orders, function(order) {
+          if (NO_SPEND_ORDER_STATUSES.indexOf(order.get('status_id')) < 0) totalSpend += order.get('total_inc_tax');
+        });
+        customer.set('totalSpend', totalSpend);
+      }
 
-  });
+      response.success();
+
+    });
+  }
 });
 
 
