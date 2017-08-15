@@ -126,6 +126,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
   ordersQuery.include('orderProducts.awaitingInventory');
   ordersQuery.include('orderProducts.awaitingInventoryVendorOrders');
   ordersQuery.include('orderShipments');
+  ordersQuery.include('customer');
 
   if (paginate) {
     ordersQuery.limit(ORDERS_PER_PAGE);
@@ -277,6 +278,7 @@ Parse.Cloud.define("getUpdatedOrders", function(request, response) {
   ordersQuery.include('orderProducts.awaitingInventory');
   ordersQuery.include('orderProducts.awaitingInventory.vendorOrder');
   ordersQuery.include('orderShipments');
+  ordersQuery.include('customer');
   ordersQuery.find().then(function(result) {
     updatedOrders = result;
 
@@ -505,6 +507,7 @@ Parse.Cloud.define("reloadOrder", function(request, response) {
     ordersQuery.include('orderProducts.awaitingInventory');
     ordersQuery.include('orderProducts.awaitingInventory.vendorOrder');
     ordersQuery.include('orderShipments');
+    ordersQuery.include('customer');
     return ordersQuery.first();
 
   }).then(function(result) {
@@ -568,6 +571,7 @@ Parse.Cloud.define("saveOrder", function(request, response) {
     ordersQuery.include('orderProducts.awaitingInventory');
     ordersQuery.include('orderProducts.awaitingInventory.vendorOrder');
     ordersQuery.include('orderShipments');
+    ordersQuery.include('customer');
     return ordersQuery.first();
 
   }).then(function(result) {
@@ -659,6 +663,7 @@ Parse.Cloud.define("saveOrderProduct", function(request, response) {
     ordersQuery.include('orderProducts.awaitingInventory');
     ordersQuery.include('orderProducts.awaitingInventory.vendorOrder');
     ordersQuery.include('orderShipments');
+    ordersQuery.include('customer');
     return ordersQuery.first();
 
   }).then(function(result) {
@@ -1064,6 +1069,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         ordersQuery.include('orderProducts.awaitingInventory');
         ordersQuery.include('orderProducts.awaitingInventory.vendorOrder');
         ordersQuery.include('orderShipments');
+        ordersQuery.include('customer');
         return ordersQuery.first();
 
       }).then(function(orderResult) {
@@ -1291,6 +1297,7 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
     ordersQuery.include('orderProducts.resizes');
     ordersQuery.include('orderProducts.awaitingInventory');
     ordersQuery.include('orderShipments');
+    ordersQuery.include('customer');
     return ordersQuery.first();
 
   }).then(function(result) {
@@ -1823,6 +1830,7 @@ Parse.Cloud.job("batchCreateShipments", function(request, status) {
         ordersQuery.include('orderProducts.awaitingInventory');
         ordersQuery.include('orderProducts.awaitingInventory.vendorOrder');
         ordersQuery.include('orderShipments');
+        ordersQuery.include('customer');
         return ordersQuery.first();
 
       }).then(function(orderResult) {
@@ -2221,11 +2229,15 @@ var loadOrder = function(bcOrderId) {
   }).then(function(result) {
     customerObj = result;
     // Save customer pointer to order
-    orderObj.set('customer', customerObj);
-    return orderObj.save(null, {useMasterKey: true});
+    if (customerObj) {
+      orderObj.set('customer', customerObj);
+      return orderObj.save(null, {useMasterKey: true});
+    } else {
+      return false;
+    }
 
   }).then(function(result) {
-    orderObj = result;
+    if (result) orderObj = result;
 
     // Load order shipments
     var request = '/orders/' + bcOrderId + '/shipments?limit=' + BIGCOMMERCE_BATCH_SIZE;
@@ -2236,7 +2248,7 @@ var loadOrder = function(bcOrderId) {
 
   }).then(function(result) {
 
-    if (result.length > 0) bcOrderShipments = result;
+    if (result && result.length > 0) bcOrderShipments = result;
 
     // Load order products
     var request = '/orders/' + bcOrderId + '/products?limit=' + BIGCOMMERCE_BATCH_SIZE;

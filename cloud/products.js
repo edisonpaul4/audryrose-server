@@ -1550,6 +1550,7 @@ Parse.Cloud.define("createResize", function(request, response) {
       orderQuery.include('orderProducts.resizes');
       orderQuery.include('orderProducts.awaitingInventory');
       orderQuery.include('orderProducts.awaitingInventory.vendorOrder');
+      orderQuery.include('customer');
       return orderQuery.find();
     } else {
       return;
@@ -1764,6 +1765,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
       orderQuery.include('orderProducts.resizes');
       orderQuery.include('orderProducts.awaitingInventory');
       orderQuery.include('orderProducts.awaitingInventory.vendorOrder');
+      orderQuery.include('customer');
       return orderQuery.find();
     } else {
       return [];
