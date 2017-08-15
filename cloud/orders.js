@@ -2773,12 +2773,19 @@ var createOrderObject = function(orderData, currentOrder) {
 
 var createCustomerObject = function(orderData, currentCustomer) {
   var customer = (currentCustomer) ? currentCustomer : new Customer();
-  customer.set('customerId', parseInt(orderData.get('customer_id')));
-  var billingAddress = orderData.get('billing_address');
-  if (billingAddress) {
-    customer.set('billingAddress', billingAddress);
-    customer.set('firstName', billingAddress.first_name);
-    customer.set('lastName', billingAddress.last_name);
+  var customerId = parseInt(orderData.get('customer_id'));
+  customer.set('customerId', customerId);
+  if (customerId === 0) {
+    customer.unset('billingAddress');
+    customer.set('firstName', 'Guest');
+    customer.set('lastName', '');
+  } else {
+    var billingAddress = orderData.get('billing_address');
+    if (billingAddress) {
+      customer.set('billingAddress', billingAddress);
+      customer.set('firstName', billingAddress.first_name);
+      customer.set('lastName', billingAddress.last_name);
+    }
   }
 
   return customer;
