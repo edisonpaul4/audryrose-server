@@ -31,7 +31,6 @@ Parse.Cloud.beforeSave("Customer", function(request, response) {
   var customer = request.object;
   var customerId = customer.get('customerId');
   logInfo('Customer beforeSave '  + customerId + ' --------------------------', true);
-  logInfo(customer)
   var ordersQuery = new Parse.Query(Order);
   ordersQuery.equalTo('customer', customer);
   ordersQuery.limit(1000);
@@ -47,7 +46,6 @@ Parse.Cloud.beforeSave("Customer", function(request, response) {
       });
       customer.set('totalSpend', totalSpend);
     }
-    logInfo('Customer beforeSave ' + orders.length + ' orders found for ' + customerId, true);
 
     response.success();
 
