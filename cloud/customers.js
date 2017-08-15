@@ -41,7 +41,7 @@ Parse.Cloud.beforeSave("Customer", function(request, response) {
       customer.set('totalOrders', orders.length);
       var totalSpend = 0;
       _.each(orders, function(order) {
-        if (NO_SPEND_ORDER_STATUSES.indexOf(order.get('status_id')) < 0) totalSpend += order.get('total_ex_tax');
+        if (NO_SPEND_ORDER_STATUSES.indexOf(order.get('status_id')) < 0) totalSpend += order.get('total_inc_tax');
       });
       customer.set('totalSpend', totalSpend);
     }
