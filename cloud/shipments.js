@@ -1,4 +1,3 @@
-if (process.env.NODE_ENV == 'production') require('@risingstack/trace');
 var _ = require('underscore');
 var moment = require('moment-timezone');
 var BigCommerce = require('node-bigcommerce');
@@ -35,25 +34,25 @@ Parse.Cloud.define("getShipments", function(request, response) {
   var totalPages;
   var currentPage = (request.params.page) ? parseInt(request.params.page) : 1;
   var currentSort = (request.params.sort) ? request.params.sort : 'name-asc';
-  
+
   var shipmentsQuery = new Parse.Query(OrderShipment);
   shipmentsQuery = getShipmentSort(shipmentsQuery, currentSort)
   shipmentsQuery.limit(SHIPMENTS_PER_PAGE);
 //   if (request.params.sort && request.params.sort != 'all') recentJobs.equalTo("status", request.params.filter);
-  
+
   shipmentsQuery.count().then(function(count) {
     totalShipments = count;
     totalPages = Math.ceil(totalShipments / SHIPMENTS_PER_PAGE);
     shipmentsQuery.skip((currentPage - 1) * SHIPMENTS_PER_PAGE);
     return shipmentsQuery.find({useMasterKey:true});
-    
+
   }).then(function(shipments) {
 	  response.success({shipments: shipments, totalPages: totalPages});
-	  
+
   }, function(error) {
     logError(error);
 	  response.error(error.message);
-	  
+
   });
 });
 

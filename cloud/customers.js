@@ -1,4 +1,3 @@
-if (process.env.NODE_ENV == 'production') require('@risingstack/trace');
 var _ = require('underscore');
 var moment = require('moment-timezone');
 var BigCommerce = require('node-bigcommerce');

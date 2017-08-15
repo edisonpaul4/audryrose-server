@@ -1,5 +1,4 @@
 if (process.env.NODE_ENV == 'production') require('newrelic');
-if (process.env.NODE_ENV == 'production') require('@risingstack/trace');
 var express = require('express');
 var cors = require('cors');
 var throng = require('throng');
@@ -22,11 +21,11 @@ var allowInsecureHTTP = true; // Change to false in production
 var start = function() {
 
   bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
-  
+
   if (!databaseUri) {
     console.log('DATABASE_URI not specified, falling back to localhost.');
   }
-  
+
   var api = new ParseServer({
     databaseURI: databaseUri || 'mongodb://localhost:27017/dev',
     cloud: __dirname + process.env.CLOUD_CODE_MAIN || __dirname + '/cloud/main.js',
@@ -41,7 +40,7 @@ var start = function() {
       }
     }
   });
-  
+
   var dashboard = new ParseDashboard({
     "apps": [
       {
@@ -59,11 +58,11 @@ var start = function() {
     ],
     "useEncryptedPasswords": false
   }, allowInsecureHTTP);
-  
+
   var corsOptions = {
     exposedHeaders: ['Content-Type', 'X-Parse-Job-Status-Id']
   };
-  
+
   // Set up the app
   var app = express();
   app.use(cors(corsOptions));
@@ -78,18 +77,18 @@ var start = function() {
   app.use('/dashboard', dashboard);
   app.use(bugsnag.requestHandler);
   app.use(bugsnag.errorHandler);
-  
+
   // Routes
   app.get('/', function (req, res) {
     res.render('home');
   });
-  
+
   var port = process.env.PORT || 1337;
   var httpServer = require('http').createServer(app);
   httpServer.listen(port, function() {
     console.log('Audry Rose server running on port ' + port + '.');
   });
-  
+
 }
 
 if (process.env === 'development') {

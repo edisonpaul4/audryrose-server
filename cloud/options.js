@@ -1,4 +1,3 @@
-if (process.env.NODE_ENV == 'production') require('@risingstack/trace');
 var _ = require('underscore');
 var moment = require('moment-timezone');
 var BigCommerce = require('node-bigcommerce');
@@ -31,7 +30,7 @@ Parse.Cloud.define("getOptions", function(request, response) {
   logInfo('getOptions cloud function --------------------------', true);
   var totalOptions;
   var subpage = request.params.subpage ? request.params.subpage : 'colors';
-  
+
   var optionsQuery;
   switch (subpage) {
     case 'colors':
@@ -46,18 +45,18 @@ Parse.Cloud.define("getOptions", function(request, response) {
   }
   optionsQuery.ascending('option_value_id');
   optionsQuery.limit(10000);
-  
+
   optionsQuery.count().then(function(count) {
     totalOptions = count;
     return optionsQuery.find({useMasterKey:true});
-    
+
   }).then(function(options) {
 	  response.success({options: options});
-	  
+
   }, function(error) {
 	  logError(error);
 	  response.error(error.message);
-	  
+
   });
 });
 
@@ -66,35 +65,35 @@ Parse.Cloud.define("saveOption", function(request, response) {
   var objectId = request.params.objectId;
   var manualCode = request.params.manualCode;
   var optionToUpdate;
-  
+
   var colorQuery = new Parse.Query(ColorCode);
   colorQuery.equalTo('objectId', objectId);
   colorQuery.first().then(function(option) {
     if (option) optionToUpdate = option;
-    
+
     var stoneQuery = new Parse.Query(StoneCode);
     stoneQuery.equalTo('objectId', objectId);
     return stoneQuery.first();
-    
+
   }).then(function(option) {
     if (option) optionToUpdate = option;
-    
+
     if (manualCode && manualCode != '') {
       optionToUpdate.set('manualCode', manualCode);
     } else {
       optionToUpdate.unset('manualCode');
     }
     return optionToUpdate.save(null, {useMasterKey: true});
-    
+
   }).then(function(optionObject) {
 	  response.success(optionObject);
-    
+
   }, function(error) {
 		logError(error);
 		response.error(error.message);
-		
+
 	});
-  
+
 });
 
 
