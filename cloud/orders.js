@@ -20,6 +20,7 @@ var ColorCode = Parse.Object.extend('ColorCode');
 var StoneCode = Parse.Object.extend('StoneCode');
 var SizeCode = Parse.Object.extend('SizeCode');
 var MiscCode = Parse.Object.extend('MiscCode');
+var Activity = Parse.Object.extend('Activity');
 
 const ORDERS_PER_PAGE = 25;
 const isProduction = process.env.NODE_ENV == 'production';
@@ -633,7 +634,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
   var generatedFile;
   var newShipments = [];
   var shipmentGroupsFailed = [];
-  var newOrderShipment = [];
+  var newOrderShipment;
   var errors = [];
 
   Parse.Cloud.httpRequest({
@@ -1914,19 +1915,19 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
 });
 
 Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
-  logInfo('OrderShipment beforeSave --------------------------');
   var orderShipment = request.object;
+  logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': --------------------------', true);
 
   // Match the OrderShipment's items to a ProductVariant and decrement the inventoryLevel by quantity shipped
   if (!orderShipment.has('inventoryUpdated') || orderShipment.get('inventoryUpdated') == false) {
     var items = orderShipment.get('items');
-    logInfo('order products need inventory updated for ' + items.length + ' items');
+    logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': order products need inventory updated for ' + items.length + ' items');
     var totalItemsProcessed = 0;
     var variantsToSave = [];
     var vendorOrderVariantsToSave = [];
     var resizesToSave = [];
     _.each(items, function(item) {
-      logInfo('get product ' + item.order_product_id);
+      logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': get product ' + item.order_product_id);
       var orderProductQuery = new Parse.Query(OrderProduct);
       orderProductQuery.equalTo('orderProductId', parseInt(item.order_product_id));
       orderProductQuery.include('variants');
@@ -1936,11 +1937,11 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
       orderProductQuery.include('resizes');
       orderProductQuery.first().then(function(orderProduct) {
         if (orderProduct) {
-          logInfo('order product ' + orderProduct.get('orderProductId') + ' exists');
+          logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': order product ' + orderProduct.get('orderProductId') + ' exists');
           if (orderProduct.has('editedVariants') || orderProduct.has('variants')) {
             var variants = orderProduct.has('editedVariants') ? orderProduct.get('editedVariants') : orderProduct.has('variants') ? orderProduct.get('variants') : [];
             _.each(variants, function(variant) {
-              logInfo('order product variant ' + variant.get('variantId'));
+              logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': order product variant ' + variant.get('variantId'), true);
               var totalToSubtract = parseInt(item.quantity);
 
               // If variant has already been edited, use edited one instead
@@ -1957,15 +1958,10 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
               if (newInventoryLevel < 0) {
                 newInventoryLevel = 0
                 // TODO: Add activity log here for negative inventory level
-                logInfo('Variant ' + variant.get('variantId') + ' was prevented from setting inventory to negative value', true);
+                logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': ' + variant.get('variantId') + ' was prevented from setting inventory to negative value', true);
               }
-              logInfo('Set inventory for all variants that match this variant: ' + variant.get('variantId'));
-              _.each(variants, function(variantToUpdate) {
-                if (variant.id == variantToUpdate.id) {
-                  logInfo('Set inventory for variant ' + variant.get('variantId') + ' from ' + variant.get('inventoryLevel') + ' to ' + newInventoryLevel, true);
-                  variant.set('inventoryLevel', newInventoryLevel);
-                }
-              })
+              logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': Set inventory for variant ' + variant.get('variantId') + ' from ' + variant.get('inventoryLevel') + ' to ' + newInventoryLevel, true);
+              variant.set('inventoryLevel', newInventoryLevel);
 
               // If variant has already been edited, replace the previously edited one
               if (variantPreviouslyEdited) {
@@ -1981,21 +1977,21 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
             });
             variantsToSave = variantsToSave.concat(variants);
           } else {
-            logInfo('no variants for order product ' + orderProduct.get('orderProductId'));
+            logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': no variants for order product ' + orderProduct.get('orderProductId'));
           }
 
         } else {
-          logInfo('order product does not exist ' + item.order_product_id);
+          logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': order product does not exist ' + item.order_product_id);
         }
         totalItemsProcessed++;
         if (totalItemsProcessed == items.length) {
-          logInfo('all items processed');
+          logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': all items processed');
           if (variantsToSave.length > 0) {
-            logInfo('save inventory for all variants');
+            logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': save inventory for all variants');
             orderShipment.set('inventoryUpdated', true);
             return Parse.Object.saveAll(variantsToSave, {useMasterKey: true});
           } else {
-            logInfo('no variants to save');
+            logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': no variants to save');
             return true;
           }
         } else {
@@ -2004,7 +2000,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
 
       }).then(function() {
         if (totalItemsProcessed == items.length) {
-          logInfo('inventory saved for all variants');
+          logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': inventory saved for all variants');
           if (vendorOrderVariantsToSave.length > 0) {
             return Parse.Object.saveAll(vendorOrderVariantsToSave, {useMasterKey: true});
           } else {
@@ -2016,7 +2012,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
 
       }).then(function() {
         if (totalItemsProcessed == items.length) {
-          logInfo('inventory saved for all vendor order variants');
+          logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': inventory saved for all vendor order variants');
           if (resizesToSave.length > 0) {
             return Parse.Object.saveAll(resizesToSave, {useMasterKey: true});
           } else {
@@ -2027,7 +2023,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
         }
 
       }).then(function() {
-        logInfo('inventory saved for all resizes');
+        logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': inventory saved for all resizes');
         if (totalItemsProcessed == items.length) {
           response.success();
         } else {
@@ -2036,7 +2032,7 @@ Parse.Cloud.beforeSave("OrderShipment", function(request, response) {
       });
     });
   } else {
-    logInfo('order products do not need inventory updated');
+    logInfo('OrderShipment beforeSave ' + orderShipment.get('order_id') + ': order products do not need inventory updated');
     response.success();
   }
 
@@ -2392,10 +2388,10 @@ var loadOrder = function(bcOrderId) {
       }).then(function(result) {
 
     		orderShipmentObject = result;
-    		if (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('packingSlip')) {
-      		logInfo('Do not create packing slip pdf');
-      		return orderShipmentObject;
-    		}
+    		// if (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('packingSlip')) {
+      	// 	logInfo('Do not create packing slip pdf');
+      	// 	return orderShipmentObject;
+    		// }
     		return createOrderShipmentPackingSlip(orderObj, orderShipmentObject);
 
   		}, function(error) {
