@@ -83,7 +83,7 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   }).then(function(results) {
     designers = results;
 
-    if (subpage === 'completed' || search) {
+    if (subpage === 'completed') {
       var vendorOrderQuery = new Parse.Query(VendorOrder);
       vendorOrderQuery.equalTo('receivedAll', true);
       vendorOrderQuery.include('vendor');
