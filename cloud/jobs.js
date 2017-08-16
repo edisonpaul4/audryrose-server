@@ -967,10 +967,10 @@ Parse.Cloud.job("processReloadQueue", function(request, status) {
           		  logInfo('processReloadQueue reloadProduct id: ' + queueItem, true);
           		  return Parse.Cloud.run('loadProduct', {productId: queueItem});
           		  break;
-              case 'Customer':
-          		  logInfo('processReloadQueue reloadCustomer id: ' + queueItem, true);
-          		  return Parse.Cloud.run('loadCustomer', {customerId: queueItem});
-          		  break;
+              // case 'Customer':
+          		//   logInfo('processReloadQueue reloadCustomer id: ' + queueItem, true);
+          		//   return Parse.Cloud.run('loadCustomer', {customerId: queueItem});
+          		//   break;
         		  default:
         		    return true;
         		    break;
