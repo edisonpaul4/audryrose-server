@@ -13,6 +13,7 @@ var MiscCode = Parse.Object.extend('MiscCode');
 var Order = Parse.Object.extend('Order');
 var VendorOrder = Parse.Object.extend('VendorOrder');
 var JobStatus = Parse.Object.extend('_JobStatus');
+var ReloadQueue = Parse.Object.extend('ReloadQueue');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -903,6 +904,106 @@ Parse.Cloud.job("removeIncompleteOrders", function(request, status) {
   	logError(error);
 		status.error(error);
   });
+});
+
+Parse.Cloud.job("processReloadQueue", function(request, status) {
+  logInfo('processReloadQueue cloud job --------------------------', true);
+  status.success('processReloadQueue job created');
+
+  var startTime = moment();
+
+  var reloadQueues;
+  var queueToProcess;
+
+  var reloadQueueQuery = new Parse.Query(ReloadQueue);
+  reloadQueueQuery.find().then(function(result) {
+    reloadQueues = result;
+    var updatedReloadQueues = [];
+
+    // Take all items from queue and move to processing
+    _.each(reloadQueues, function(reloadQueue) {
+      var queueToProcess = reloadQueue.get('queue');
+
+      // Skip processing if queue is empty
+      if (queueToProcess.length > 0) {
+        _.each(queueToProcess, function(queueItem) {
+          if (reloadQueue.has('queue')) {
+            reloadQueue.addUnique('processing', queueItem);
+          } else {
+            reloadQueue.set('processing', [queueItem]);
+          }
+          reloadQueue.remove('queue', queueItem);
+        });
+      }
+      updatedReloadQueues.push(reloadQueue);
+
+    });
+    return Parse.Object.saveAll(updatedReloadQueues, {useMasterKey: true});
+
+  }).then(function(result) {
+    logInfo('ReloadQueue queue copied to processing');
+    return reloadQueueQuery.find();
+
+  }).then(function(results) {
+    if (results) {
+      reloadQueues = results;
+
+      var promise = Parse.Promise.as();
+
+      _.each(reloadQueues, function(reloadQueue) {
+        var queueToProcess = reloadQueue.has('processing') ? reloadQueue.get('processing') : [];
+
+        if (queueToProcess.length > 0) logInfo('processReloadQueue ' + reloadQueue.get('objectClass') + 's processing: ' + queueToProcess.join(','), true);
+
+    		_.each(queueToProcess, function(queueItem) {
+
+      		promise = promise.then(function() {
+        		switch (reloadQueue.get('objectClass')) {
+          		case 'Order':
+            		logInfo('processReloadQueue loadOrder id: ' + queueItem, true);
+          		  return Parse.Cloud.run('loadOrder', {orderId: queueItem});
+          		  break;
+        		  case 'Product':
+          		  logInfo('processReloadQueue reloadProduct id: ' + queueItem, true);
+          		  return Parse.Cloud.run('loadProduct', {productId: queueItem});
+          		  break;
+              case 'Customer':
+          		  logInfo('processReloadQueue reloadCustomer id: ' + queueItem, true);
+          		  return Parse.Cloud.run('loadCustomer', {customerId: queueItem});
+          		  break;
+        		  default:
+        		    return true;
+        		    break;
+        		}
+
+          }).then(function(result) {
+            logInfo('processReloadQueue item success for ' + queueItem, true);
+            reloadQueue.remove('processing', queueItem);
+            return reloadQueue.save(null, {useMasterKey: true});
+
+          }).then(function(result) {
+            reloadQueue = result;
+            logInfo('processReloadQueue ' + queueItem + ' removed from queue', true);
+
+          }, function(error) {
+        		logError(error);
+
+        	});
+        });
+
+      });
+
+      return promise;
+
+    } else {
+      return false;
+    }
+
+  }).then(function() {
+    logInfo('processReloadQueue completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+
+  });
+
 });
 
 

@@ -159,98 +159,12 @@ Parse.Cloud.define("addToReloadQueue", function(request, response) {
   }).then(function(result) {
     if (result) {
       logInfo('ReloadQueue saved');
-      reloadQueue = result;
     }
 
     // Send success response, then proceed to process queue
-    response.success('addToReloadQueue completed without response');
-
-    var queue = reloadQueue.has('queue') ? reloadQueue.get('queue') : [];
-    logInfo('addToReloadQueue ' + objectClass + 's queued: ' + queue.join(','), true);
-
-    return delay(Math.round(Math.random() * (5000 - 1000)) + 1000);
-
-  }).then(function() {
-    return reloadQueueQuery.first();
-
-  }).then(function(result) {
-    reloadQueue = result;
-
-    // Take all items from queue and move to processing
-    queueToProcess = reloadQueue.get('queue');
-
-    // Skip processing if queue is empty
-    if (queueToProcess.length < 1) return false;
-
-    _.each(queueToProcess, function(queueItem) {
-      if (reloadQueue.has('queue')) {
-        reloadQueue.addUnique('processing', queueItem);
-      } else {
-        reloadQueue.set('processing', [queueItem]);
-      }
-      reloadQueue.remove('queue', queueItem);
-    });
-
-    return reloadQueue.save(null, {useMasterKey: true});
-
-  }).then(function(result) {
-    if (result) {
-      logInfo('ReloadQueue queue copied to processing');
-      reloadQueue = result;
-    } else {
-      return false;
-    }
-
-    // Skip processing if queue is empty
-    if (queueToProcess.length < 1) return false;
-
-    logInfo('addToReloadQueue ' + objectClass + 's processing: ' + queueToProcess.join(','), true);
-
-    var allPromises = [];
-    var promise = Parse.Promise.as();
-		_.each(queueToProcess, function(queueItem) {
-
-  		promise = promise.then(function() {
-    		switch (objectClass) {
-      		case 'Order':
-        		logInfo('addToReloadQueue loadOrder id: ' + queueItem, true);
-      		  return Parse.Cloud.run('loadOrder', {orderId: queueItem});
-      		  break;
-    		  case 'Product':
-      		  logInfo('addToReloadQueue reloadProduct id: ' + queueItem, true);
-      		  return Parse.Cloud.run('loadProduct', {productId: queueItem});
-      		  break;
-          case 'Customer':
-      		  logInfo('addToReloadQueue reloadCustomer id: ' + queueItem, true);
-      		  return Parse.Cloud.run('loadCustomer', {customerId: queueItem});
-      		  break;
-    		  default:
-    		    return true;
-    		    break;
-    		}
-
-      }).then(function(result) {
-        logInfo('addToReloadQueue item success for ' + queueItem, true);
-        reloadQueue.remove('processing', queueItem);
-        return reloadQueue.save(null, {useMasterKey: true});
-
-      }).then(function(result) {
-        reloadQueue = result;
-        logInfo('addToReloadQueue ' + queueItem + ' removed from queue', true);
-
-      }, function(error) {
-    		logError(error);
-
-    	});
-      allPromises.push(promise);
-    });
-    return Parse.Promise.when(allPromises);
-
-  }).then(function() {
-    logInfo('addToReloadQueue success', true);
+    response.success('addToReloadQueue completed');
 
   });
-
 });
 
 /////////////////////////
