@@ -39,6 +39,7 @@ bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
 const CUSTOM_PRODUCT_OPTIONS = [28];
+const PENDING_ORDER_STATUSES = [3, 7, 8, 9, 11, 12];
 const SIZE_PRODUCT_OPTIONS = [18,32,24];
 const US_SHIPPING_ZONES = [1];
 
@@ -2497,15 +2498,9 @@ var getOrderSort = function(ordersQuery, currentSort) {
 }
 
 var getPendingOrderQuery = function() {
-  var afQuery = new Parse.Query(Order);
-  afQuery.equalTo('status', 'Awaiting Fulfillment');
-  var psQuery = new Parse.Query(Order);
-  psQuery.equalTo('status', 'Partially Shipped');
-  var asQuery = new Parse.Query(Order);
-  asQuery.equalTo('status', 'Awaiting Shipment');
-  var apQuery = new Parse.Query(Order);
-  apQuery.equalTo('status', 'Awaiting Pickup');
-  return Parse.Query.or(afQuery, psQuery, asQuery, apQuery);
+  var query = new Parse.Query(Order);
+  query.containedIn('status_id', PENDING_ORDER_STATUSES);
+  return query;
 }
 
 var getInventoryAwareShippableOrders = function(ordersQuery, currentSort) {
