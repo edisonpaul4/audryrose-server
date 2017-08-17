@@ -920,12 +920,12 @@ Parse.Cloud.job("processReloadQueue", function(request, status) {
 
     // Take all items from queue and move to processing
     _.each(reloadQueues, function(reloadQueue) {
-      var queueToProcess = reloadQueue.get('queue');
+      var queueToProcess = reloadQueue.has('queue') ? reloadQueue.get('queue') : [];
 
       // Skip processing if queue is empty
       if (queueToProcess.length > 0) {
         _.each(queueToProcess, function(queueItem) {
-          if (reloadQueue.has('queue')) {
+          if (reloadQueue.has('processing')) {
             reloadQueue.addUnique('processing', queueItem);
           } else {
             reloadQueue.set('processing', [queueItem]);
@@ -936,7 +936,8 @@ Parse.Cloud.job("processReloadQueue", function(request, status) {
       updatedReloadQueues.push(reloadQueue);
 
     });
-    return Parse.Object.saveAll(updatedReloadQueues, {useMasterKey: true});
+    logInfo('Save updatedReloadQueues')
+    return Parse.Object.saveAll(updatedReloadQueues);
 
   }).then(function(result) {
     logInfo('ReloadQueue queue copied to processing');
@@ -1004,6 +1005,8 @@ Parse.Cloud.job("processReloadQueue", function(request, status) {
   }).then(function() {
     logInfo('processReloadQueue completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 
+  }, function(error){
+    logError(error);
   });
 
 });
