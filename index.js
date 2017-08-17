@@ -92,7 +92,7 @@ var start = function() {
 
 }
 
-if (process.env === 'development') {
+if (process.env.NODE_ENV === 'development') {
   start();
 } else {
   throng({
