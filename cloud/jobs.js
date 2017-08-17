@@ -975,13 +975,17 @@ Parse.Cloud.job("processReloadQueue", function(request, status) {
         		}
 
           }).then(function(result) {
-            logInfo('processReloadQueue item success for ' + queueItem, true);
+            var reloadQueueQuery = new Parse.Query(ReloadQueue);
+            reloadQueueQuery.equalTo('objectClass', reloadQueue.get('objectClass'));
+            return reloadQueueQuery.first();
+
+          }).then(function(result) {
+            reloadQueue = result;
             reloadQueue.remove('processing', queueItem);
             return reloadQueue.save(null, {useMasterKey: true});
 
           }).then(function(result) {
-            reloadQueue = result;
-            logInfo('processReloadQueue ' + queueItem + ' removed from queue', true);
+            logInfo('processReloadQueue ' + queueItem + ' removed from processing', true);
 
           }, function(error) {
         		logError(error);
