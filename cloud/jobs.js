@@ -295,21 +295,14 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
   }).then(function() {
     //orderIds = orderIds.slice(0,5); // REMOVE THIS ONLY FOR TESTING
     logInfo('Number of orders to search: ' + orderIds.length);
-    var allPromises = [];
     var promise = Parse.Promise.as();
 		_.each(orderIds, function(orderId) {
-      var randomDelay = Math.round(Math.random() * (10000 - 1000)) + 1000;
-      logInfo('process orders id ' + orderId + ' in ' + randomDelay + 'ms');
-  		promise = delay(randomDelay).then(function() {
+      logInfo('process orders id ' + orderId);
+  		promise = promise.then(function() {
     		return Parse.Cloud.run('loadOrder', {orderId: orderId});
-
-  		}).then(function(result) {
-        return true;
-
-      });
-      allPromises.push(promise);
+  		});
     });
-    return Parse.Promise.when(allPromises);
+    return promise;
 
   }).then(function() {
     var now = moment();
