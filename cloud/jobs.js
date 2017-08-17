@@ -264,8 +264,8 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
     return totalOrders;
 
   }).then(function(count) {
-    //ordersToProcess = totalOrders > 1000 ? 1000 : totalOrders; // Uncomment this to limit number of orders
-    ordersToProcess = totalOrders; // Uncomment this to process all orders
+    ordersToProcess = 200; // Uncomment this to limit number of orders
+    // ordersToProcess = totalOrders; // Uncomment this to process all orders
     logInfo('Total orders to process: ' + ordersToProcess);
     var numBatches = Math.ceil(ordersToProcess / BIGCOMMERCE_BATCH_SIZE);
     logInfo('Number of batches: ' + numBatches);
@@ -279,9 +279,11 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
           var request = '/orders?page=' + page + '&limit=' + BIGCOMMERCE_BATCH_SIZE + '&sort=date_created:desc&status_id=2&is_deleted=false';
           return bigCommerce.get(request);
         }).then(function(response) {
-  				_.each(response, function(order) {
-    				orderIds.push(order.id);
-          });
+          if (response && response.length > 0) {
+    				_.each(response, function(order) {
+      				if (order.id) orderIds.push(order.id);
+            });
+          }
           return true;
         }, function(error) {
           logError(error);
@@ -293,18 +295,21 @@ Parse.Cloud.job("updateShippedOrders", function(request, status) {
   }).then(function() {
     //orderIds = orderIds.slice(0,5); // REMOVE THIS ONLY FOR TESTING
     logInfo('Number of orders to search: ' + orderIds.length);
+    var allPromises = [];
     var promise = Parse.Promise.as();
 		_.each(orderIds, function(orderId) {
-  		logInfo('process orders id: ' + orderId);
-  		promise = promise.then(function() {
+      var randomDelay = Math.round(Math.random() * (10000 - 1000)) + 1000;
+      logInfo('process orders id ' + orderId + ' in ' + randomDelay + 'ms');
+  		promise = delay(randomDelay).then(function() {
     		return Parse.Cloud.run('loadOrder', {orderId: orderId});
 
   		}).then(function(result) {
         return true;
 
       });
+      allPromises.push(promise);
     });
-    return promise;
+    return Parse.Promise.when(allPromises);
 
   }).then(function() {
     var now = moment();

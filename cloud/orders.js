@@ -1142,7 +1142,7 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
         pdfsToCombine.push(mostRecentShipment.get('labelWithPackingSlipUrl'));
       } else {
         var msg = 'Error: Order #' + mostRecentShipment.get('order_id') + ' shipping label not added to combined print file.';
-        logInfo(msg);
+        logInfo(msg, true);
         errors.push(msg);
       }
     });
@@ -2400,7 +2400,11 @@ var loadOrder = function(bcOrderId) {
       }).then(function(result) {
 
     		orderShipmentObject = result;
-    		if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url') || (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('labelWithPackingSlip'))) {
+    		// if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url') || (parseFloat(orderObj.get('status_id')) === 2 && orderShipmentObject.has('labelWithPackingSlip'))) {
+      	// 	logInfo('Do not create label with packing slip pdf')
+      	// 	return false;
+    		// }
+        if (!orderShipmentObject.has('packingSlipUrl') || !orderShipmentObject.has('shippo_label_url')) {
       		logInfo('Do not create label with packing slip pdf')
       		return false;
     		}
