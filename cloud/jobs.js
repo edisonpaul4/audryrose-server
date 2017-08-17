@@ -937,7 +937,7 @@ Parse.Cloud.job("processReloadQueue", function(request, status) {
 
     });
     logInfo('Save updatedReloadQueues')
-    return Parse.Object.saveAll(updatedReloadQueues);
+    return Parse.Object.saveAll(updatedReloadQueues, {useMasterKey:true});
 
   }).then(function(result) {
     logInfo('ReloadQueue queue copied to processing');
