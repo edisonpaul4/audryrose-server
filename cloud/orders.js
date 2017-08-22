@@ -1902,6 +1902,7 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
   // Determine order needs action
   var needsAction = false;
   if (order.get('fullyShippable') === true) needsAction = true;
+  if (order.get('partiallyShippable') === true) needsAction = true;
 
   // Process properties based on OrderProducts - needs to use promises
   if (order.has('orderProducts')) {
@@ -1916,13 +1917,15 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
         nameTerms = _.map(nameTerms, toLowerCase);
         searchTerms = searchTerms.concat(nameTerms);
 
-        if (!needsAction && order.get('cannotShip') && (order.get('status_id') === 11 || order.get('status_id') === 3)) {
+        if (!needsAction && (order.get('status_id') === 11 || order.get('status_id') === 3)) {
           // Check if need to be ordered
+          logInfo('check if order product ' + orderProduct.get('orderProductId') + ' needs action');
           if (
             (orderProduct.get('quantity_shipped') < orderProduct.get('quantity')) &&
             orderProduct.get('shippable') === false &&
-            (orderProduct.has('awaitingInventory') && orderProduct.get('awaitingInventory').length <= 0)
+            (!orderProduct.has('awaitingInventory') || (orderProduct.has('awaitingInventory') && orderProduct.get('awaitingInventory').length <= 0))
             ) {
+            logInfo('order product ' + orderProduct.get('orderProductId') + 'needs action');
             needsAction = true;
           }
         }
