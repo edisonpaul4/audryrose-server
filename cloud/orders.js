@@ -107,6 +107,10 @@ Parse.Cloud.define("getOrders", function(request, response) {
         ordersQuery.equalTo('fullyShippable', false);
         ordersQuery.equalTo('partiallyShippable', false);
         break;
+      case 'needs-action':
+        ordersQuery = getPendingOrderQuery();
+        ordersQuery.equalTo('needsAction', true);
+        break;
       default:
         ordersQuery.notEqualTo('status', 'Incomplete');
         break;
@@ -137,6 +141,10 @@ Parse.Cloud.define("getOrders", function(request, response) {
           case 'awaitingFulfillment':
             tabCounts.awaitingFulfillment = metric.get('count');
             if (subpage == 'awaiting-fulfillment') ordersCount = metric.get('count');
+            break;
+          case 'needsAction':
+            tabCounts.needsAction = metric.get('count');
+            if (subpage == 'needs-action') ordersCount = metric.get('count');
             break;
           case 'resizable':
             tabCounts.resizable = metric.get('count');
@@ -291,6 +299,9 @@ Parse.Cloud.define("updateOrderTabCounts", function(request, response) {
 
   var awaitingFulfillmentQuery = getPendingOrderQuery();
 
+  var needsActonQuery = getPendingOrderQuery();
+  needsActonQuery.equalTo('needsAction', true);
+
   var resizableQuery = getPendingOrderQuery();
   resizableQuery.equalTo('fullyShippable', false);
   resizableQuery.equalTo('resizable', true);
@@ -325,6 +336,11 @@ Parse.Cloud.define("updateOrderTabCounts", function(request, response) {
   awaitingFulfillmentQuery.count().then(function(count) {
     tabs.awaitingFulfillment = count;
     metrics.push(createMetric('Order', 'awaitingFulfillment', 'Awaiting Fulfillment', count));
+    return needsActonQuery.count();
+
+  }).then(function(count) {
+    tabs.needsAction = count;
+    metrics.push(createMetric('Order', 'needsAction', 'Needs Action', count));
     return resizableQuery.count();
 
   }, function(error) {
@@ -1883,6 +1899,10 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
   searchTerms.push(toLowerCase(billingAddress.email));
   searchTerms.push(order.get('orderId').toString());
 
+  // Determine order needs action
+  var needsAction = false;
+  if (order.get('fullyShippable') === true) needsAction = true;
+
   // Process properties based on OrderProducts - needs to use promises
   if (order.has('orderProducts')) {
     var orderProducts = order.get('orderProducts');
@@ -1895,6 +1915,17 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
         var nameTerms = orderProduct.get('name').split(' ');
         nameTerms = _.map(nameTerms, toLowerCase);
         searchTerms = searchTerms.concat(nameTerms);
+
+        if (!needsAction && order.get('cannotShip') && (order.get('status_id') === 11 || order.get('status_id') === 3)) {
+          // Check if need to be ordered
+          if (
+            (orderProduct.get('quantity_shipped') < orderProduct.get('quantity')) &&
+            orderProduct.get('shippable') === false &&
+            (orderProduct.has('awaitingInventory') && orderProduct.get('awaitingInventory').length <= 0)
+            ) {
+            needsAction = true;
+          }
+        }
       });
       return searchTerms;
     }).then(function() {
@@ -1903,12 +1934,16 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
       // Add the product names as search terms
       searchTerms = processSearchTerms(searchTerms);
       order.set("search_terms", searchTerms);
+      // Set order needs action
+      order.set("needsAction", needsAction);
       response.success();
     });
   } else {
     // Add the product names as search terms
     searchTerms = processSearchTerms(searchTerms);
     order.set("search_terms", searchTerms);
+    // Set order needs action
+    order.set("needsAction", needsAction);
     response.success();
   }
 
