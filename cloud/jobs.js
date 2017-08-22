@@ -1003,6 +1003,9 @@ Parse.Cloud.job("processReloadQueue", function(request, status) {
     }
 
   }).then(function() {
+    return Parse.Cloud.run('updateAwaitingInventoryQueue');
+
+  }).then(function(result) {
     logInfo('processReloadQueue completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 
   }, function(error){
