@@ -1912,11 +1912,14 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
   // Determine order needs action
   var needsAction = false;
   if (order.get('fullyShippable') === true) needsAction = true;
+  if (needsAction) logInfo('needsAction: fullyShippable');
   if (order.get('partiallyShippable') === true) needsAction = true;
+  if (needsAction) logInfo('needsAction: partiallyShippable');
   if (order.has('dateNeeded') && PENDING_ORDER_STATUSES.indexOf(order.get('status_id')) > 0) {
     var dateNeededDiff = moment.utc(order.get('dateNeeded'), moment.ISO_8601).diff(moment().utc(), 'hours');
     var dateNeededThreshold = 5 * 24 // days * hours/day
     if (dateNeededDiff < dateNeededThreshold) needsAction = true;
+    if (needsAction) logInfo('needsAction: dateNeeded');
   }
 
   // Process properties based on OrderProducts - needs to use promises
@@ -1935,11 +1938,10 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
         // Check if order products need any action
         if (!needsAction && (order.get('status_id') === 11 || order.get('status_id') === 3)) {
           if ((orderProduct.get('quantity_shipped') < orderProduct.get('quantity')) && orderProduct.get('shippable') === false) {
-            if (!orderProduct.has('awaitingInventory') || (orderProduct.has('awaitingInventory') && orderProduct.get('awaitingInventory').length <= 0)) {
+            if ((!orderProduct.has('awaitingInventory') || (orderProduct.has('awaitingInventory') && orderProduct.get('awaitingInventory').length <= 0))
+              && (!orderProduct.has('resizes') || (orderProduct.has('resizes') && orderProduct.get('resizes').length <= 0))) {
               // Needs action if doesn't have awaiting inventory
-              needsAction = true;
-            } else if (!orderProduct.has('resizes') || (orderProduct.has('resizes') && orderProduct.get('resizes').length <= 0)) {
-              // Needs action if doesn't have resizes
+              logInfo('Needs action if doesnt have awaiting inventory or resizes');
               needsAction = true;
             } else if (orderProduct.has('awaitingInventoryVendorOrders')) {
               // Needs action if has awaiting inventory that is within 2 days of expected arrival countdown
