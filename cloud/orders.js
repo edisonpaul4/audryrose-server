@@ -556,7 +556,6 @@ Parse.Cloud.define("saveOrder", function(request, response) {
 
   }).then(function(result) {
     updatedOrder = result;
-    logInfo(updatedOrder.get('dateNeeded'))
 
     logInfo('saveOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
@@ -1914,6 +1913,11 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
   var needsAction = false;
   if (order.get('fullyShippable') === true) needsAction = true;
   if (order.get('partiallyShippable') === true) needsAction = true;
+  if (order.has('dateNeeded') && PENDING_ORDER_STATUSES.indexOf(order.get('status_id')) > 0) {
+    var dateNeededDiff = moment.utc(order.get('dateNeeded'), moment.ISO_8601).diff(moment().utc(), 'hours');
+    var dateNeededThreshold = 5 * 24 // days * hours/day
+    if (dateNeededDiff < dateNeededThreshold) needsAction = true;
+  }
 
   // Process properties based on OrderProducts - needs to use promises
   if (order.has('orderProducts')) {
@@ -1928,16 +1932,21 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
         nameTerms = _.map(nameTerms, toLowerCase);
         searchTerms = searchTerms.concat(nameTerms);
 
+        // Check if order products need any action
         if (!needsAction && (order.get('status_id') === 11 || order.get('status_id') === 3)) {
-          // Check if need to be ordered
-          logInfo('check if order product ' + orderProduct.get('orderProductId') + ' needs action');
-          if (
-            (orderProduct.get('quantity_shipped') < orderProduct.get('quantity')) &&
-            orderProduct.get('shippable') === false &&
-            (!orderProduct.has('awaitingInventory') || (orderProduct.has('awaitingInventory') && orderProduct.get('awaitingInventory').length <= 0))
-            ) {
-            logInfo('order product ' + orderProduct.get('orderProductId') + 'needs action');
-            needsAction = true;
+          if ((orderProduct.get('quantity_shipped') < orderProduct.get('quantity')) && orderProduct.get('shippable') === false) {
+            if (!orderProduct.has('awaitingInventory') || (orderProduct.has('awaitingInventory') && orderProduct.get('awaitingInventory').length <= 0)) {
+              // Needs action if doesn't have awaiting inventory
+              needsAction = true;
+            } else if (!orderProduct.has('resizes') || (orderProduct.has('resizes') && orderProduct.get('resizes').length <= 0)) {
+              // Needs action if doesn't have resizes
+              needsAction = true;
+            } else if (orderProduct.has('awaitingInventoryVendorOrders')) {
+              // Needs action if has awaiting inventory that is within 2 days of expected arrival countdown
+              logInfo('check awaiting inventory times');
+              var expectedDateDiff = moment.utc(orderProduct.get('awaitingInventoryExpectedDate'), moment.ISO_8601).diff(moment().utc(), 'hours');
+              if (expectedDateDiff < (2 * 24)) needsAction = true;
+            }
           }
         }
       });
@@ -2645,13 +2654,6 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort = 'date
           if (orderProduct.id == awaitingOrderProduct.id) totalAwaitingOrderProducts++;
         });
       });
-      logInfo(
-        'order ' + order.get('orderId')
-        + ' ' + orderProducts.length + ' orderProducts, '
-        + (orderProducts.length - totalShippedOrderProducts) + ' to ship, '
-        + totalShippableOrderProducts + ' shippable, '
-        + totalAwaitingOrderProducts + ' awaiting'
-      );
       if ((orderProducts.length - totalShippedOrderProducts) == totalShippableOrderProducts) {
         shippableOrders.push(order);
         needsActionOrders.push(order);
@@ -2660,7 +2662,7 @@ var getInventoryAwareShippableOrders = function(ordersQuery, currentSort = 'date
         needsActionOrders.push(order);
       } else {
         unshippableOrders.push(order);
-        if (totalAwaitingOrderProducts < (orderProducts.length - totalShippedOrderProducts)) {
+        if (totalAwaitingOrderProducts <= (orderProducts.length - totalShippedOrderProducts)) {
           needsActionOrders.push(order); // if does not have awaiting inventory
         } else {
           logInfo('order ' + order.get('orderId') + ' does not need action');
@@ -2831,8 +2833,12 @@ var getOrderProductVariants = function(orderProduct) {
         variantMatches = getOrderProductVariantMatches(orderProduct, variants);
       }
       logInfo('getOrderProductVariants: set ' + variantMatches.length + ' variants to product');
-      if (variantMatches) {
+      if (variantMatches && variantMatches.length > 0) {
         orderProduct.set('variants', variantMatches);
+      } else {
+        logInfo('getOrderProductVariants: is custom');
+        orderProduct.unset('variants');
+        orderProduct.set('isCustom', true);
       }
 
     } else if (parentProduct) {
