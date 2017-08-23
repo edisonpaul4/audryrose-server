@@ -1793,6 +1793,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
 
     var vendorOrdersQuery = new Parse.Query(VendorOrder);
     vendorOrdersQuery.equalTo('receivedAll', false);
+    vendorOrdersQuery.include('vendor');
     vendorOrdersQuery.include('vendorOrderVariants');
     vendorOrdersQuery.include('vendorOrderVariants.variant');
     vendorOrdersQuery.include('resizeSourceVariant');
@@ -1843,6 +1844,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
             // logInfo('orderProduct ' + orderProduct.get('orderProductId') + ' from order ' + orderProduct.get('order_id') + ' not being queued');
             orderProduct.unset('awaitingInventory');
             orderProduct.unset('awaitingInventoryVendorOrders');
+            orderProduct.unset('awaitingInventoryExpectedDate');
             orderProductsIneligible.push(orderProduct);
           }
         });
@@ -1888,7 +1890,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
 //                 if (orderProduct.get('order_id') === 8751) logInfo('set awaiting inventory ' + variant.get('variantId') + ' for order ' + orderProduct.get('order_id'));
                 orderProductAwaitingInventory.push(item.object);
                 if (item.vendorOrder) {
-                  logInfo('set awaiting inventory vendor order ' + item.vendorOrder.get('vendorOrderNumber') + ' for order ' + orderProduct.get('order_id'));
+                  // logInfo('set awaiting inventory vendor order ' + item.vendorOrder.get('vendorOrderNumber') + ' for order ' + orderProduct.get('order_id'));
                   orderProductAwaitingInventoryVendorOrders.push(item.vendorOrder);
                 }
               } else {
@@ -1904,8 +1906,27 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
           orderProduct.set('awaitingInventory', orderProductAwaitingInventory);
           if (orderProductAwaitingInventoryVendorOrders.length > 0) {
             orderProduct.set('awaitingInventoryVendorOrders', orderProductAwaitingInventoryVendorOrders);
+            var shortestExpectedDaysWait;
+            var awaitingInventoryExpectedDate;
+            orderProductAwaitingInventoryVendorOrders.map(function(vendorOrder) {
+              var vendor = vendorOrder.get('vendor');
+              var waitTime = vendor.has('waitTime') ? vendor.get('waitTime') * 24 : 21 * 24;
+              var expectedDate = vendorOrder.has('dateOrdered') ? moment.utc(vendorOrder.get('dateOrdered'), moment.ISO_8601).add(waitTime, 'hours') : moment.utc().add(waitTime, 'hours');
+              var expectedDateDiff = moment.utc(expectedDate).diff(moment().utc(), 'hours');
+              if (!shortestExpectedDaysWait || expectedDateDiff < shortestExpectedDaysWait) {
+                shortestExpectedDaysWait = expectedDateDiff;
+                awaitingInventoryExpectedDate = expectedDate;
+              }
+              return vendorOrder;
+            });
+            if (awaitingInventoryExpectedDate) {
+              orderProduct.set('awaitingInventoryExpectedDate', awaitingInventoryExpectedDate.toDate());
+            } else {
+              orderProduct.unset('awaitingInventoryExpectedDate');
+            }
           } else {
             orderProduct.unset('awaitingInventoryVendorOrders');
+            orderProduct.unset('awaitingInventoryExpectedDate');
           }
         } else {
           orderProduct.unset('awaitingInventory');
