@@ -1817,12 +1817,17 @@ Parse.Cloud.job("batchPrintShipments", function(request, status) {
   var ordersToPrint = request.params.ordersToPrint;
   var generatedFile;
   var errors = [];
+  var orders = [];
 
   var ordersQuery = new Parse.Query(Order);
   ordersQuery.containedIn('orderId', ordersToPrint);
   ordersQuery.include('orderShipments');
 
-  ordersQuery.find().then(function(orders) {
+  ordersQuery.find().then(function(results) {
+    orders = results;
+  //   return createPickSheet(orders);
+  //
+  // }).then(function(result) {
 
     // Combine all new pdfs into a single file
     var pdfsToCombine = [];
@@ -3409,8 +3414,12 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   var shippingMethodText = 'Shipping Method: ' + shipment.get('shipping_method');
   var shippingMethod = writePdfText(cxt, shippingMethodText, boldFont, 10, 0x000000, 'left', pageCenterX, orderDate.y, 12, pageWidth, pageHeight);
 
+  // Customer Note
+  var customerNoteText = 'Customer Note: ' + order.get('customer_message').replace(/(\r\n|\n|\r)/gm,'  ');
+  var customerNote = writePdfText(cxt, customerNoteText, boldFont, 10, 0x000000, 'left', margin, shippingMethod.y, 12, pageWidth, pageHeight);
+
 	// Line
-	lineYPos = shippingMethod.y < paymentMethod.y ? shippingMethod.y - padding : paymentMethod.y - padding;
+	lineYPos = customerNote.y < paymentMethod.y ? customerNote.y - padding : paymentMethod.y - padding;
 	cxt.drawPath(margin, lineYPos, pageWidth - margin, lineYPos, {color:'lightgray', width:1});
 
 	// Order Items Heading
