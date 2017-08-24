@@ -106,6 +106,13 @@ Parse.Cloud.define("getProducts", function(request, response) {
       productsQuery.containedIn('sizesInStock', [parseFloat(filters.sizeInStock)]);
     }
 
+    if (filters.hiddenProducts && filters.hiddenProducts == 'true') {
+      console.log('show hidden products')
+    } else {
+      console.log('hide hidden products')
+      productsQuery.equalTo('is_visible', true);
+    }
+
     productsQuery = getProductSort(productsQuery, currentSort);
 
     switch (subpage) {
@@ -178,14 +185,37 @@ Parse.Cloud.define("getProducts", function(request, response) {
         }
       });
     }
-    if (productsCount != undefined) {
-      return productsCount;
-    } else {
+    if (productsCount == undefined || (filters.hiddenProducts && filters.hiddenProducts == 'true')) {
+      logInfo('count em')
       return productsQuery.count();
+    } else {
+      return productsCount;
     }
 
   }).then(function(count) {
     totalProducts = count;
+    if (filters.hiddenProducts && filters.hiddenProducts == 'true') {
+      switch (subpage) {
+        case 'in-stock':
+          tabCounts.inStock = totalProducts;
+          break;
+        case 'need-to-order':
+          tabCounts.needToOrder = totalProducts;
+          break;
+        case 'waiting-to-receive':
+          tabCounts.waitingToReceive = totalProducts;
+          break;
+        case 'being-resized':
+          tabCounts.beingResized = totalProducts;
+          break;
+        case 'all':
+          tabCounts.all = totalProducts;
+          break;
+        default:
+          break;
+      }
+    }
+    console.log('total products: ' + totalProducts);
     totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
     productsQuery.skip((currentPage - 1) * PRODUCTS_PER_PAGE);
     return productsQuery.find({useMasterKey:true});
@@ -210,17 +240,22 @@ Parse.Cloud.define("updateProductTabCounts", function(request, response) {
 
   var inStockQuery = new Parse.Query(Product);
   inStockQuery.greaterThan('total_stock', 0);
+  inStockQuery.equalTo('is_visible', true);
 
   var needToOrderQuery = new Parse.Query(Product);
   needToOrderQuery.lessThan('total_stock', 1);
+  needToOrderQuery.equalTo('is_visible', true);
 
   var waitingToReceiveQuery = new Parse.Query(Product);
   waitingToReceiveQuery.equalTo('hasVendorOrder', true);
+  waitingToReceiveQuery.equalTo('is_visible', true);
 
   var beingResizedQuery = new Parse.Query(Product);
   beingResizedQuery.equalTo('hasResizeRequest', true);
+  beingResizedQuery.equalTo('is_visible', true);
 
   var allQuery = new Parse.Query(Product);
+  allQuery.equalTo('is_visible', true);
 
   inStockQuery.count().then(function(count) {
     tabs.inStock = count;
