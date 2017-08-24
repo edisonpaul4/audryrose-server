@@ -215,7 +215,6 @@ Parse.Cloud.define("getProducts", function(request, response) {
           break;
       }
     }
-    console.log('total products: ' + totalProducts);
     totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
     productsQuery.skip((currentPage - 1) * PRODUCTS_PER_PAGE);
     return productsQuery.find({useMasterKey:true});
