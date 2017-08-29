@@ -2487,7 +2487,20 @@ var loadOrder = function(bcOrderId) {
       }
     } else {
       logInfo(bcOrderShipments.length + ' shipments found');
-      return true;
+      // Check if order is shipped by Bigcommerce is anything other than 'Shipped'
+      var allShipped = true;
+      _.each(orderProducts, function(orderProduct) {
+        logInfo(orderProduct.get('quantity') + ' to ship, ' + orderProduct.get('quantity_shipped') + ' shipped ');
+        if (orderProduct.get('quantity_shipped') < orderProduct.get('quantity')) allShipped = false;
+      });
+      if (allShipped && (orderObj.get('status_id') === 11 || orderObj.get('status_id') === 3)) {
+        orderObj.set('status', 'Shipped');
+        orderObj.set('status_id', 2);
+        var request = '/orders/' + bcOrderId;
+        return bigCommerce.put(request, {status_id: 2});
+      } else {
+        return true;
+      }
     }
 
   }, function(error) {
