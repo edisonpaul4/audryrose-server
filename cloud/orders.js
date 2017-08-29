@@ -1889,6 +1889,109 @@ Parse.Cloud.job("batchPrintShipments", function(request, status) {
   });
 });
 
+Parse.Cloud.job("printPickSheet", function(request, status) {
+  logInfo('printPickSheet cloud function --------------------------', true);
+  var startTime = moment();
+
+  var ordersToPrint = request.params.ordersToPrint;
+  var generatedFile;
+  var errors = [];
+  var orders = [];
+
+  var ordersQuery = new Parse.Query(Order);
+  ordersQuery.containedIn('orderId', ordersToPrint);
+  ordersQuery.include('orderShipments');
+  ordersQuery.include('orderProducts');
+  ordersQuery.include('orderProducts.variants');
+  ordersQuery.include('orderProducts.variants.designer');
+  ordersQuery.include('orderProducts.editedVariants');
+  ordersQuery.include('orderProducts.editedVariants.designer');
+
+  ordersQuery.find().then(function(results) {
+    orders = results;
+
+    // Combine all new pdfs into a single file
+    var pickSheetItems = [];
+    _.each(orders, function(order) {
+      var orderShipments = order.get('orderShipments');
+
+      // Get the most recent shipment
+      var mostRecentShipment;
+      _.each(orderShipments, function(orderShipment) {
+        if (!mostRecentShipment) {
+          mostRecentShipment = orderShipment;
+        } else if (orderShipment.get('shipmentId') > mostRecentShipment.get('shipmentId')) {
+          mostRecentShipment = orderShipment;
+        }
+      });
+      logInfo('most recent: ' + mostRecentShipment.get('shipmentId'));
+      var items = mostRecentShipment.get('items');
+      var orderProducts = order.get('orderProducts');
+      _.each(items, function(item) {
+        _.each(orderProducts, function(orderProduct) {
+          if (orderProduct.get('orderProductId') == item.order_product_id) {
+            var variants = orderProduct.has('editedVariants') ? orderProduct.get('editedVariants') : orderProduct.has('variants') ? orderProduct.get('variants') : [];
+            _.each(variants, function(variant) {
+              var designer = variant.get('designer');
+              pickSheetItems.push({
+                designerName: designer && designer.has('name') ? designer.get('name') : 'None',
+                productName: variant.get('productName'),
+                size: variant.has('size_value') ? variant.get('size_value') : '',
+                color: variant.has('color_value') ? variant.get('color_value') : '',
+                units: item.quantity.toString(),
+                orderId: order.get('orderId').toString(),
+                notes: order.has('customer_message') ? order.get('customer_message') : ''
+              });
+            });
+          }
+        });
+      });
+
+      // if (mostRecentShipment.has('labelWithPackingSlipUrl')) {
+      //   logInfo('add to batch pdf: ' + mostRecentShipment.get('labelWithPackingSlipUrl'));
+      //   pdfsToCombine.push(mostRecentShipment.get('labelWithPackingSlipUrl'));
+      // } else {
+      //   var msg = 'Error: Order #' + mostRecentShipment.get('order_id') + ' shipping label not added to combined print file.';
+      //   logInfo(msg);
+      //   errors.push(msg);
+      // }
+    });
+    return createPickSheet(pickSheetItems);
+
+  }, function(error) {
+	  logError(error);
+	  errors.push(error.message);
+
+  }).then(function(result) {
+    if (result) {
+      logInfo('batch pdf generated');
+      generatedFile = result.url();
+      var batchPdf = new BatchPdf();
+      batchPdf.set('file', result);
+      var pdfName = 'Pick Sheet For ' + ordersToPrint.length + ' Orders';
+      batchPdf.set('name', pdfName);
+      return batchPdf.save(null, {useMasterKey: true});
+    } else {
+      logError('no batch pdf generated');
+      errors.push('Error creating combined shipping labels pdf.');
+      return;
+    }
+
+  }).then(function(result) {
+    var newFiles = result ? [result] : null;
+    logInfo('printPickSheet completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
+	  status.message(generatedFile);
+	  status.success();
+
+  }, function(error) {
+	  logError(error);
+	  status.error(error);
+
+  });
+});
+
+
 /////////////////////////
 //  BEFORE SAVE        //
 /////////////////////////
@@ -3498,9 +3601,35 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   return promise;
 }
 
-var writePdfText = function(cxt, text, font, fontSize, color, align, offsetX, offsetY, padding, pageWidth, pageHeight) {
+var foldText = function(input, lineSize, lineArray) {
+  lineArray = lineArray || [];
+  if (input.length <= lineSize) {
+    lineArray.push(input);
+    return lineArray;
+  }
+  // lineArray.push(input.substring(0, lineSize));
+  // var tail = input.substring(lineSize);
+  // return foldText(tail, lineSize, lineArray);
+
+  var line = input.substring(0, lineSize);
+  var lastSpaceRgx = /\s(?!.*\s)/;
+  var index = line.search(lastSpaceRgx);
+  var nextIndex = lineSize;
+  if (index > 0) {
+      line = line.substring(0, index + 1);
+      nextIndex = index + 1;
+  }
+  lineArray.push(line);
+  return foldText(input.substring(nextIndex), lineSize, lineArray);
+}
+
+var writePdfText = function(cxt, text, font, fontSize, color, align, offsetX, offsetY, padding, pageWidth, pageHeight, maxWidth=undefined) {
   if (!text || text == '' || text == undefined || text == 'undefined') return { x: offsetX, y: offsetY, dims: { width:0, height: 0 } };
 	var dims = font.calculateTextDimensions(text, fontSize);
+  var singleCharDims = font.calculateTextDimensions('m', fontSize);
+  var charsPerLine = maxWidth ? Math.floor(maxWidth / singleCharDims.width) : 999999;
+  var lines = foldText(text, charsPerLine);
+
 	var pageMargin = Math.round(72 / 2);
 	var x;
 	switch (align) {
@@ -3517,9 +3646,24 @@ var writePdfText = function(cxt, text, font, fontSize, color, align, offsetX, of
 	    x = 0;
 	    break;
 	}
-	var y = offsetY - padding - dims.height;
-  cxt.writeText(text, x, y, { font: font, size: fontSize, colorspace: 'rgb', color: color });
+	var y = offsetY - padding - singleCharDims.height;
+  var totalHeight = 0;
+  _.each(lines, function(line) {
+    cxt.writeText(line, x, y, { font: font, size: fontSize, colorspace: 'rgb', color: color });
+    totalHeight += (singleCharDims.height * 2 + 1);
+    y -= (singleCharDims.height * 2);
+  });
+  dims.height = totalHeight;
+
   return {x:x, y:y, dims:dims};
+}
+
+var getRowHeight = function(rowItems) {
+  var height = 0;
+  _.each(rowItems, function(item) {
+    if (item.dims.height > height) height = item.dims.height;
+  });
+  return height;
 }
 
 var combinePdfs = function(pdfs) {
@@ -3581,6 +3725,92 @@ var combinePdfs = function(pdfs) {
 
 	return promise;
 
+}
+
+var createPickSheet = function(items) {
+
+  var pageWidth = 8.5 * 72;
+  var pageHeight = 11 * 72;
+  const padding = Math.round(72 / 4);
+  const margin = Math.round(72 / 2);
+  const pageCenterX = Math.round(pageWidth / 2);
+
+  var promise = Parse.Promise.as();
+
+  var fileName = 'pick-sheet.pdf';
+  var writer = new streams.WritableStream();
+
+  var pdfWriter = hummus.createWriter(new hummus.PDFStreamForResponse(writer));
+  var page = pdfWriter.createPage(0, 0, pageWidth, pageHeight);
+  var cxt = pdfWriter.startPageContentContext(page);
+
+  // Fonts
+  var regularFont = pdfWriter.getFontForFile(__dirname + '/../public/fonts/lato/Lato-Regular.ttf');
+  var boldFont = pdfWriter.getFontForFile(__dirname + '/../public/fonts/lato/Lato-Bold.ttf');
+
+  // Logo
+  var logoXPos = pageWidth / 2 - 100;
+  var logoYPos = pageHeight - 36 - 31;
+  cxt.drawImage(logoXPos, logoYPos, __dirname + '/../public/img/logo.jpg', {transformation:{width:200,height:31, proportional:true}});
+
+	// Title
+  var titleText = 'Pick Sheet - ' + moment().tz("America/Los_Angeles").format('M/D/YYYY');
+	var title = writePdfText(cxt, titleText, boldFont, 11, 0x000000, 'center', 0, logoYPos, padding, pageWidth, pageHeight);
+
+	// Line
+	var lineYPos = title.y - padding;
+	cxt.drawPath(margin, lineYPos, pageWidth - margin, lineYPos, {color:'lightgray', width:1});
+
+  // Column Headings
+	var columnHeadingY = lineYPos;
+	var designerHeading = writePdfText(cxt, 'DESIGNER', boldFont, 8, 0x000000, 'left', margin, columnHeadingY, padding, pageWidth, pageHeight);
+	var productHeading = writePdfText(cxt, 'PRODUCT', boldFont, 8, 0x000000, 'left', margin + 100, columnHeadingY, padding, pageWidth, pageHeight);
+	var sizeHeading = writePdfText(cxt, 'SIZE', boldFont, 8, 0x000000, 'left', margin + 200, columnHeadingY, padding, pageWidth, pageHeight);
+	var colorHeading = writePdfText(cxt, 'COLOR', boldFont, 8, 0x000000, 'left', margin + 250, columnHeadingY, padding, pageWidth, pageHeight);
+	var unitsHeading = writePdfText(cxt, 'UNITS', boldFont, 8, 0x000000, 'left', margin + 350, columnHeadingY, padding, pageWidth, pageHeight);
+	var orderIdHeading = writePdfText(cxt, 'ORDER ID', boldFont, 8, 0x000000, 'left', margin + 400, columnHeadingY, padding, pageWidth, pageHeight);
+  var notesHeading = writePdfText(cxt, 'NOTES', boldFont, 8, 0x000000, 'left', margin + 450, columnHeadingY, padding, pageWidth, pageHeight);
+
+	// Item Rows
+  var rowY = notesHeading.y - 10;
+  items.sort(dynamicSortMultiple('designerName','productName'));
+  _.each(items, function(item) {
+    var rowColor = 0x000000;
+    var designerText = writePdfText(cxt, item.designerName, regularFont, 8, rowColor, 'left', margin, rowY, 10, pageWidth, pageHeight, 100);
+    var productText = writePdfText(cxt, item.productName, regularFont, 8, rowColor, 'left', margin + 100, rowY, 10, pageWidth, pageHeight, 100);
+    var sizeText = writePdfText(cxt, item.size, regularFont, 8, rowColor, 'left', margin + 200, rowY, 10, pageWidth, pageHeight, 50);
+    var colorText = writePdfText(cxt, item.color, regularFont, 8, rowColor, 'left', margin + 250, rowY, 10, pageWidth, pageHeight, 100);
+    var quantityText = writePdfText(cxt, item.units, regularFont, 8, rowColor, 'left', margin + 350, rowY, 10, pageWidth, pageHeight, 50);
+    var orderIdText = writePdfText(cxt, item.orderId, regularFont, 8, rowColor, 'left', margin + 400, rowY, 10, pageWidth, pageHeight, 50);
+    var notesText = writePdfText(cxt, item.notes, regularFont, 8, rowColor, 'left', margin + 450, rowY, 10, pageWidth, pageHeight, 150);
+    var rowHeight = getRowHeight([designerText, productText, sizeText, colorText, quantityText, orderIdText, notesText]);
+    rowY -= (rowHeight + 10);
+  });
+
+  pdfWriter.writePage(page);
+  pdfWriter.end();
+  logInfo('pick sheet pdf written');
+
+  writer.end();
+  var buffer = writer.toBuffer();
+
+  // Save packing slip as a Parse File
+  promise = promise.then(function() {
+    var file = new Parse.File(fileName, {base64: buffer.toString('base64', 0, buffer.length)}, 'application/pdf');
+    logInfo('save file');
+    return file.save(null, {useMasterKey: true});
+
+  }).then(function(file) {
+    logInfo('file saved');
+    return file;
+
+  }, function(error) {
+    logError(error);
+    return error;
+
+  });
+
+  return promise;
 }
 
 var validatePhoneNumber = function(string) {
@@ -3736,6 +3966,25 @@ var createMetric = function(objectClass, slug, name, value) {
   metric.set('name', name);
   metric.set('count', value);
   return metric;
+}
+
+var dynamicSort = function(property) {
+    return function (obj1,obj2) {
+        return obj1[property] > obj2[property] ? 1
+            : obj1[property] < obj2[property] ? -1 : 0;
+    }
+}
+
+var dynamicSortMultiple = function() {
+    var props = arguments;
+    return function (obj1, obj2) {
+        var i = 0, result = 0, numberOfProperties = props.length;
+        while(result === 0 && i < numberOfProperties) {
+            result = dynamicSort(props[i])(obj1, obj2);
+            i++;
+        }
+        return result;
+    }
 }
 
 var logInfo = function(i, alwaysLog) {
