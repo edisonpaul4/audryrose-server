@@ -1900,7 +1900,6 @@ Parse.Cloud.job("printPickSheet", function(request, status) {
 
   var ordersQuery = new Parse.Query(Order);
   ordersQuery.containedIn('orderId', ordersToPrint);
-  ordersQuery.include('orderShipments');
   ordersQuery.include('orderProducts');
   ordersQuery.include('orderProducts.variants');
   ordersQuery.include('orderProducts.variants.designer');
@@ -1913,48 +1912,25 @@ Parse.Cloud.job("printPickSheet", function(request, status) {
     // Combine all new pdfs into a single file
     var pickSheetItems = [];
     _.each(orders, function(order) {
-      var orderShipments = order.get('orderShipments');
-
-      // Get the most recent shipment
-      var mostRecentShipment;
-      _.each(orderShipments, function(orderShipment) {
-        if (!mostRecentShipment) {
-          mostRecentShipment = orderShipment;
-        } else if (orderShipment.get('shipmentId') > mostRecentShipment.get('shipmentId')) {
-          mostRecentShipment = orderShipment;
+      var orderProducts = order.get('orderProducts');
+      _.each(orderProducts, function(orderProduct) {
+        var quantityToShip = orderProduct.get('quantity') - orderProduct.get('quantity_shipped');
+        if (orderProduct.get('shippable') && quantityToShip > 0) {
+          var variants = orderProduct.has('editedVariants') ? orderProduct.get('editedVariants') : orderProduct.has('variants') ? orderProduct.get('variants') : [];
+          _.each(variants, function(variant) {
+            var designer = variant.get('designer');
+            pickSheetItems.push({
+              designerName: designer && designer.has('name') ? designer.get('name') : 'None',
+              productName: variant.get('productName'),
+              size: variant.has('size_value') ? variant.get('size_value') : '',
+              color: variant.has('color_value') ? variant.get('color_value') : '',
+              units: quantityToShip.toString(),
+              orderId: order.get('orderId').toString(),
+              notes: order.has('customer_message') ? order.get('customer_message') : ''
+            });
+          });
         }
       });
-      logInfo('most recent: ' + mostRecentShipment.get('shipmentId'));
-      var items = mostRecentShipment.get('items');
-      var orderProducts = order.get('orderProducts');
-      _.each(items, function(item) {
-        _.each(orderProducts, function(orderProduct) {
-          if (orderProduct.get('orderProductId') == item.order_product_id) {
-            var variants = orderProduct.has('editedVariants') ? orderProduct.get('editedVariants') : orderProduct.has('variants') ? orderProduct.get('variants') : [];
-            _.each(variants, function(variant) {
-              var designer = variant.get('designer');
-              pickSheetItems.push({
-                designerName: designer && designer.has('name') ? designer.get('name') : 'None',
-                productName: variant.get('productName'),
-                size: variant.has('size_value') ? variant.get('size_value') : '',
-                color: variant.has('color_value') ? variant.get('color_value') : '',
-                units: item.quantity.toString(),
-                orderId: order.get('orderId').toString(),
-                notes: order.has('customer_message') ? order.get('customer_message') : ''
-              });
-            });
-          }
-        });
-      });
-
-      // if (mostRecentShipment.has('labelWithPackingSlipUrl')) {
-      //   logInfo('add to batch pdf: ' + mostRecentShipment.get('labelWithPackingSlipUrl'));
-      //   pdfsToCombine.push(mostRecentShipment.get('labelWithPackingSlipUrl'));
-      // } else {
-      //   var msg = 'Error: Order #' + mostRecentShipment.get('order_id') + ' shipping label not added to combined print file.';
-      //   logInfo(msg);
-      //   errors.push(msg);
-      // }
     });
     return createPickSheet(pickSheetItems);
 
@@ -3762,13 +3738,13 @@ var createPickSheet = function(items) {
   var boldFont = pdfWriter.getFontForFile(__dirname + '/../public/fonts/lato/Lato-Bold.ttf');
 
   // Logo
-  var logoXPos = pageWidth / 2 - 100;
-  var logoYPos = pageHeight - 36 - 31;
+  var logoXPos = margin;
+  var logoYPos = pageHeight - margin - 31;
   cxt.drawImage(logoXPos, logoYPos, __dirname + '/../public/img/logo.jpg', {transformation:{width:200,height:31, proportional:true}});
 
 	// Title
   var titleText = 'Pick Sheet - ' + moment().tz("America/Los_Angeles").format('M/D/YYYY');
-	var title = writePdfText(cxt, titleText, boldFont, 11, 0x000000, 'center', 0, logoYPos, padding, pageWidth, pageHeight);
+	var title = writePdfText(cxt, titleText, boldFont, 11, 0x000000, 'right', margin, logoYPos, padding*-1, pageWidth, pageHeight);
 
 	// Line
 	var lineYPos = title.y - padding;
@@ -3777,25 +3753,25 @@ var createPickSheet = function(items) {
   // Column Headings
 	var columnHeadingY = lineYPos;
 	var designerHeading = writePdfText(cxt, 'DESIGNER', boldFont, 8, 0x000000, 'left', margin, columnHeadingY, padding, pageWidth, pageHeight);
-	var productHeading = writePdfText(cxt, 'PRODUCT', boldFont, 8, 0x000000, 'left', margin + 100, columnHeadingY, padding, pageWidth, pageHeight);
-	var sizeHeading = writePdfText(cxt, 'SIZE', boldFont, 8, 0x000000, 'left', margin + 200, columnHeadingY, padding, pageWidth, pageHeight);
-	var colorHeading = writePdfText(cxt, 'COLOR', boldFont, 8, 0x000000, 'left', margin + 250, columnHeadingY, padding, pageWidth, pageHeight);
-	var unitsHeading = writePdfText(cxt, 'UNITS', boldFont, 8, 0x000000, 'left', margin + 350, columnHeadingY, padding, pageWidth, pageHeight);
-	var orderIdHeading = writePdfText(cxt, 'ORDER ID', boldFont, 8, 0x000000, 'left', margin + 400, columnHeadingY, padding, pageWidth, pageHeight);
-  var notesHeading = writePdfText(cxt, 'NOTES', boldFont, 8, 0x000000, 'left', margin + 450, columnHeadingY, padding, pageWidth, pageHeight);
+	var productHeading = writePdfText(cxt, 'PRODUCT', boldFont, 8, 0x000000, 'left', designerHeading.x + 80, columnHeadingY, padding, pageWidth, pageHeight);
+	var sizeHeading = writePdfText(cxt, 'SIZE', boldFont, 8, 0x000000, 'left', productHeading.x + 120, columnHeadingY, padding, pageWidth, pageHeight);
+	var colorHeading = writePdfText(cxt, 'COLOR', boldFont, 8, 0x000000, 'left', sizeHeading.x + 50, columnHeadingY, padding, pageWidth, pageHeight);
+	var unitsHeading = writePdfText(cxt, 'UNITS', boldFont, 8, 0x000000, 'left', colorHeading.x + 80, columnHeadingY, padding, pageWidth, pageHeight);
+	var orderIdHeading = writePdfText(cxt, 'ORDER ID', boldFont, 8, 0x000000, 'left', unitsHeading.x + 30, columnHeadingY, padding, pageWidth, pageHeight);
+  var notesHeading = writePdfText(cxt, 'NOTES', boldFont, 8, 0x000000, 'left', orderIdHeading.x + 50, columnHeadingY, padding, pageWidth, pageHeight);
 
 	// Item Rows
   var rowY = notesHeading.y - 10;
   items.sort(dynamicSortMultiple('designerName','productName'));
   _.each(items, function(item) {
     var rowColor = 0x000000;
-    var designerText = writePdfText(cxt, item.designerName, regularFont, 8, rowColor, 'left', margin, rowY, 10, pageWidth, pageHeight, 100);
-    var productText = writePdfText(cxt, item.productName, regularFont, 8, rowColor, 'left', margin + 100, rowY, 10, pageWidth, pageHeight, 100);
-    var sizeText = writePdfText(cxt, item.size, regularFont, 8, rowColor, 'left', margin + 200, rowY, 10, pageWidth, pageHeight, 50);
-    var colorText = writePdfText(cxt, item.color, regularFont, 8, rowColor, 'left', margin + 250, rowY, 10, pageWidth, pageHeight, 100);
-    var quantityText = writePdfText(cxt, item.units, regularFont, 8, rowColor, 'left', margin + 350, rowY, 10, pageWidth, pageHeight, 50);
-    var orderIdText = writePdfText(cxt, item.orderId, regularFont, 8, rowColor, 'left', margin + 400, rowY, 10, pageWidth, pageHeight, 50);
-    var notesText = writePdfText(cxt, item.notes, regularFont, 8, rowColor, 'left', margin + 450, rowY, 10, pageWidth, pageHeight, 150);
+    var designerText = writePdfText(cxt, item.designerName, regularFont, 8, rowColor, 'left', designerHeading.x, rowY, 10, pageWidth, pageHeight, 80);
+    var productText = writePdfText(cxt, item.productName, regularFont, 8, rowColor, 'left', productHeading.x, rowY, 10, pageWidth, pageHeight, 140);
+    var sizeText = writePdfText(cxt, item.size, regularFont, 8, rowColor, 'left', sizeHeading.x, rowY, 10, pageWidth, pageHeight, 30);
+    var colorText = writePdfText(cxt, item.color, regularFont, 8, rowColor, 'left', colorHeading.x, rowY, 10, pageWidth, pageHeight, 80);
+    var quantityText = writePdfText(cxt, item.units, regularFont, 8, rowColor, 'left', unitsHeading.x, rowY, 10, pageWidth, pageHeight, 30);
+    var orderIdText = writePdfText(cxt, item.orderId, regularFont, 8, rowColor, 'left', orderIdHeading.x, rowY, 10, pageWidth, pageHeight, 50);
+    var notesText = writePdfText(cxt, item.notes, regularFont, 8, rowColor, 'left', notesHeading.x, rowY, 10, pageWidth, pageHeight, 200);
     var rowHeight = getRowHeight([designerText, productText, sizeText, colorText, quantityText, orderIdText, notesText]);
     rowY -= (rowHeight + 10);
   });
