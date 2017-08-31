@@ -2129,7 +2129,7 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
   	return Parse.Cloud.run('loadProductVariants', {productId: bundleProductId});
 
   }).then(function(result) {
-    productQuery.equalTo('productId', productId);
+    productQuery.equalTo('productId', bundleProductId);
     productQuery.include('variants');
     productQuery.include('variants.colorCode');
     productQuery.include('variants.stoneCode');
