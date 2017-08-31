@@ -948,6 +948,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
       var objectId = variant.objectId;
       var inventory = variant.inventory;
       var color = variant.color;
+      var wholesalePrice = variant.wholesalePrice;
       promise = promise.then(function() {
         logInfo('saving variant: ' + objectId);
 
@@ -969,6 +970,11 @@ Parse.Cloud.define("saveVariants", function(request, response) {
           } else {
             variant.unset('color_label');
             variant.unset('color_value');
+          }
+          if (wholesalePrice) {
+            variant.set('customWholesalePrice', parseFloat(wholesalePrice));
+          } else {
+            variant.unset('customWholesalePrice');
           }
           logInfo('Set inventory for variant ' + variant.get('variantId') + ' to ' + variant.get('inventoryLevel'), true);
           logInfo('Set color for variant ' + variant.get('variantId') + ' to ' + variant.get('color_value'), true);
@@ -2599,7 +2605,7 @@ var createProductObject = function(productData, classes, departments, designers,
   productObj.set('primary_image', productData.primary_image);
   productObj.set('availability', productData.availability);
 
-  if (!productObj.has('wholesalePrice')) productObj.set('wholesalePrice', parseFloat(productData.price) / WHOLESALE_PRICE_REDUCTION);
+  productObj.set('wholesalePrice', parseFloat(productData.price) / WHOLESALE_PRICE_REDUCTION);
 
   if (!productObj.has('is_active')) productObj.set('is_active', true);
 
@@ -2755,6 +2761,7 @@ var createProductVariantObject = function(product, variantId, variantOptions, cu
 
 	variantObj.set('optionValueIds', optionValueIds);
 	variantObj.set('adjustedPrice', adjustedPrice);
+  variantObj.set('adjustedWholesalePrice', adjustedPrice / WHOLESALE_PRICE_REDUCTION);
 
 	// Duplicate some properties from parent product
 	if (product.has('designer')) variantObj.set('designer', product.get('designer'));
