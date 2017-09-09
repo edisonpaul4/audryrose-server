@@ -29,10 +29,6 @@ bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
 const NUM_HOURS_TO_EXPIRE = 24;
-// const COLORS_IDS = [31, 3, 36, 30, 23, 37];
-// const STONE_IDS = [33];
-// const SIZE_IDS = [32, 18];
-// const MISC_IDS = [35, 27, 26, 24];
 const isProduction = process.env.NODE_ENV == 'production';
 const isDebug = process.env.DEBUG == 'true';
 
