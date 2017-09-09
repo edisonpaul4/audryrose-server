@@ -29,10 +29,10 @@ bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
 const BIGCOMMERCE_BATCH_SIZE = 250;
 const NUM_HOURS_TO_EXPIRE = 24;
-const COLORS_IDS = [31, 3, 36, 30, 23];
-const STONE_IDS = [33];
-const SIZE_IDS = [32, 18];
-const MISC_IDS = [35, 27, 26, 24];
+// const COLORS_IDS = [31, 3, 36, 30, 23, 37];
+// const STONE_IDS = [33];
+// const SIZE_IDS = [32, 18];
+// const MISC_IDS = [35, 27, 26, 24];
 const isProduction = process.env.NODE_ENV == 'production';
 const isDebug = process.env.DEBUG == 'true';
 
@@ -462,25 +462,25 @@ Parse.Cloud.job("updateDesigners", function(request, status) {
 
 Parse.Cloud.job("updateOptions", function(request, status) {
   logInfo('updateOptions job --------------------------', true);
+  var config;
   var totalOptionsAdded = 0;
   var colorOptionValues = [];
   var stoneOptionValues = [];
   var sizeOptionValues = [];
   var miscOptionValues = [];
   var bcOptions = [];
-
-  var allIds = COLORS_IDS.concat(STONE_IDS);
-  allIds = allIds.concat(SIZE_IDS);
-  allIds = allIds.concat(MISC_IDS);
-  var totalOptions = allIds.length;
+  var newOptions = [];
+  var allIds;
 
   var startTime = moment();
 
-  bigCommerce.get('/options/count', function(err, data, response){
-    logInfo('Number of options: ' + totalOptions);
-    return data.count;
+  Parse.Config.get().then(function(result) {
+    config = result;
+    allIds = config.get('ColorIds').concat(config.get('StoneIds'), config.get('SizeIds'), config.get('MiscIds'));
+    return bigCommerce.get('/options/count');
 
-  }).then(function(count) {
+  }).then(function(data) {
+    logInfo(data.count + ' options in BC, ' + allIds.length + ' options in config');
     return bigCommerce.get('/options?limit=' + BIGCOMMERCE_BATCH_SIZE);
 
   }).then(function(optionResults) {
@@ -494,10 +494,14 @@ Parse.Cloud.job("updateOptions", function(request, status) {
           return bigCommerce.get(request);
         }).then(function(response) {
   				_.each(response, function(option) {
-    				if (COLORS_IDS.indexOf(id) >= 0) colorOptionValues.push(option);
-    				if (STONE_IDS.indexOf(id) >= 0) stoneOptionValues.push(option);
-    				if (SIZE_IDS.indexOf(id) >= 0) sizeOptionValues.push(option);
-    				if (MISC_IDS.indexOf(id) >= 0) miscOptionValues.push(option);
+    				if (config.get('ColorIds').indexOf(id) >= 0) colorOptionValues.push(option);
+    				if (config.get('StoneIds').indexOf(id) >= 0) stoneOptionValues.push(option);
+    				if (config.get('SizeIds').indexOf(id) >= 0) sizeOptionValues.push(option);
+    				if (config.get('MiscIds').indexOf(id) >= 0) miscOptionValues.push(option);
+            if (allIds.indexOf(id) < 0) {
+              newOptions.push(option);
+              logError('Option ' + option.id + ' has no specified type');
+            }
           });
           return true;
         }, function(error) {
