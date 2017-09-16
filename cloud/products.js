@@ -1073,6 +1073,8 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
 
   var orders = request.params.orders;
   var orderId = parseFloat(request.params.orderId);
+  var getUpdatedProducts = request.params.getUpdatedProducts;
+  if (getUpdatedProducts === undefined) getUpdatedProducts = true;
   var updatedVariants = [];
   var updatedProductIds = [];
   var updatedProducts = [];
@@ -1251,6 +1253,8 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
   	return promise;
 
 	}).then(function() {
+
+    if (!getUpdatedProducts) return true;
 
   	logInfo(productIds.length + ' product ids to save');
 
@@ -1517,6 +1521,8 @@ Parse.Cloud.define("createResize", function(request, response) {
   	return promise;
 
 	}).then(function() {
+    // Do not load products when function triggered from /orders section
+    if (orderId) return true;
 
   	logInfo(productIds.length + ' product ids to get');
 
@@ -1559,11 +1565,13 @@ Parse.Cloud.define("createResize", function(request, response) {
   	return Parse.Promise.when(allPromises);
 
   }).then(function() {
+    // Do not load variants when function triggered from /orders section
+    if (orderId) return [];
+
     logInfo('products loaded');
     return Parse.Object.fetchAll(updatedVariants);
 
   }).then(function(results) {
-    logInfo('variants loaded');
     updatedVariants = results;
     if (orderId) {
       logInfo('get order tab counts');
@@ -1575,6 +1583,14 @@ Parse.Cloud.define("createResize", function(request, response) {
 
   }).then(function(result) {
     tabCounts = result;
+
+    if (orderId) {
+      return Parse.Cloud.run('updateAwaitingInventoryQueue');
+    } else {
+      return true;
+    }
+
+  }).then(function(result) {
 
     if (orderId) {
       var orderQuery = new Parse.Query(Order);
@@ -1829,7 +1845,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
           if (resizeObject.get('done') == false/* && !resizeObject.has('orderProduct')*/) {
             // logInfo('resize ' + resizeObject.id + ' is available for queue');
             var numAvailable = resizeObject.get('units') - resizeObject.get('received');
-            awaitingInventory.push({object: resizeObject, available: numAvailable, reserved: 0});
+            if (numAvailable > 0) awaitingInventory.push({object: resizeObject, available: numAvailable, reserved: 0});
           }
       });
     }
@@ -1853,7 +1869,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
           if (vendorOrderVariant.get('done') == false /*&& !vendorOrderVariant.has('orderProducts')*/) {
             // logInfo('vendorOrderVariant ' + vendorOrderVariant.id + ' is available for queue');
             var numAvailable = vendorOrderVariant.get('units') - vendorOrderVariant.get('received');
-            awaitingInventory.push({object: vendorOrderVariant, available: numAvailable, reserved: 0, vendorOrder: vendorOrder});
+            if (numAvailable > 0) awaitingInventory.push({object: vendorOrderVariant, available: numAvailable, reserved: 0, vendorOrder: vendorOrder});
           }
         });
       });
