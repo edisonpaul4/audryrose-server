@@ -1284,11 +1284,15 @@ Parse.Cloud.define("getOrderProductFormData", function(request, response) {
             objectId: variant.id,
             product_id: variant.get('product_id'),
             color_value: variant.get('color_value'),
+            colorCode: variant.has('colorCode') ? variant.get('colorCode').toJSON() : null,
             gemstone_value: variant.get('gemstone_value'),
+            stoneCode: variant.has('stoneCode') ? variant.get('stoneCode').toJSON() : null,
             size_value: variant.get('size_value'),
+            sizeCode: variant.has('sizeCode') ? variant.get('sizeCode').toJSON() : null,
             length_value: variant.get('length_value'),
             letter_value: variant.get('letter_value'),
             singlepair_value: variant.get('singlepair_value'),
+            miscCode: variant.has('miscCode') ? variant.get('miscCode').toJSON() : null,
             variantOptions: variant.get('variantOptions'),
             inventoryLevel: variant.get('inventoryLevel')
           };
