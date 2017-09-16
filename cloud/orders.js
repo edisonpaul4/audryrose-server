@@ -1223,9 +1223,11 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
 
   logInfo('addOrderProductToVendorOrder ' + orderId + ' ------------------------');
 
-  Parse.Cloud.run('addToVendorOrder', {orders: orders, orderId: orderId}).then(function(result) {
+  Parse.Cloud.run('addToVendorOrder', {orders: orders, orderId: orderId, getUpdatedProducts: false}).then(function(result) {
 
-    if (result.updatedProducts) updatedProducts = result.updatedProducts;
+    return Parse.Cloud.run('updateAwaitingInventoryQueue');
+
+  }).then(function(result) {
 
     logInfo('get order data');
     var ordersQuery = new Parse.Query(Order);
