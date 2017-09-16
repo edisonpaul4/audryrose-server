@@ -12,6 +12,8 @@ var Designer = Parse.Object.extend('Designer');
 var StyleNumber = Parse.Object.extend('StyleNumber');
 var ColorCode = Parse.Object.extend('ColorCode');
 var StoneCode = Parse.Object.extend('StoneCode');
+var SizeCode = Parse.Object.extend('SizeCode');
+var MiscCode = Parse.Object.extend('MiscCode');
 var Order = Parse.Object.extend('Order');
 var OrderProduct = Parse.Object.extend('OrderProduct');
 var Vendor = Parse.Object.extend('Vendor');
@@ -772,7 +774,7 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   var completed = false;
   setTimeout(function() {
     if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
-  }, 20000);
+  }, 28000);
 
   var productId = parseInt(request.params.productId);
   var updatedProduct;
@@ -2402,14 +2404,18 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
     var optionsChecked = 0;
     var colorCodes = [];
     var stoneCodes = [];
+    var sizeCodes = [];
+    var miscCodes = [];
     logInfo('totalOptions: ' + totalOptions);
     _.each(variantOptions, function(variantOption) {
+      logInfo('option id:' + variantOption.option_id + ', value id:' + variantOption.option_value_id);
+
       var colorCodeQuery = new Parse.Query(ColorCode);
       colorCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
       colorCodeQuery.equalTo('option_value_id', parseInt(variantOption.option_value_id));
   		colorCodeQuery.first().then(function(colorCodeResult) {
         if (colorCodeResult) {
-          // logInfo('ColorCode matched: ' + colorCodeResult.get('label'));
+          logInfo('ColorCode matched: ' + colorCodeResult.get('label'));
           colorCodes.push(colorCodeResult);
         }
         var stoneCodeQuery = new Parse.Query(StoneCode);
@@ -2419,13 +2425,36 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
 
       }).then(function(stoneCodeResult) {
         if (stoneCodeResult) {
-          // logInfo('StoneCode matched: ' + stoneCodeResult.get('label'));
+          logInfo('StoneCode matched: ' + stoneCodeResult.get('label'));
           stoneCodes.push(stoneCodeResult);
+        }
+        var sizeCodeQuery = new Parse.Query(SizeCode);
+        sizeCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
+        sizeCodeQuery.equalTo('option_value_id', parseInt(variantOption.option_value_id));
+        return sizeCodeQuery.first();
+
+      }).then(function(sizeCodeResult) {
+        if (sizeCodeResult) {
+          logInfo('SizeCode matched: ' + sizeCodeResult.get('label'));
+          sizeCodes.push(sizeCodeResult);
+        }
+        var miscCodeQuery = new Parse.Query(MiscCode);
+        miscCodeQuery.equalTo('option_id', parseInt(variantOption.option_id));
+        miscCodeQuery.equalTo('option_value_id', parseInt(variantOption.option_value_id));
+        return miscCodeQuery.first();
+
+      }).then(function(miscCodeResult) {
+        if (miscCodeResult) {
+          logInfo('MiscCode matched: ' + miscCodeResult.get('label'));
+          miscCodes.push(miscCodeResult);
         }
         optionsChecked++;
         if (optionsChecked == totalOptions) {
-          // logInfo('total color codes: ' + colorCodes.length);
-          // logInfo('total stone codes: ' + stoneCodes.length);
+          logInfo('total color codes: ' + colorCodes.length);
+          logInfo('total stone codes: ' + stoneCodes.length);
+          logInfo('total size codes: ' + sizeCodes.length);
+          logInfo('total misc codes: ' + miscCodes.length);
+
           if (colorCodes.length > 1) {
             productVariant.set('colorCodes', colorCodes);
             productVariant.unset('colorCode');
@@ -2436,6 +2465,7 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
             productVariant.unset('colorCode');
             productVariant.unset('colorCodes');
           }
+
           if (stoneCodes.length > 1) {
             productVariant.set('stoneCodes', stoneCodes);
             productVariant.unset('stoneCodes');
@@ -2446,12 +2476,35 @@ Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
             productVariant.unset('stoneCode');
             productVariant.unset('stoneCodes');
           }
-          var allCodeObjects = colorCodes.concat(stoneCodes);
+
+          if (sizeCodes.length > 1) {
+            productVariant.set('sizeCodes', sizeCodes);
+            productVariant.unset('sizeCodes');
+          } else if (sizeCodes.length == 1) {
+            productVariant.set('sizeCode', sizeCodes[0]);
+            productVariant.unset('sizeCodes');
+          } else {
+            productVariant.unset('sizeCode');
+            productVariant.unset('sizeCodes');
+          }
+
+          if (miscCodes.length > 1) {
+            productVariant.set('miscCodes', miscCodes);
+            productVariant.unset('miscCodes');
+          } else if (miscCodes.length == 1) {
+            productVariant.set('miscCode', miscCodes[0]);
+            productVariant.unset('miscCodes');
+          } else {
+            productVariant.unset('miscCode');
+            productVariant.unset('miscCodes');
+          }
+
+          var allCodeObjects = colorCodes.concat(stoneCodes, sizeCodes, miscCodes);
           var allCodes = _.map(allCodeObjects, function(codeObj) {
             return codeObj.has('manualCode') ? codeObj.get('manualCode') : codeObj.get('generatedCode');
           });
           var codeString = allCodes.join('');
-          // logIsnfo('code: ' + codeString);
+          logInfo('code: ' + codeString);
           productVariant.set('code', codeString);
 
           response.success();
