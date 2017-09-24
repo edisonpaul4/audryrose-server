@@ -1078,8 +1078,10 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
   var updatedVariants = [];
   var updatedProductIds = [];
   var updatedProducts = [];
+  var updatedDesigners = [];
   var vendorOrders = [];
   var productIds = [];
+  var designerIds = [];
   var tabCounts;
 
   var query = new Parse.Query(Product);
@@ -1121,6 +1123,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
 
         logInfo('get variant: ' + variantId);
         // Get the requested ProductVariant
+        // TODO: replace below with a function for getting or creating custom product variant
         var variantQuery = new Parse.Query(ProductVariant);
         variantQuery.equalTo('objectId', variantId);
         return variantQuery.first();
@@ -1129,7 +1132,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
         if (result) {
           logInfo('ProductVariant found');
           variant = result;
-          updatedVariants.push(variant);
+          // updatedVariants.push(variant);
           if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
 
           // Get the requested Vendor
@@ -1304,8 +1307,8 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
   	return Parse.Promise.when(allPromises);
 
   }).then(function(result) {
-    logInfo('get product tab counts');
 
+    logInfo('get product tab counts');
     return Parse.Cloud.run('updateProductTabCounts');
 
   }).then(function(result) {
@@ -1313,7 +1316,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
     tabCounts = result;
     logInfo('addToVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
-	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, tabCounts: tabCounts});
+	  response.success({updatedProducts: updatedProducts, updatedDesigners: updatedDesigners, tabCounts: tabCounts});
 
 	});
 

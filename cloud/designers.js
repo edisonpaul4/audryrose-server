@@ -10,6 +10,10 @@ var Designer = Parse.Object.extend('Designer');
 var Vendor = Parse.Object.extend('Vendor');
 var VendorOrder = Parse.Object.extend('VendorOrder');
 var VendorOrderVariant = Parse.Object.extend('VendorOrderVariant');
+var ColorCode = Parse.Object.extend('ColorCode');
+var StoneCode = Parse.Object.extend('StoneCode');
+var SizeCode = Parse.Object.extend('SizeCode');
+var MiscCode = Parse.Object.extend('MiscCode');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -467,6 +471,174 @@ Parse.Cloud.define("getUpdatedDesigner", function(request, response) {
     response.success({updatedDesigner: updatedDesigner, completedVendorOrders: completedVendorOrders})
   }, function(error) {
     response.error(error);
+  });
+});
+
+Parse.Cloud.define("getDesignerProducts", function(request, response) {
+  logInfo('getDesignerProducts cloud function --------------------------', true);
+
+  var startTime = moment();
+
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  }, 28000);
+
+  var designerId = request.params.designerId;
+  // var designer;
+  var products;
+  var responseData = {};
+
+  logInfo('get products for designer ' + designerId);
+  var designerQuery = new Parse.Query(Designer);
+  designerQuery.equalTo('objectId', designerId);
+  designerQuery.include('vendors');
+  designerQuery.first().then(function(result) {
+    var designer = result;
+    var vendors = designer.get('vendors').map(function(vendor) {
+      var vendorData = {
+        objectId: vendor.id,
+        name: vendor.get('name')
+      };
+      return vendorData;
+    });
+    responseData.designer = {
+      objectId: designer.id,
+      name: designer.get('name'),
+      vendors: vendors
+    };
+    logInfo('designer ' + responseData.designer.name + ' found');
+
+    var productsQuery = new Parse.Query(Product);
+    productsQuery.equalTo('designer', designer);
+    productsQuery.include('variants');
+    productsQuery.include('vendor');
+    productsQuery.ascending('productId');
+    productsQuery.notEqualTo('isBundle', true);
+    productsQuery.limit(999999);
+    return productsQuery.find();
+
+  }).then(function(results) {
+    // responseData.products = results;
+    responseData.products = results ? results.map(function(result) {
+      var product = {
+        productId: result.get('productId'),
+        name: result.get('name'),
+        vendor: result.get('vendor').toJSON()
+      }
+      if (result.has('variants')) {
+        var variantsData = result.get('variants').map(function(variant) {
+          return {
+            objectId: variant.id,
+            product_id: variant.get('product_id'),
+            color_value: variant.get('color_value'),
+            colorCode: variant.has('colorCode') ? variant.get('colorCode').toJSON() : null,
+            gemstone_value: variant.get('gemstone_value'),
+            stoneCode: variant.has('stoneCode') ? variant.get('stoneCode').toJSON() : null,
+            size_value: variant.get('size_value'),
+            sizeCode: variant.has('sizeCode') ? variant.get('sizeCode').toJSON() : null,
+            length_value: variant.get('length_value'),
+            letter_value: variant.get('letter_value'),
+            singlepair_value: variant.get('singlepair_value'),
+            miscCode: variant.has('miscCode') ? variant.get('miscCode').toJSON() : null,
+            variantOptions: variant.get('variantOptions'),
+            inventoryLevel: variant.get('inventoryLevel')
+          };
+        });
+        product.variants = variantsData;
+      }
+      return product;
+    } ) : [];
+    logInfo(responseData.products.length + ' products found');
+
+    var query = new Parse.Query(ColorCode);
+    query.ascending('option_name');
+    query.addAscending('value');
+    query.limit(10000);
+    return query.find();
+
+  }).then(function(results) {
+    responseData.colorCodes = results ? results.map(function(result) { return result.toJSON() } ) : [];
+    logInfo(responseData.colorCodes.length + ' colorCodes loaded');
+
+    var query = new Parse.Query(StoneCode);
+    query.ascending('option_name');
+    query.addAscending('value');
+    query.limit(10000);
+    return query.find();
+
+  }).then(function(results) {
+    responseData.stoneCodes = results ? results.map(function(result) { return result.toJSON() } ) : [];
+    logInfo(responseData.stoneCodes.length + ' stoneCodes loaded');
+
+    var query = new Parse.Query(SizeCode);
+    query.ascending('option_name');
+    query.addAscending('value');
+    query.limit(10000);
+    return query.find();
+
+  }).then(function(results) {
+    responseData.sizeCodes = results ? results.map(function(result) { return result.toJSON() } ) : [];
+    logInfo(responseData.sizeCodes.length + ' sizeCodes loaded');
+
+    var query = new Parse.Query(MiscCode);
+    query.ascending('option_name');
+    query.addAscending('value');
+    query.limit(10000);
+    return query.find();
+
+  }).then(function(results) {
+    responseData.miscCodes = results ? results.map(function(result) { return result.toJSON() } ) : [];
+    logInfo(responseData.miscCodes.length + ' miscCodes loaded');
+
+    logInfo('getDesignerProducts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    completed = true;
+    response.success(responseData);
+  });
+});
+
+Parse.Cloud.define("addDesignerProductToVendorOrder", function(request, response) {
+  logInfo('addDesignerProductToVendorOrder cloud function --------------------------', true);
+  var startTime = moment();
+
+  var completed = false;
+  setTimeout(function() {
+    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  }, 28000);
+
+  var orders = request.params.orders;
+  var designerId = request.params.designerId;
+  var updatedDesigner;
+
+  logInfo('addDesignerProductToVendorOrder ' + designerId + ' ------------------------');
+
+  Parse.Cloud.run('addToVendorOrder', {orders: orders, getUpdatedProducts: false}).then(function(result) {
+
+    logInfo('get updated designer');
+    var designerQuery = new Parse.Query(Designer);
+    designerQuery.equalTo('objectId', designerId);
+    designerQuery.include('vendors.vendorOrders');
+    designerQuery.include('vendors.vendorOrders.vendorOrderVariants');
+    designerQuery.include('vendors.vendorOrders.vendorOrderVariants.orderProducts');
+    designerQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
+    designerQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
+    return designerQuery.first();
+
+  }).then(function(result) {
+    updatedDesigner = result;
+
+    completed = true;
+	  response.success({updatedDesigner: updatedDesigner});
+
+    return Parse.Cloud.run('updateAwaitingInventoryQueue');
+
+  }).then(function(result) {
+    logInfo('addDesignerProductToVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    
+  }, function(error) {
+	  logError(error);
+	  response.error(error.message);
+
   });
 });
 
@@ -983,6 +1155,14 @@ var destroyVendorOrder = function(vendorOrder) {
     return error;
 
   });
+}
+
+var queryResultsToJSON = function(results) {
+  var jsonArray = [];
+  _.each(results, function(result) {
+    jsonArray.push(result.toJSON());
+  });
+  return jsonArray;
 }
 
 var delay = function(t) {
