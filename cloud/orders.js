@@ -885,7 +885,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
 
       }).then(function(httpResponse) {
         logInfo('Order #' + orderId + ' Shippo label status: ' + httpResponse.data.object_status, true);
-        if (httpResponse.data.object_status == 'SUCCESS') {
+        if (httpResponse.data.object_status == 'SUCCESS' && process.env.NODE_ENV === 'production') {
 
           shippoLabel = httpResponse.data;
 
@@ -912,13 +912,16 @@ Parse.Cloud.define("createShipments", function(request, response) {
           }
           return bigCommerce.post(request, bcShipmentData);
 
-        } else {
+        } else if (process.env.NODE_ENV === 'production') {
           _.each(httpResponse.data.messages, function(message) {
-
             var msg = 'Error with Order #' + orderId + ': ' + message.text;
             logError(msg, true);
             errors.push(msg);
           });
+
+        } else {
+          errors.push('Shipments cannot be created from development enviroment.')
+          return false;
         }
 
       }, function(error) {
@@ -1618,7 +1621,7 @@ Parse.Cloud.job("batchCreateShipments", function(request, status) {
 
       }).then(function(httpResponse) {
         logInfo('Order #' + orderId + ' Shippo label status: ' + httpResponse.data.object_status, true);
-        if (httpResponse.data.object_status == 'SUCCESS') {
+        if (httpResponse.data.object_status == 'SUCCESS' && process.env.NODE_ENV === 'production') {
 
           shippoLabel = httpResponse.data;
 
@@ -1645,13 +1648,16 @@ Parse.Cloud.job("batchCreateShipments", function(request, status) {
           }
           return bigCommerce.post(request, bcShipmentData);
 
-        } else {
+        } else if (process.env.NODE_ENV === 'production') {
           _.each(httpResponse.data.messages, function(message) {
 
             var msg = 'Error with Order #' + orderId + ': ' + message.text;
             logError(msg, true);
             errors.push(msg);
           });
+        } else {
+          errors.push('Shipments cannot be created in development environment.')
+          return false;
         }
 
       }, function(error) {
@@ -2458,7 +2464,7 @@ var loadOrder = function(bcOrderId) {
 
     if (bcOrderShipments.length <= 0) {
       logInfo('No shipments found');
-      if (bcOrder.status_id == 2) {
+      if (bcOrder.status_id == 2 && process.env.NODE_ENV === 'production') {
         // Set the Bigcommerce order status to 'Awaiting Fulfillment' (resets order when shipments are deleted)
         orderObj.set('status', 'Awaiting Fulfillment');
         orderObj.set('status_id', 11);
@@ -2475,7 +2481,7 @@ var loadOrder = function(bcOrderId) {
         logInfo(orderProduct.get('quantity') + ' to ship, ' + orderProduct.get('quantity_shipped') + ' shipped ');
         if (orderProduct.get('quantity_shipped') < orderProduct.get('quantity')) allShipped = false;
       });
-      if (allShipped && (orderObj.get('status_id') === 11 || orderObj.get('status_id') === 3)) {
+      if (allShipped && (orderObj.get('status_id') === 11 || orderObj.get('status_id') === 3) && process.env.NODE_ENV === 'production') {
         orderObj.set('status', 'Shipped');
         orderObj.set('status_id', 2);
         var request = '/orders/' + bcOrderId;
