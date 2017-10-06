@@ -3572,7 +3572,7 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
     });
     // var priceText = writePdfText(cxt, numeral(orderProduct.get('price_inc_tax')).format('$0,0.00'), regularFont, 9, rowColor, 'right', margin + 80, rowY, 10, pageWidth, pageHeight);
     // var totalText = writePdfText(cxt, numeral(orderProduct.get('total_inc_tax')).format('$0,0.00'), regularFont, 9, rowColor, 'right', margin, rowY, 10, pageWidth, pageHeight);
-    // rowY -= (nameText.dims.height + optionsHeight + 10);
+    rowY -= (nameText.dims.height + optionsHeight + 10);
   });
 
   pdfWriter.writePage(page);
