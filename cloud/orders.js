@@ -3520,7 +3520,7 @@ var createOrderShipmentPackingSlip = function(order, shipment) {
   var shippingMethod = writePdfText(cxt, shippingMethodText, boldFont, 10, 0x000000, 'left', pageCenterX, orderDate.y, 12, pageWidth, pageHeight);
 
   // Customer Note
-  var customerNoteText = 'Customer Note: ' + ((order.has('customer_message')) ? 'Yes' : '');
+  var customerNoteText = 'Customer Note: ' + (((order.get('customer_message').length > 1) ? 'Yes' : ''));
   var customerNote = writePdfText(cxt, customerNoteText, boldFont, 10, 0x000000, 'left', margin, shippingMethod.y, 12, pageWidth, pageHeight);
 
 	// Line
