@@ -672,10 +672,23 @@ Parse.Cloud.define("createShipments", function(request, response) {
   }, function(error) {
     logError(error);
 
-  }).then(function(httpResponse) {
+  }).then(function(httpResponse){
     carriers = httpResponse.data.results;
+    if(httpResponse.data.next !== null)
+      return Parse.Cloud.httpRequest({
+        method: 'get',
+        url: httpResponse.data.next,
+        headers: {
+          'Authorization': 'ShippoToken ' + process.env.SHIPPO_API_TOKEN,
+        }
+      }, function(error){logError(error)}).then(function(httpResponse){
+        carriers = [...carriers, ...httpResponse.data.results];
+        return httpResponse;
+      });
+    else
+      return httpResponse;
+  }).then(function(httpResponse) {
     logInfo('total carriers ' + carriers.length, true);
-
     if (!shipmentGroups && ordersToShip) {
       logInfo('create shipment groups from order ids');
       shipmentGroups = [];
