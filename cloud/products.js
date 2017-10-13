@@ -3,6 +3,8 @@ var moment = require('moment-timezone');
 var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 
+var { ProductsController } = require('./products/products.controller');
+
 var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');
 var Category = Parse.Object.extend('Category');
@@ -232,6 +234,12 @@ Parse.Cloud.define("getProducts", function(request, response) {
 
   });
 });
+
+Parse.Cloud.define("getProductsAsCSV", function(request, response){
+  ProductsController.getProductsAsCSV()
+    .then(fileUrl => response.success(fileUrl))
+    .catch(error => reponse.error(error))
+})
 
 Parse.Cloud.define("updateProductTabCounts", function(request, response) {
   logInfo('updateProductTabCounts cloud function --------------------------', true);
