@@ -12,7 +12,7 @@ exports.ProductsController = new class ProductsController {
   }
 
   /**
-   * @returns CSV File
+   * @returns CSV File url
    */
   getProductsAsCSV(){
 
@@ -33,7 +33,7 @@ exports.ProductsController = new class ProductsController {
     var parseToCSVRows = responseProducts => {
       return new Promise((resolve, reject) => {
 
-        var fields = ["Dated Added", "Bigcommerce SKU", "Audry Rose Name", "Designer Name", "Designer", "Retail Price", "Wholesale Price", "Class", "Size Scale", "status ", "Act OH", "total awaiting", "Color", "OH size 2", "OH size 2.5", "OH size 3", "OH size 3.5", "OH size 4", "OH size 4.5", "OH size 5", "OH size 6.5", "OH size 6", "OH size 7", "OH size 7.5", "OH size 8", "OH size 8.5", "OH size 9", "OH size 9.5", "OH size 10", "OH size 10.5", "OH size 11", "awating size 2", "awating size 2.5", "awating size 3", "awating size 3.5", "awating size 4", "awating size 4.5", "awating size 5", "awating size 6.5", "awating size 6", "awating size 7", "awating size 7.5", "awating size 8", "awating size 8.5", "awating size 9", "awating size 9.5", "awating size 10", "awating size 10.5", "awating size 11"];
+        var fields = ["Dated Added", "Bigcommerce SKU", "Audry Rose Name", "Designer Name", "Designer", "Retail Price", "Wholesale Price", "Class", "Size Scale", "Status ", "Act OH", "Total awaiting", "Color", "OH size 2", "OH size 2.5", "OH size 3", "OH size 3.5", "OH size 4", "OH size 4.5", "OH size 5", "OH size 6.5", "OH size 6", "OH size 7", "OH size 7.5", "OH size 8", "OH size 8.5", "OH size 9", "OH size 9.5", "OH size 10", "OH size 10.5", "OH size 11", "awating size 2", "awating size 2.5", "awating size 3", "awating size 3.5", "awating size 4", "awating size 4.5", "awating size 5", "awating size 6.5", "awating size 6", "awating size 7", "awating size 7.5", "awating size 8", "awating size 8.5", "awating size 9", "awating size 9.5", "awating size 10", "awating size 10.5", "awating size 11"];
 
         var productsRows = responseProducts.reduce((allProducts, currentProduct) => {
           var csvRows = allProducts || [];
@@ -48,61 +48,50 @@ exports.ProductsController = new class ProductsController {
             "Wholesale Price": typeof currentProduct.wholesalePrice === 'undefined' ? 0 : currentProduct.wholesalePrice.toFixed(2),
             "Class": typeof currentProduct.classification === 'undefined' ? '' : currentProduct.classification.name,
             "Size Scale": currentProduct.sizeScale,
-            "status ": currentProduct.availability,
+            "Status ": currentProduct.availability,
             "Act OH": currentProduct.total_stock,
-            "total awaiting": currentProduct.totalAwaitingInventory,
-            "Color": "",
-            "OH size 2": 0,
-            "OH size 2.5": 0,
-            "OH size 3": 0,
-            "OH size 3.5": 0,
-            "OH size 4": 0,
-            "OH size 4.5": 0,
-            "OH size 5": 0,
-            "OH size 6.5": 0,
-            "OH size 6": 0,
-            "OH size 7": 0,
-            "OH size 7.5": 0,
-            "OH size 8": 0,
-            "OH size 8.5": 0,
-            "OH size 9": 0,
-            "OH size 9.5": 0,
-            "OH size 10": 0,
-            "OH size 10.5": 0,
-            "OH size 11": 0,
-            "awating size 2": 0,
-            "awating size 2.5": 0,
-            "awating size 3": 0,
-            "awating size 3.5": 0,
-            "awating size 4": 0,
-            "awating size 4.5": 0,
-            "awating size 5": 0,
-            "awating size 6.5": 0,
-            "awating size 6": 0,
-            "awating size 7": 0,
-            "awating size 7.5": 0,
-            "awating size 8": 0,
-            "awating size 8.5": 0,
-            "awating size 9": 0,
-            "awating size 9.5": 0,
-            "awating size 10": 0,
-            "awating size 10.5": 0,
-            "awating size 11": 0,
+            "Total awaiting": currentProduct.totalAwaitingInventory,
           };
-  
-          // Loop variants to know sizes
-          if(typeof currentProduct.variants !== 'undefined')
+
+          
+          
+          // Loop if has variants
+          if(typeof currentProduct.variants !== 'undefined'){
+            var variantsRows = [];
             currentProduct.variants.map(variant => {
+              var index = variantsRows.findIndex(v => v["Color"] == variant.color_label);
+
+              if (index === -1) {
+                variantsRows.push({
+                  ...currentRow,
+                  "Color": variant.color_label,
+                  "Total awaiting": 0,
+                  "Act OH": 0
+                });
+                index = variantsRows.findIndex(v => v["Color"] == variant.color_label);
+              }
+
+              var variantRow = index !== -1 ? variantsRows[index] : { ...currentRow };
               var oh = `OH size ${variant.size_value}`;
-              var awaiting = `awating size ${variant.totalAwaitingInventory}`;
-  
-              if (variant.inventoryLevel !== null && typeof variant.inventoryLevel !== 'undefined')
-                currentRow[oh] =+ variant.inventoryLevel;
-              if (variant.totalAwaitingInventory !== null && typeof variant.totalAwaitingInventory !== 'undefined')
-                currentRow[awaiting] =+ variant.totalAwaitingInventory;
+              var awaiting = `awating size ${variant.size_value}`;
+
+              variantRow['Color'] = variant.color_label;
+
+              if (variant.totalAwaitingInventory !== null && typeof variant.totalAwaitingInventory !== 'undefined') {
+                variantRow['Total awaiting'] = variantRow['Total awaiting'] + variant.totalAwaitingInventory;
+                variantRow[awaiting] = variant.totalAwaitingInventory;
+              }
+
+              if (variant.inventoryLevel !== null && typeof variant.inventoryLevel !== 'undefined') {
+                variantRow['Act OH'] = variantRow['Act OH'] + variant.inventoryLevel;
+                variantRow[oh] = variant.inventoryLevel;
+              }
             });
-  
-          csvRows.push(currentRow);
+            csvRows = [...csvRows, ...variantsRows];
+          } else {
+            csvRows.push(currentRow);
+          }
+          
           return csvRows;
         }, []);
 
@@ -113,6 +102,9 @@ exports.ProductsController = new class ProductsController {
     var filters = {
       includes: ["designer", "classification", "variants", "variants.colorCode"],
       limit: 1000,
+      notEqual: [
+        { key: 'isBundle', value: true },
+      ]
     };
 
     return ProductsModel.getProductsByFilters(filters)
