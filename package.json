@@ -1,6 +1,6 @@
 {
   "name": "audryrose-server",
-  "version": "0.2.88",
+  "version": "0.2.89",
   "description": "Parse server for Audry Rose",
   "main": "index.js",
   "repository": {
@@ -26,6 +26,7 @@
     "handlebars-helpers": "^0.8.4",
     "hummus": "^1.0.77",
     "jquery": "^3.1.1",
+    "json2csv": "^3.11.4",
     "mailchimp": "^1.1.4",
     "mailgun-js": "^0.10.1",
     "memory-streams": "^0.1.2",
