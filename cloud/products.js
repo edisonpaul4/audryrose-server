@@ -239,7 +239,7 @@ Parse.Cloud.define("getProductsAsCSV", function(request, response){
   ProductsController.getProductsAsCSV()
     .then(fileUrl => response.success(fileUrl))
     .catch(error => reponse.error(error))
-})
+});
 
 Parse.Cloud.define("updateProductTabCounts", function(request, response) {
   logInfo('updateProductTabCounts cloud function --------------------------', true);
@@ -2417,6 +2417,13 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
     });
 
   }
+
+  ProductsController.calculateNeedToOrder(product.get('productId'))
+    .then(totalNeedToOrder => {
+      logInfo(`Update need to order field for product ${product.get('productId')} to: ${totalNeedToOrder}`);
+      product.set('need_to_order', totalNeedToOrder);
+    })
+    .catch(error => logError(error));
 });
 
 Parse.Cloud.beforeSave("ProductVariant", function(request, response) {
@@ -2580,7 +2587,7 @@ Parse.Cloud.afterSave("Product", function(request) {
 
   }).then(function(result) {
     logInfo('Product afterSave success for product ' + productId);
-
+    
   });
 });
 
@@ -2869,6 +2876,12 @@ var getProductSort = function(productsQuery, currentSort) {
       break;
     case 'stock-asc':
       productsQuery.ascending("total_stock");
+      break;
+    case 'need_to_order-asc':
+      productsQuery.ascending("need_to_order");
+      break;
+    case 'need_to_order-desc':
+      productsQuery.descending("need_to_order");
       break;
     default:
       productsQuery.descending("date_created");
