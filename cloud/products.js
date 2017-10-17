@@ -2421,7 +2421,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
   ProductsController.calculateNeedToOrder(product.get('productId'))
     .then(totalNeedToOrder => {
       logInfo(`Update need to order field for product ${product.get('productId')} to: ${totalNeedToOrder}`);
-      product.set('need_to_order', totalNeedToOrder);
+      product.set('needToOrder', totalNeedToOrder);
     })
     .catch(error => logError(error));
 });
@@ -2877,11 +2877,11 @@ var getProductSort = function(productsQuery, currentSort) {
     case 'stock-asc':
       productsQuery.ascending("total_stock");
       break;
-    case 'need_to_order-asc':
-      productsQuery.ascending("need_to_order");
+    case 'needToOrder-asc':
+      productsQuery.ascending("needToOrder");
       break;
-    case 'need_to_order-desc':
-      productsQuery.descending("need_to_order");
+    case 'needToOrder-desc':
+      productsQuery.descending("needToOrder");
       break;
     default:
       productsQuery.descending("date_created");
