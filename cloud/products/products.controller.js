@@ -5,10 +5,41 @@ var json2csv = require('json2csv');
 var moment = require('moment');
 
 var { ProductsModel } = require('./products.model');
+var { OrdersController } = require('../orders/orders.controller');
 
 exports.ProductsController = new class ProductsController {
   constructor(){ 
     this.ProductsCSV = new Parse.Object.extend('ProductsCSV');
+  }
+
+  /**
+   * @param productId<number>
+   * @returns Promise<number> - Need to order for products
+   */
+  calculateNeedToOrder(productId){      
+    var getProductOrders = productId => OrdersController.getOrdersForProduct(productId, {
+      greaterOrEqual: [
+        { key: 'createdAt', value: moment().subtract(75, 'days').toDate()}
+      ],
+      count: true
+    });
+
+    var getProduct = productId => ProductsModel.getProductsByFilters({
+      equal: [
+        { key: 'productId', value: productId }
+      ]
+    }).first();
+
+    return Promise.all([
+      getProductOrders(productId),
+      getProduct(productId)
+    ]).then(values => {
+        const totalOrders = values[0];
+        const product = values[1];
+        
+        var needToOrderCalc = (totalOrders * .8) - product.get('total_stock') - product.get('totalAwaitingInventory');
+        return needToOrderCalc > 0 && product.get('is_active') ? Math.round(needToOrderCalc) : 0;
+      });
   }
 
   /**
@@ -53,8 +84,6 @@ exports.ProductsController = new class ProductsController {
             "Total awaiting": currentProduct.totalAwaitingInventory,
           };
 
-          
-          
           // Loop if has variants
           if(typeof currentProduct.variants !== 'undefined'){
             var variantsRows = [];
@@ -104,7 +133,8 @@ exports.ProductsController = new class ProductsController {
       limit: 1000,
       notEqual: [
         { key: 'isBundle', value: true },
-      ]
+      ],
+      json: true
     };
 
     return ProductsModel.getProductsByFilters(filters)
@@ -112,6 +142,5 @@ exports.ProductsController = new class ProductsController {
       .then(createCSV)
 
   } // End getProductsAsCSV
-
-
+  
 }
