@@ -15,6 +15,8 @@ var StoneCode = Parse.Object.extend('StoneCode');
 var SizeCode = Parse.Object.extend('SizeCode');
 var MiscCode = Parse.Object.extend('MiscCode');
 
+var { DesignersController } = require('./designers/designers.controller');
+
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 // Set up Bigcommerce API
@@ -421,6 +423,12 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
 
 	});
 
+});
+
+Parse.Cloud.define("completeVendorOrder", (req, res) => {
+  DesignersController.completeVendorOrder(req.params.vendorOrderNumber)
+    .then(success => res.success(success))
+    .catch(error => res.error(error));
 });
 
 Parse.Cloud.define("getUpdatedDesigner", function(request, response) {

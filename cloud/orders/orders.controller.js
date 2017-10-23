@@ -17,6 +17,7 @@ exports.OrdersController = new class OrdersController {
         ...extraFilters
       };
       OrdersModel.getOrdersByFilters(filters)
+        .find()
         .then(orders => resolve(orders))
         .catch(error => reject(error))
     });
