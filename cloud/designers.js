@@ -431,6 +431,13 @@ Parse.Cloud.define("completeVendorOrder", (req, res) => {
     .catch(error => res.error(error));
 });
 
+Parse.Cloud.define("deleteProductFromVendorOrder", (req, res) => {
+  var { productObjectId, vendorOrderNumber } = req.params;
+  DesignersController.removeVendorOrderProduct(productObjectId, vendorOrderNumber)
+    .then(success => res.success(success))
+    .catch(error => res.error(error));
+});
+
 Parse.Cloud.define("getUpdatedDesigner", function(request, response) {
   var designerId = request.params.data.designerId;
   var updatedDesigner;

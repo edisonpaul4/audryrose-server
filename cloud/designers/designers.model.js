@@ -31,7 +31,8 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
           default:
             vendorOrder.set('receivedAll', true)
               .save()
-              .then(vendorOrder => resolve(vendorOrder));
+              .then(vendorOrder => resolve(vendorOrder))
+              .reject(error => reject(error));
           break;
         }
       })
@@ -56,7 +57,6 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
   }
 
   getDesignerByObjectId(objectId, includes = []){
-    console.log(objectId)
     var query = new Parse.Query(this.Designer);
     var filters = {
       includes: includes,
@@ -66,6 +66,34 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
     };
     return this.searchDatabase(filters, query)
       .first();
+  }
+
+  deleteProductFromVendorOrder(productObjectId, vendorOrderNumber) {
+    var query = new Parse.Query(this.VendorOrder);
+
+    var destroyProduct = vendorOrder => {
+      var products = vendorOrder.get('vendorOrderVariants');
+      var targetProduct = products[products.findIndex(p => p.id === productObjectId)];
+      if(targetProduct === null || typeof targetProduct === 'undefined')
+        throw { message: `The product ${productObjectId} doesn't exist.`}
+      
+      return vendorOrder.remove('vendorOrderVariants', targetProduct)
+        .save()
+        .then(vendorOrder => ({
+          vendorOrder,
+          vendorOrderVariant: targetProduct
+        }))
+    }
+
+    var filters = {
+      includes: ['vendorOrderVariants'],
+      equal: [
+        { key: 'vendorOrderNumber', value: vendorOrderNumber }
+      ]
+    }
+    return this.searchDatabase(filters, query)
+      .first()
+      .then(destroyProduct);
   }
 
 }
