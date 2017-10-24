@@ -87,7 +87,7 @@ exports.ProductsController = new class ProductsController {
           // Loop if has variants
           if(typeof currentProduct.variants !== 'undefined'){
             var variantsRows = [];
-            currentProduct.variants.map(variant => {
+            currentProduct.variants.forEach(variant => {
               var index = variantsRows.findIndex(v => v["Color"] == variant.color_label);
 
               if (index === -1) {
