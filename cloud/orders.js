@@ -849,7 +849,7 @@ Parse.Cloud.define("createShipments", function(request, response) {
         // Overwrite shipment options if customizations exist
         if (customShipment) {
           serviceLevel = customShipment.shippingServiceLevel;
-          shipmentExtra = {
+          shipmentExtra = customShipment.signature === 'NOT_REQUIRED' ? shipmentExtra : {
             ...shipmentExtra,
             signature_confirmation: customShipment.signature
           }
