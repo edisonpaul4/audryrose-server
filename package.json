@@ -7,6 +7,9 @@
     "type": "git",
     "url": "https://github.com/enjoyjeremy/audryrose-server.git"
   },
+  "engines": {
+    "node": "8.3.x"
+  },
   "license": "MIT",
   "dependencies": {
     "@newrelic/native-metrics": "^2.1.0",
@@ -45,6 +48,8 @@
     "xmlreader": "^0.2.3"
   },
   "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
     "babel-plugin-uglify": "latest",
     "babel-polyfill": "^6.5.0",
     "babel-preset-es2015": "latest",
@@ -97,8 +102,5 @@
         }
       ]
     ]
-  },
-  "engines": {
-    "node": ">=6.11.1"
   }
 }
