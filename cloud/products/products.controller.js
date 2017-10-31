@@ -20,9 +20,8 @@ exports.ProductsController = new class ProductsController {
     var getProductOrders = productId => OrdersController.getOrdersForProduct(productId, {
       greaterOrEqual: [
         { key: 'createdAt', value: moment().subtract(75, 'days').toDate()}
-      ],
-      count: true
-    });
+      ]
+    }).then(e => e.length);
 
     var getProduct = productId => ProductsModel.getProductsByFilters({
       equal: [
