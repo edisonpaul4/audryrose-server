@@ -45,10 +45,7 @@ exports.BaseModel = class BaseModel {
       .limit(params.limit)
       .skip(params.skip)
 
-    if (params.count !== null && typeof params.count !== 'undefined' && params.count)
-      return query
-        .count();
-    else if (params.json !== null && typeof params.json !== 'undefined' && params.json)
+    if (params.json !== null && typeof params.json !== 'undefined' && params.json)
       return query
         .find()
         .then(objects => objects.map(object => object.toJSON()));
