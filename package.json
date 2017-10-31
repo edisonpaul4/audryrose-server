@@ -1,11 +1,14 @@
 {
   "name": "audryrose-server",
-  "version": "0.2.92",
+  "version": "0.2.93",
   "description": "Parse server for Audry Rose",
   "main": "index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/enjoyjeremy/audryrose-server.git"
+  },
+  "engines": {
+    "node": "8.3.x"
   },
   "license": "MIT",
   "dependencies": {
@@ -45,6 +48,8 @@
     "xmlreader": "^0.2.3"
   },
   "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
     "babel-plugin-uglify": "latest",
     "babel-polyfill": "^6.5.0",
     "babel-preset-es2015": "latest",
@@ -97,8 +102,5 @@
         }
       ]
     ]
-  },
-  "engines": {
-    "node": ">=6.11.1"
   }
 }
