@@ -7,6 +7,8 @@ var hummus = require('hummus');
 var streams = require('memory-streams');
 var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
 
+const { OrdersController } = require('./orders/orders.controller');
+
 var Order = Parse.Object.extend('Order');
 var Customer = Parse.Object.extend('Customer');
 var OrderProduct = Parse.Object.extend('OrderProduct');
@@ -21,7 +23,6 @@ var StoneCode = Parse.Object.extend('StoneCode');
 var SizeCode = Parse.Object.extend('SizeCode');
 var MiscCode = Parse.Object.extend('MiscCode');
 var Activity = Parse.Object.extend('Activity');
-
 const ORDERS_PER_PAGE = 25;
 const isProduction = process.env.NODE_ENV == 'production';
 const isDebug = process.env.DEBUG == 'true';
@@ -1373,6 +1374,12 @@ Parse.Cloud.define("getOrderProductFormData", function(request, response) {
 		response.error(error.message);
 
 	});
+});
+
+Parse.Cloud.define("updateOrderNotes", (req, res) => {
+  OrdersController.updateOrderNotes(req.params.orderId, req.params.orderNotes)
+    .then(order => res.success(order))
+    .catch(error => res.error(error));
 });
 
 /////////////////////////
