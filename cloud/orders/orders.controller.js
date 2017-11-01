@@ -30,7 +30,7 @@ exports.OrdersController = new class OrdersController {
    * @param {Number} orderId 
    * @param {String} messages 
    */
-  updateOrderNotes(orderId, { staffNote, designerNote }){
+  updateOrderNotes(orderId, { internalNotes, designerNotes }){
     console.log('OrdersController::updateOrderNotes')
     if(orderId === undefined || orderId === null)
       return Promise.reject({ message: 'You must especify the orderId' });
@@ -43,8 +43,8 @@ exports.OrdersController = new class OrdersController {
     return OrdersModel.getOrdersByFilters(filters)
       .first()
       .then(orderObject => Promise.all(
-        [OrdersModel.setStaffNote(orderObject, staffNote),
-        OrdersModel.setDesignerNote(orderObject, designerNote)]
+        [OrdersModel.setInternalNotes(orderObject, internalNotes),
+        OrdersModel.setDesignerNotes(orderObject, designerNotes)]
       ))
       .then(results => ({ order: results[1].toJSON() }));
   }

@@ -20,12 +20,12 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
    * @param {ParseObject} orderObject 
    * @param {String} message 
    */
-  setStaffNote(orderObject, message) {
-    console.log('OrdersModel::setStaffNote')
+  setInternalNotes(orderObject, message) {
+    console.log('OrdersModel::setInternalNote')
     if (typeof message !== 'string')
       return Promise.reject({ message: 'Staff\'s note must be a string' });
     
-    return orderObject.set('staff_notes', message)
+    return orderObject.set('internalNotes', message)
       .save();
   } // END setStaffNote
   
@@ -34,7 +34,7 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
    * @param {ParseObject} orderObject 
    * @param {String} message 
    */
-  setDesignerNote(orderObject, message) {
+  setDesignerNotes(orderObject, message) {
     console.log('OrdersModel::setDesignerNote');
     if (typeof message !== 'string')
       return Promise.reject({ message: 'Designer\'s note must be a string' });
