@@ -3,7 +3,8 @@ var { BaseModel } = require('../database/base.model');
 exports.ProductsModel = new class ProductsModel extends BaseModel {
   constructor(){
     super();
-    this.Products = Parse.Object.extend('Product');
+    this.Product = Parse.Object.extend('Product');
+    this.ProductVariant = Parse.Object.extend('ProductVariant');
   }
 
   /**
@@ -11,7 +12,7 @@ exports.ProductsModel = new class ProductsModel extends BaseModel {
    * @param base query params
    */
   getProductsByFilters(params) {
-    var productsQuery = new Parse.Query(this.Products);
+    var productsQuery = new Parse.Query(this.Product);
     return this.searchDatabase(params, productsQuery);
-  }  
+  }
 }

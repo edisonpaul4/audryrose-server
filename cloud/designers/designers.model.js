@@ -1,4 +1,5 @@
 var { BaseModel } = require('../database/base.model');
+var moment = require('moment');
 
 exports.DesignersModel = new class DesignersModel extends BaseModel {
   constructor(){
@@ -29,6 +30,7 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
           break;
 
           default:
+            vendorOrder.set('dateReceived', moment().toDate())
             vendorOrder.set('receivedAll', true)
               .save()
               .then(vendorOrder => resolve(vendorOrder))
@@ -46,8 +48,19 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
 
     var updateVariants = vendorOrder => {
       console.log('DesignersModel::finishVendorOrder::updateVariants');
-      return vendorOrder.get('vendorOrderVariants').map(vovs => vovs.get('variant').save())
-        .then(v => vendorOrder)
+      return Promise.all(
+        vendorOrder.get('vendorOrderVariants').map(vov => {
+          return vov.set('done', true).save()
+            .then(vov => {
+              const vovOrdered = vov.get('units');
+              const productVariant = vov.get('variant');
+              const totalAwaitingInventory = productVariant.get('totalAwaitingInventory') - vovOrdered;
+              productVariant.set('totalAwaitingInventory', totalAwaitingInventory > 0 ? totalAwaitingInventory : 0);
+              return productVariant.save();
+            })
+        })
+      ).then(list => vendorOrder);
+      
     }
 
     var filter = {
@@ -83,17 +96,24 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
       var targetProduct = products[products.findIndex(p => p.id === productObjectId)];
       if(targetProduct === null || typeof targetProduct === 'undefined')
         throw { message: `The product ${productObjectId} doesn't exist.`}
-      
-      return vendorOrder.remove('vendorOrderVariants', targetProduct)
-        .save()
-        .then(vendorOrder => ({
-          vendorOrder,
-          vendorOrderVariant: targetProduct
-        }))
+
+      const targetProductOrdered = targetProduct.get('units');
+      const productVariant = targetProduct.get('variant');
+      const totalAwaitingInventory = productVariant.get('totalAwaitingInventory') - targetProductOrdered;
+      productVariant.set('totalAwaitingInventory', totalAwaitingInventory > 0 ? totalAwaitingInventory : 0);
+
+      return Promise.all([
+        productVariant.save(),
+        vendorOrder.remove('vendorOrderVariants', targetProduct).save()
+      ])
+      .then(results => ({
+        vendorOrder: results[1],
+        vendorOrderVariant: targetProduct
+      }));
     }
 
     var filters = {
-      includes: ['vendorOrderVariants'],
+      includes: ['vendorOrderVariants', 'vendorOrderVariants.variants'],
       equal: [
         { key: 'vendorOrderNumber', value: vendorOrderNumber }
       ]
