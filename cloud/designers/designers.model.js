@@ -52,15 +52,10 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
         vendorOrder.get('vendorOrderVariants').map(vov => {
           return vov.set('done', true).save()
             .then(vov => {
-              const vovReceived = vov.get('received');
               const vovOrdered = vov.get('units');
               const productVariant = vov.get('variant');
-              const newInventory = productVariant.get('inventoryLevel') + vovReceived;
-              let totalAwaitingInventory = productVariant.get('totalAwaitingInventory') - vovOrdered;
-              if (totalAwaitingInventory < 0)
-                totalAwaitingInventory = 0;
-              productVariant.set('totalAwaitingInventory', totalAwaitingInventory);
-              productVariant.set('inventoryLevel', newInventory);
+              const totalAwaitingInventory = productVariant.get('totalAwaitingInventory') - vovOrdered;
+              productVariant.set('totalAwaitingInventory', totalAwaitingInventory > 0 ? totalAwaitingInventory : 0);
               return productVariant.save();
             })
         })
@@ -101,17 +96,24 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
       var targetProduct = products[products.findIndex(p => p.id === productObjectId)];
       if(targetProduct === null || typeof targetProduct === 'undefined')
         throw { message: `The product ${productObjectId} doesn't exist.`}
-      
-      return vendorOrder.remove('vendorOrderVariants', targetProduct)
-        .save()
-        .then(vendorOrder => ({
-          vendorOrder,
-          vendorOrderVariant: targetProduct
-        }))
+
+      const targetProductOrdered = targetProduct.get('units');
+      const productVariant = targetProduct.get('variant');
+      const totalAwaitingInventory = productVariant.get('totalAwaitingInventory') - targetProductOrdered;
+      productVariant.set('totalAwaitingInventory', totalAwaitingInventory > 0 ? totalAwaitingInventory : 0);
+
+      return Promise.all([
+        productVariant.save(),
+        vendorOrder.remove('vendorOrderVariants', targetProduct).save()
+      ])
+      .then(results => ({
+        vendorOrder: results[1],
+        vendorOrderVariant: targetProduct
+      }));
     }
 
     var filters = {
-      includes: ['vendorOrderVariants'],
+      includes: ['vendorOrderVariants', 'vendorOrderVariants.variants'],
       equal: [
         { key: 'vendorOrderNumber', value: vendorOrderNumber }
       ]
