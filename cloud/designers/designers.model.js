@@ -52,9 +52,9 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
         vendorOrder.get('vendorOrderVariants').map(vov => {
           return vov.set('done', true).save()
             .then(vov => {
-              const vovOrdered = vov.get('units');
+              const awaiting = vov.get('units') - vov.get('received');
               const productVariant = vov.get('variant');
-              const totalAwaitingInventory = productVariant.get('totalAwaitingInventory') - vovOrdered;
+              const totalAwaitingInventory = productVariant.get('totalAwaitingInventory') - (awaiting > 0 ? awaiting : 0);
               productVariant.set('totalAwaitingInventory', totalAwaitingInventory > 0 ? totalAwaitingInventory : 0);
               return productVariant.save();
             })
@@ -113,7 +113,7 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
     }
 
     var filters = {
-      includes: ['vendorOrderVariants', 'vendorOrderVariants.variants'],
+      includes: ['vendorOrderVariants', 'vendorOrderVariants.variant'],
       equal: [
         { key: 'vendorOrderNumber', value: vendorOrderNumber }
       ]
