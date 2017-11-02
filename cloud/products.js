@@ -2375,15 +2375,16 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
         var variantTotalAwaiting = 0;
         if (vendorOrders) {
           _.each(vendorOrders, function(vendorOrder) {
-            _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
-              if (variant.id == vendorOrderVariant.get('variant').id && vendorOrderVariant.get('ordered') == true) {
-                // variantVendorOrderVariants.push(vendorOrderVariant);
-                var awaiting = vendorOrderVariant.get('units') - vendorOrderVariant.get('received');
-                if (awaiting < 0) awaiting = 0;
-                variantTotalAwaiting += awaiting;
-                productTotalAwaiting += awaiting;
-              }
-            });
+            if (!vendorOrder.get('receivedAll') && vendorOrder.get('orderedAll'))
+              _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
+                if (variant.id == vendorOrderVariant.get('variant').id && vendorOrderVariant.get('ordered') == true) {
+                  // variantVendorOrderVariants.push(vendorOrderVariant);
+                  var awaiting = vendorOrderVariant.get('units') - vendorOrderVariant.get('received');
+                  if (awaiting < 0) awaiting = 0;
+                  variantTotalAwaiting += awaiting;
+                  productTotalAwaiting += awaiting;
+                }
+              });
           });
         }
         if (resizes) {
