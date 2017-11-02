@@ -44,8 +44,14 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
         .then(vendor => vendorOrder);
     }
 
+    var updateVariants = vendorOrder => {
+      console.log('DesignersModel::finishVendorOrder::updateVariants');
+      return vendorOrder.get('vendorOrderVariants').map(vovs => vovs.get('variant').save())
+        .then(v => vendorOrder)
+    }
+
     var filter = {
-      includes: ['vendor'],
+      includes: ['vendor', 'vendorOrderVariants', 'vendorOrderVariants.variant'],
       equal: [
         { key: 'vendorOrderNumber', value: vendorOrderNumber }
       ]
@@ -53,6 +59,7 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
     return this.searchDatabase(filter, query)
       .first()
       .then(setVendorOrderAsCompleted)
+      .then(updateVariants)
       .then(updateVendor);
   }
 
