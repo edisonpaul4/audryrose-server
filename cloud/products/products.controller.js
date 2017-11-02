@@ -9,6 +9,8 @@ var { OrdersController } = require('../orders/orders.controller');
 
 exports.ProductsController = new class ProductsController {
   constructor(){ 
+    this.Product = new Parse.Object.extend('Product');
+    this.ProductVariant = new Parse.Object.extend('ProductVariant');
     this.ProductsCSV = new Parse.Object.extend('ProductsCSV');
   }
 

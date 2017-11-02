@@ -1,4 +1,5 @@
 var { BaseModel } = require('../database/base.model');
+var moment = require('moment');
 
 exports.DesignersModel = new class DesignersModel extends BaseModel {
   constructor(){
@@ -29,6 +30,7 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
           break;
 
           default:
+            vendorOrder.set('dateReceived', moment().toDate())
             vendorOrder.set('receivedAll', true)
               .save()
               .then(vendorOrder => resolve(vendorOrder))
@@ -46,8 +48,24 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
 
     var updateVariants = vendorOrder => {
       console.log('DesignersModel::finishVendorOrder::updateVariants');
-      return vendorOrder.get('vendorOrderVariants').map(vovs => vovs.get('variant').save())
-        .then(v => vendorOrder)
+      return Promise.all(
+        vendorOrder.get('vendorOrderVariants').map(vov => {
+          return vov.set('done', true).save()
+            .then(vov => {
+              const vovReceived = vov.get('received');
+              const vovOrdered = vov.get('units');
+              const productVariant = vov.get('variant');
+              const newInventory = productVariant.get('inventoryLevel') + vovReceived;
+              let totalAwaitingInventory = productVariant.get('totalAwaitingInventory') - vovOrdered;
+              if (totalAwaitingInventory < 0)
+                totalAwaitingInventory = 0;
+              productVariant.set('totalAwaitingInventory', totalAwaitingInventory);
+              productVariant.set('inventoryLevel', newInventory);
+              return productVariant.save();
+            })
+        })
+      ).then(list => vendorOrder);
+      
     }
 
     var filter = {
