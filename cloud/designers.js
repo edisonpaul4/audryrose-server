@@ -708,6 +708,10 @@ Parse.Cloud.job("saveVendorOrder", function(request, status) {
         if (vendorOrderVariant) {
           variant = vendorOrderVariant.get('variant');
           var beforeInventory = variant.get('inventoryLevel');
+
+          if (variantData.internalNotes != undefined) 
+            vendorOrderVariant.set('internalNotes', variantData.internalNotes);
+
           logInfo('VendorOrderVariant found, set to ' + parseFloat(variantData.units) + ' units');
           if (variantData.units != undefined) vendorOrderVariant.set('units', parseFloat(variantData.units));
           if (variantData.notes != undefined) vendorOrderVariant.set('notes', variantData.notes);

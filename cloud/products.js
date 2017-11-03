@@ -1107,6 +1107,7 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
       var vendorId = order.vendor;
       var units = parseFloat(order.units);
       var notes = order.notes;
+      var internalNotes = order.internalNotes;
       var variant;
       var vendor;
       var vendorOrder;
@@ -1183,12 +1184,20 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
             vendorOrderVariant.set('notes', notes);
           }
 
+          if (vendorOrderVariant.has('internalNotes') && vendorOrderVariant.get('internalNotes') != '') {
+            var updatedInternalNotes = vendorOrderVariant.get('internalNotes') + '<br/>' + internalNotes;
+            vendorOrderVariant.set('internalNotes', updatedInternalNotes);
+          } else {
+            vendorOrderVariant.set('internalNotes', internalNotes);
+          }
+
         } else {
           logInfo('VendorOrderVariant is new');
           vendorOrderVariant = new VendorOrderVariant();
           vendorOrderVariant.set('variant', variant);
           vendorOrderVariant.set('units', units);
           vendorOrderVariant.set('notes', notes);
+          vendorOrderVariant.set('internalNotes', internalNotes);
           vendorOrderVariant.set('ordered', false);
           vendorOrderVariant.set('received', 0);
           vendorOrderVariant.set('done', false);
