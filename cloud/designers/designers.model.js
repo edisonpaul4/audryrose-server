@@ -123,4 +123,17 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
       .then(destroyProduct);
   }
 
+  getForcedClearedOrders() {
+    // the search will start always from 15th October 2017
+    var query = new Parse.Query(this.VendorOrder);
+    const filters = {
+      includes: ['vendorOrderVariants', 'vendorOrderVariants.variant'],
+      greaterOrEqual: [ { key: 'updatedAt', value: moment('20171015').toDate() } ],
+      equal: [ { key: 'receivedAll', value: true } ],
+      notExists: ['dateReceived']
+    };
+    return this.searchDatabase(filters, query)
+      .find();
+  }
+
 }
