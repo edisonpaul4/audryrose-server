@@ -14,6 +14,7 @@ var Order = Parse.Object.extend('Order');
 var VendorOrder = Parse.Object.extend('VendorOrder');
 var JobStatus = Parse.Object.extend('_JobStatus');
 var ReloadQueue = Parse.Object.extend('ReloadQueue');
+var { DesignersController } = require('./designers/designers.controller');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -1012,6 +1013,18 @@ Parse.Cloud.job("processReloadQueue", function(request, status) {
     logError(error);
   });
 
+});
+
+Parse.Cloud.job("fixClearedOrders", function(request, status) {
+  logInfo('fixClearedOrders cloud job --------------------------', true);
+  status.success('fixClearedOrders job created');
+  var startTime = moment();
+
+  DesignersController.fixClearedVendorOrdersResults()
+    .then(result => {
+      logInfo(result);
+      logInfo('fixClearedOrders completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    });
 });
 
 

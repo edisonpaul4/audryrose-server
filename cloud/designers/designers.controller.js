@@ -3,6 +3,27 @@ var { DesignersModel } = require('./designers.model');
 exports.DesignersController = new class DesignersController {
   constructor(){}
 
+  /**
+   * @returns {Promise} <{ success: boolean }>
+   */
+  fixClearedVendorOrdersResults() {
+    console.log('DesignersController::fixClearedVendorOrdersResults');
+    const clearedOrders = DesignersModel.getForcedClearedOrders()
+      .then(vendorOrders => vendorOrders.filter(vendorOrder => !vendorOrder.has('dateReceived')));
+
+    const updateVendorOrder = vendorOrders => vendorOrders.map(vendorOrder => {
+      const updatedAtAsDateReceived = vendorOrder.get('updatedAt');
+      return vendorOrder.set('dateReceived', updatedAtAsDateReceived).save()
+        .then(vendorOrder => Promise.all(updateVendorOrderVariants(vendorOrder.get('vendorOrderVariants'))));
+    });
+
+    const updateVendorOrderVariants = vendorOrderVariants => vendorOrderVariants.map(vov => vov.set('done', true).save());
+
+    return Promise.resolve(clearedOrders)
+      .then(vendorOrders => Promise.all(updateVendorOrder(vendorOrders)))
+      .then(() => ({ success: true }));
+  }
+
   completeVendorOrder(vendorOrderNumber) {
     console.log('DesignersController::completeVendorOrder => starting for vendor order number:', vendorOrderNumber);
 
