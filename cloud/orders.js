@@ -1382,6 +1382,39 @@ Parse.Cloud.define("updateOrderNotes", (req, res) => {
     .catch(error => res.error(error));
 });
 
+Parse.Cloud.define("getOrdersToSendEmails", (req, res) => {
+  logInfo('getOrdersToSendEmails cloud function --------------------------', true);
+  var startTime = moment();
+  OrdersController.getOrdersToSendEmails(req.params.orderId, req.params.orderNotes)
+    .then(orders => {
+      logInfo('getOrdersToSendEmails completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      res.success(orders);
+    })
+    .catch(error => res.error(error));
+});
+
+Parse.Cloud.define("sendOrderEmail", (req, res) => {
+  logInfo('sendOrderEmail cloud function --------------------------', true);
+  var startTime = moment();
+  OrdersController.sendOrderEmail(req.params.orderId, req.params.emailMsg)
+    .then(order => {
+      logInfo('sendOrderEmail completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      res.success(order);
+    })
+    .catch(error => res.error(error));
+});
+
+Parse.Cloud.define("deleteOrderEmail", (req, res) => {
+  logInfo('deleteOrderEmail cloud function --------------------------', true);
+  var startTime = moment();
+  OrdersController.deleteOrderEmail(req.params.orderId, req.params.emailMsg)
+    .then(order => {
+      logInfo('deleteOrderEmail completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      res.success(order);
+    })
+    .catch(error => res.error(error));
+});
+
 /////////////////////////
 //  CLOUD JOBS         //
 /////////////////////////
