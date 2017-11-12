@@ -1,5 +1,9 @@
+const Mailgun = require('mailgun-js');
+const mailgun = new Mailgun({ apiKey: process.env.MAILGUN_API_KEY, domain: process.env.MAILGUN_DOMAIN });
+
 const { OrdersModel } = require('./orders.model');
 const { bigCommerce } = require('../gateways/big-commerce');
+
 
 exports.OrdersController = new class OrdersController {
   constructor(){}
@@ -21,6 +25,62 @@ exports.OrdersController = new class OrdersController {
         .find()
         .then(orders => resolve(orders))
         .catch(error => reject(error))
+    });
+  } // END getOrdersForProduct
+
+  /**
+   * 
+   * @returns {Promise} Array<Objects>
+   */
+  getOrdersToSendEmails(offset = 0) {
+    return new Promise((resolve, reject) => {
+      const formatOrder = order => ({
+        objectId: order.objectId,
+        orderId: order.orderId,
+        customerMessage: order.customerMessage,
+        dateShipped: order.dateShipped,
+        items_total: order.items_total,
+        status_id: order.status_id,
+        isEmailSended: order.isEmailSended,
+        orderProducts: order.orderProducts.map(product => ({
+          objectId: product.objectId,
+          productId: product.productId,
+          name: product.name,
+          sku: product.sku,
+          awaitingInventoryExpectedDate: product.awaitingInventoryExpectedDate,
+          quantity_shipped: product.quantity_shipped,
+          quantity: product.quantity,
+          product_options: product.product_options.map(option => ({
+            display_name: option.display_name,
+            display_value: option.display_value,
+          }))
+        })),
+        customer: {
+          objectId: order.customer.objectId,
+          firstName: order.customer.firstName,
+          lastName: order.customer.lastName,
+          totalOrders: order.customer.totalOrders,
+          customerId: order.customer.customerId,
+          totalSpend: order.customer.totalSpend,
+        },
+      });
+      
+      const filters = {
+        includes: ['customer', 'orderProducts', 'orderProducts.product_options'],
+        notEqual: [
+          { key: 'isEmailSended', value: true }
+        ],
+        exists: ['customer'],
+        limit: 100
+      };
+      OrdersModel.getOrdersByFilters(filters)
+        .descending('date_created')
+        .find()
+        .then(objects => resolve({
+          success: true,
+          emailOrders: objects.map(object => formatOrder(object.toJSON()))
+        }))
+        .catch(error => reject(error));
     });
   } // END getOrdersForProduct
 
@@ -48,5 +108,65 @@ exports.OrdersController = new class OrdersController {
       ))
       .then(results => ({ order: results[1].toJSON() }));
   }
+  
+  sendOrderEmail(orderId, emailMsg) {
+    console.log('OrdersController::sendOrderEmail');
+    const getOrder = orderId => OrdersModel.getOrdersByFilters({
+      includes: ['customer'],
+      equal: [
+        { key: 'orderId', value: orderId }
+      ]
+    }).first();
+
+    const updatedIsEmailSended = orderObject => {
+      return orderObject.set('isEmailSended', true)
+        .save();
+    }
+
+    const sendEmailToCustomer = (order, emailMsg) => {
+      const data = {
+        from: 'orders@loveaudryrose.com',
+        to: `${order.get('customer').get('name')} <${process.env.NODE_ENV === 'production' ? order.get('billing_address').email : 'ejas94@gmail.com'}>`,
+        cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <orders@loveaudryrose.com>' : 'Testing <ejas94@gmail.com>',
+        subject: 'Audry Rose Order ' + order.get('orderId'),
+        text: emailMsg,
+        // html: messageProductsHTML
+      }
+      return mailgun.messages().send(data)
+        .then(emailResult => ({
+          emailResult,
+          order
+        }));
+    }
+
+    return getOrder(orderId)
+      .then(order => sendEmailToCustomer(order, emailMsg))
+      .then(results => updatedIsEmailSended(results.order))
+      .then(order => ({
+        success: true,
+        orderId
+      }));
+  }
+
+  deleteOrderEmail(orderId) {
+    console.log('OrdersController::deleteOrderEmail');
+    const getOrder = orderId => OrdersModel.getOrdersByFilters({
+      equal: [ { key: 'orderId', value: orderId } ]
+    }).first();
+
+    const setEmailAsSended = orderObject => {
+      orderObject.set('isEmailSended', true);
+      return orderObject.save();
+    }
+
+    return getOrder(orderId)
+      .then(setEmailAsSended)
+      .then(orderObject => ({
+        success: true,
+        orderId: orderObject.get('orderId')
+      }))
+  }
+  
+  
 
 }
