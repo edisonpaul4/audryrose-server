@@ -33,55 +33,44 @@ exports.OrdersController = new class OrdersController {
    * @returns {Promise} Array<Objects>
    */
   getOrdersToSendEmails(offset = 0) {
-    return new Promise((resolve, reject) => {
-      const formatOrder = order => ({
-        objectId: order.objectId,
-        orderId: order.orderId,
-        customerMessage: order.customerMessage,
-        dateShipped: order.dateShipped,
-        items_total: order.items_total,
-        status_id: order.status_id,
-        isEmailSended: order.isEmailSended,
-        orderProducts: order.orderProducts.map(product => ({
-          objectId: product.objectId,
-          productId: product.productId,
-          name: product.name,
-          sku: product.sku,
-          awaitingInventoryExpectedDate: product.awaitingInventoryExpectedDate,
-          quantity_shipped: product.quantity_shipped,
-          quantity: product.quantity,
-          product_options: product.product_options.map(option => ({
-            display_name: option.display_name,
-            display_value: option.display_value,
-          }))
-        })),
-        customer: {
-          objectId: order.customer.objectId,
-          firstName: order.customer.firstName,
-          lastName: order.customer.lastName,
-          totalOrders: order.customer.totalOrders,
-          customerId: order.customer.customerId,
-          totalSpend: order.customer.totalSpend,
-        },
-      });
-      
-      const filters = {
-        includes: ['customer', 'orderProducts', 'orderProducts.product_options'],
-        notEqual: [
-          { key: 'isEmailSended', value: true }
-        ],
-        exists: ['customer'],
-        limit: 100
-      };
-      OrdersModel.getOrdersByFilters(filters)
-        .descending('date_created')
-        .find()
-        .then(objects => resolve({
-          success: true,
-          emailOrders: objects.map(object => formatOrder(object.toJSON()))
-        }))
-        .catch(error => reject(error));
+    const formatOrder = order => ({
+      objectId: order.objectId,
+      orderId: order.orderId,
+      customerMessage: order.customerMessage,
+      dateShipped: order.dateShipped,
+      items_total: order.items_total,
+      status_id: order.status_id,
+      isEmailSended: order.isEmailSended,
+      orderProducts: order.orderProducts.map(orderProduct => ({
+        objectId: orderProduct.objectId,
+        productId: orderProduct.productId,
+        name: orderProduct.name,
+        sku: orderProduct.sku,
+        awaitingInventoryExpectedDate: orderProduct.awaitingInventoryExpectedDate,
+        quantity_shipped: orderProduct.quantity_shipped,
+        quantity: orderProduct.quantity,
+        totalInventory: orderProduct.productVariant.inventoryLevel,
+        isActive: orderProduct.productVariant.product.is_active,
+        product_options: orderProduct.product_options ? orderProduct.product_options.map(option => ({
+          display_name: option.display_name,
+          display_value: option.display_value,
+        })) : []
+      })),
+      customer: {
+        objectId: order.customer.objectId,
+        firstName: order.customer.firstName,
+        lastName: order.customer.lastName,
+        totalOrders: order.customer.totalOrders,
+        customerId: order.customer.customerId,
+        totalSpend: order.customer.totalSpend,
+      },
     });
+
+    return OrdersModel.getCustomerOrdersForSendEmails()
+      .then(orders => ({
+        success: true,
+        emailOrders: orders.map(order => formatOrder(order))
+      }));
   } // END getOrdersForProduct
 
 
