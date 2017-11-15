@@ -49,8 +49,8 @@ exports.OrdersController = new class OrdersController {
         awaitingInventoryExpectedDate: orderProduct.awaitingInventoryExpectedDate,
         quantity_shipped: orderProduct.quantity_shipped,
         quantity: orderProduct.quantity,
-        totalInventory: orderProduct.productVariant.inventoryLevel,
-        isActive: orderProduct.productVariant.product.is_active,
+        totalInventory: orderProduct.totalInventory,
+        isActive: orderProduct.isActive,
         product_options: orderProduct.product_options ? orderProduct.product_options.map(option => ({
           display_name: option.display_name,
           display_value: option.display_value,
