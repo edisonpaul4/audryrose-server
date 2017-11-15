@@ -130,8 +130,9 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
 
     const ordersQuery = this.getOrdersByFilters({
       includes: ['customer', 'orderProducts', 'orderProducts.product_options', 'orderProducts.variants', 'orderProducts.editedVariants'],
-      notEqual: [ { key: 'isEmailSended', value: true } ],
+      notEqual: [{ key: 'isEmailSended', value: true }],
       exists: ['customer'],
+      notExists: ['date_shipped'],
       limit: 100
     });
 
