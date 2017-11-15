@@ -101,12 +101,11 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
 
     const getProductsObjects = productsIds => {
       const queries = productsIds.map(id => {
-        const filters = { equal: [{ key: 'productId', value: id }]};
+        const filters = { equal: [{ key: 'productId', value: id }] };
         return ProductsModel.getProductsByFilters(filters)
       });
       return Parse.Query.or(...queries)
         .find()
-        .then(all => all.map(current => current.toJSON()))
     };
 
     const mergeOrdersAndProducts = (orders, products) => {
@@ -114,12 +113,12 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
         ...order,
         orderProducts: order.orderProducts.map(orderProduct => {
           const productId = findProductId(orderProduct);
-          const productIndex = products.findIndex(product => product.productId === productId);
+          const productIndex = products.findIndex(product => product.get('productId') === productId);
           const totalStock = findTotalStock(orderProduct);
           return {
             ...orderProduct,
-            isActive: productIndex !== -1 ? products[productIndex].is_active : false,
-            totalInventory: totalStock !== null ? totalStock : productIndex !== -1 ? products[productIndex].total_stock : 0
+            isActive: productIndex !== -1 ? products[productIndex].get('is_active') : false,
+            totalInventory: totalStock !== null ? totalStock : productIndex !== -1 ? products[productIndex].get('total_stock') : 0,
           };
         })
       }));
