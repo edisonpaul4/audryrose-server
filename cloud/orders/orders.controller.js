@@ -51,6 +51,7 @@ exports.OrdersController = new class OrdersController {
         quantity: orderProduct.quantity,
         totalInventory: orderProduct.totalInventory,
         isActive: orderProduct.isActive,
+        classificationName: orderProduct.classificationName,
         product_options: orderProduct.product_options ? orderProduct.product_options.map(option => ({
           display_name: option.display_name,
           display_value: option.display_value,
