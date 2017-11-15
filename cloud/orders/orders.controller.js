@@ -46,7 +46,7 @@ exports.OrdersController = new class OrdersController {
         productId: orderProduct.productId,
         name: orderProduct.name,
         sku: orderProduct.sku,
-        awaitingInventoryExpectedDate: orderProduct.awaitingInventoryExpectedDate,
+        awaitingInventoryExpectedDate: orderProduct.awaitingInventoryExpectedDate ? orderProduct.awaitingInventoryExpectedDate.iso : undefined,
         quantity_shipped: orderProduct.quantity_shipped,
         quantity: orderProduct.quantity,
         totalInventory: orderProduct.totalInventory,
