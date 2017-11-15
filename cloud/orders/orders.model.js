@@ -5,6 +5,7 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
   constructor() {
     super();
     this.Orders = Parse.Object.extend('Order');
+    this.OrderProducts = Parse.Object.extend('OrderProduct');
   }
 
   /**
@@ -14,6 +15,15 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
   getOrdersByFilters(params) {
     var ordersQuery = new Parse.Query(this.Orders);
     return this.searchDatabase(params, ordersQuery);
+  } // END getOrdersByFilters
+
+  /**
+ * @returns {Promise} - Array of objects
+ * @param {Object} params - base query params
+ */
+  getOrderProductsByFilters(params) {
+    var orderProductsQuery = new Parse.Query(this.OrderProducts);
+    return this.searchDatabase(params, orderProductsQuery);
   } // END getOrdersByFilters
 
   /**
@@ -52,38 +62,83 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
   getCustomerOrdersForSendEmails() {
     console.log('OrdersModel::getCustomerOrdersForSendEmails');
 
-    const getProductsObjects = orderObject => {
-      return Promise.all(orderObject.orderProducts.map(orderProduct => {
-        return Promise.all(orderProduct.variants.map(variant => {
-          const filters = { equal: [{ key: 'productId', value: variant.productId }] };
-          return ProductsModel.getProductsByFilters(filters)
-            .first()
-            .then(product => {
-              variant.product = product.toJSON();
-              return variant;
-            });
-        }))
-        .then(variants => {
-          orderProduct['productVariant'] = variants[0];
-          return orderProduct
-        })
-      }))
-      .then(orderProducts => {
-        orderObject['orderProducts'] = orderProducts;
-        return orderObject;
-      })
+    const findProductId = orderProduct => {
+      switch (true) {
+        case orderProduct.edited && orderProduct.editedVariants.length > 0:
+          return orderProduct.editedVariants[0].productId;
+          
+        case typeof orderProduct.variants !== 'undefined' && orderProduct.variants.length > 0:
+          return orderProduct.variants[0].productId;
+
+        case typeof orderProduct.product_id !== 'undefined':
+          return orderProduct.product_id;
+      }
     };
 
-    const ordersFilters = {
-      includes: ['customer', 'orderProducts', 'orderProducts.product_options', 'orderProducts.variants'],
+    const findTotalStock = orderProduct => {
+      if (orderProduct.variants && orderProduct.variants.length > 0)
+        return orderProduct.variants[0].inventoryLevel ? orderProduct.variants[0].inventoryLevel : 0;
+      else
+        return null;
+    };
+
+    const getProductsIds = ordersObject => {
+      const productsIds = (() => {
+        let ids = [];
+        return newId => {
+          if (ids.indexOf(newId) === -1 && typeof newId !== 'undefined')
+            ids.push(newId);
+          return ids;
+        }
+      })();
+      ordersObject.map(orderObject => {
+        orderObject.orderProducts.forEach(orderProduct => {
+          productsIds(findProductId(orderProduct));
+        });
+      });
+      return productsIds();
+    };
+
+    const getProductsObjects = productsIds => {
+      const queries = productsIds.map(id => {
+        const filters = { equal: [{ key: 'productId', value: id }]};
+        return ProductsModel.getProductsByFilters(filters)
+      });
+      return Parse.Query.or(...queries)
+        .find()
+        .then(all => all.map(current => current.toJSON()))
+    };
+
+    const mergeOrdersAndProducts = (orders, products) => {
+      return orders.map(order => ({
+        ...order,
+        orderProducts: order.orderProducts.map(orderProduct => {
+          const productId = findProductId(orderProduct);
+          const productIndex = products.findIndex(product => product.productId === productId);
+          const totalStock = findTotalStock(orderProduct);
+          return {
+            ...orderProduct,
+            isActive: productIndex !== -1 ? products[productIndex].is_active : false,
+            totalInventory: totalStock !== null ? totalStock : productIndex !== -1 ? products[productIndex].total_stock : 0
+          };
+        })
+      }));
+    };
+
+    const ordersQuery = this.getOrdersByFilters({
+      includes: ['customer', 'orderProducts', 'orderProducts.product_options', 'orderProducts.variants', 'orderProducts.editedVariants'],
       notEqual: [ { key: 'isEmailSended', value: true } ],
       exists: ['customer'],
       limit: 100
-    };
+    });
 
-    return this.getOrdersByFilters(ordersFilters)
+    return ordersQuery
       .descending('date_created')
       .find()
-      .then(ordersObjects => Promise.all(ordersObjects.map(orderObject => getProductsObjects(orderObject.toJSON()))))
+      .then(all => all.map(current => current.toJSON()))
+      .then(orders => {
+        return getProductsObjects(getProductsIds(orders))
+          .then(products => mergeOrdersAndProducts(orders, products));
+      });
   } // END getCustomerOrdersForSendEmails
 }
