@@ -115,8 +115,8 @@ exports.OrdersController = new class OrdersController {
 
     const sendEmailToCustomer = (order, emailMsg) => {
       const data = {
-        from: 'orders@loveaudryrose.com',
-        to: `${order.get('customer').get('name')} <${process.env.NODE_ENV === 'production' ? order.get('billing_address').email : 'ejas94@gmail.com'}>`,
+        from: 'hello@loveaudryrose.com',
+        to: `${order.get('customer').get('firstName') + ' ' + order.get('customer').get('lastName')} <${process.env.NODE_ENV === 'production' ? order.get('billing_address').email : 'ejas94@gmail.com'}>`,
         cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <ejas94@gmail.com>',
         subject: 'Audry Rose Order ' + order.get('orderId'),
         text: emailMsg,
