@@ -99,7 +99,13 @@ exports.OrdersController = new class OrdersController {
       .then(results => ({ order: results[1].toJSON() }));
   }
   
-  sendOrderEmail(orderId, emailMsg) {
+  /**
+   * 
+   * @returns {Promise}
+   * @param {Number} orderId 
+   * @param {Object} emailParams <{emailMessage: String, emailSubject: String}>
+   */
+  sendOrderEmail(orderId, emailParams) {
     console.log('OrdersController::sendOrderEmail');
     const getOrder = orderId => OrdersModel.getOrdersByFilters({
       includes: ['customer'],
@@ -113,14 +119,13 @@ exports.OrdersController = new class OrdersController {
         .save();
     }
 
-    const sendEmailToCustomer = (order, emailMsg) => {
+    const sendEmailToCustomer = (order, emailParams) => {
       const data = {
         from: 'hello@loveaudryrose.com',
         to: `${order.get('customer').get('firstName') + ' ' + order.get('customer').get('lastName')} <${process.env.NODE_ENV === 'production' ? order.get('billing_address').email : 'ejas94@gmail.com'}>`,
-        cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <ejas94@gmail.com>',
-        subject: 'Audry Rose Order ' + order.get('orderId'),
-        text: emailMsg,
-        // html: messageProductsHTML
+        cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <arrieta.e@outlook.com>',
+        subject: emailParams.emailSubject,
+        text: emailParams.emailMessage,
       }
       return mailgun.messages().send(data)
         .then(emailResult => ({
@@ -130,7 +135,7 @@ exports.OrdersController = new class OrdersController {
     }
 
     return getOrder(orderId)
-      .then(order => sendEmailToCustomer(order, emailMsg))
+      .then(order => sendEmailToCustomer(order, emailParams))
       .then(results => updatedIsEmailSended(results.order))
       .then(order => ({
         success: true,

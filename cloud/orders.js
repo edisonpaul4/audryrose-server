@@ -1396,7 +1396,7 @@ Parse.Cloud.define("getOrdersToSendEmails", (req, res) => {
 Parse.Cloud.define("sendOrderEmail", (req, res) => {
   logInfo('sendOrderEmail cloud function --------------------------', true);
   var startTime = moment();
-  OrdersController.sendOrderEmail(req.params.orderId, req.params.emailMsg)
+  OrdersController.sendOrderEmail(req.params.orderId, req.params.emailParams)
     .then(order => {
       logInfo('sendOrderEmail completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
       res.success(order);
