@@ -95,19 +95,21 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
       var products = vendorOrder.get('vendorOrderVariants');
       var targetProduct = products[products.findIndex(p => p.id === productObjectId)];
       if(targetProduct === null || typeof targetProduct === 'undefined')
-        throw { message: `The product ${productObjectId} doesn't exist.`}
+        throw { message: `The vendor order variant ${productObjectId} doesn't exist.`}
 
       const targetProductOrdered = targetProduct.get('units');
       const productVariant = targetProduct.get('variant');
       const totalAwaitingInventory = productVariant.get('totalAwaitingInventory') - targetProductOrdered;
+      targetProduct.set('deleted', true)
+        .set('deletedAt', new Date())
+        .set('done', true);
       productVariant.set('totalAwaitingInventory', totalAwaitingInventory > 0 ? totalAwaitingInventory : 0);
-
       return Promise.all([
+        targetProduct.save(),
         productVariant.save(),
-        vendorOrder.remove('vendorOrderVariants', targetProduct).save()
       ])
       .then(results => ({
-        vendorOrder: results[1],
+        vendorOrder: vendorOrder,
         vendorOrderVariant: targetProduct
       }));
     }
