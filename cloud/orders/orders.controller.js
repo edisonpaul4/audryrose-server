@@ -6,7 +6,20 @@ const { bigCommerce } = require('../gateways/big-commerce');
 
 
 exports.OrdersController = new class OrdersController {
-  constructor(){}
+  constructor() { }
+
+  /**
+   * 
+   * @returns {Promise} <ParseObject<Customer>>
+   * @param {Number} customerId
+   * @param {Boolean} json
+   */
+  getOrderById(orderId, json = false) {
+    console.log('OrdersModel::getOrderById');
+    return OrdersModel.getOrdersByFilters({
+      equal: [{ key: 'orderId', value: orderId }]
+    }).first().then(object => json ? object.toJSON() : object);
+  } // END getOrderById
 
   /**
    * 
