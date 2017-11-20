@@ -6,6 +6,7 @@ var bugsnag = require("bugsnag");
 var Product = Parse.Object.extend('Product');
 var Order = Parse.Object.extend('Order');
 var OrderShipment = Parse.Object.extend('OrderShipment');
+const { ShipmentsController } = require('./shipments/shipments.controller');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -54,6 +55,17 @@ Parse.Cloud.define("getShipments", function(request, response) {
 	  response.error(error.message);
 
   });
+});
+
+Parse.Cloud.define("getRatesForOrderShipment", (req, res) => {
+  logInfo('getRatesForOrderShipment cloud function --------------------------', true);
+  var startTime = moment();
+  ShipmentsController.getRatesForOrderShipment(req.params.parcelParams, req.params.orderId)
+    .then(shipmentRates => {
+      logInfo('getRatesForOrderShipment completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      res.success(shipmentRates);
+    })
+    .catch(error => res.error(error));
 });
 
 
