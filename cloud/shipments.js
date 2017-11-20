@@ -57,12 +57,12 @@ Parse.Cloud.define("getShipments", function(request, response) {
   });
 });
 
-Parse.Cloud.define("getRatesForShipment", (req, res) => {
-  logInfo('getRatesForShipment cloud function --------------------------', true);
+Parse.Cloud.define("getRatesForOrderShipment", (req, res) => {
+  logInfo('getRatesForOrderShipment cloud function --------------------------', true);
   var startTime = moment();
-  ShipmentsController.getRatesForShipment(req.params.parcelParams, req.params.customerId)
+  ShipmentsController.getRatesForOrderShipment(req.params.parcelParams, req.params.customerId)
     .then(shipmentRates => {
-      logInfo('getRatesForShipment completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      logInfo('getRatesForOrderShipment completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
       res.success(shipmentRates);
     })
     .catch(error => res.error(error));

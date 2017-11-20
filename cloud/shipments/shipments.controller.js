@@ -1,5 +1,5 @@
 const shippo = require('shippo')(process.env.SHIPPO_API_TOKEN);
-const { CustomersController } = require('../customers/customers.controller');
+const { OrdersController } = require('../orders/orders.controller');
 
 exports.ShipmentsController = new class ShipmentsController {
   constructor() {
@@ -18,9 +18,9 @@ exports.ShipmentsController = new class ShipmentsController {
     }
   }
 
-  getRatesForShipment(parcelParams, customerId) {
-    if (!parcelParams || !customerId)
-      throw new Error({ message: 'Information of parcel and customer\'s address is required.' });
+  getRatesForOrderShipment(parcelParams, orderId) {
+    if (!parcelParams || !orderId)
+      throw new Error({ message: 'Information of parcel and order\'s address is required.' });
 
     const parcel = {
       ...parcelParams,
@@ -29,18 +29,18 @@ exports.ShipmentsController = new class ShipmentsController {
       mass_unit: "oz",
     }
 
-    const getCustomerAddress = customerId => {
-      const prepareAddressObject = customerObject => ({
-        name: customerObject.get('billingAddress').name,
-        street1: customerObject.get('billingAddress').street_1,
-        city: customerObject.get('billingAddress').city,
-        state: customerObject.get('billingAddress').state,
-        zip: customerObject.get('billingAddress').zip,
-        country: customerObject.get('billingAddress').country_iso2,
-        email: customerObject.get('billingAddress').email
+    const getCustomerAddress = orderId => {
+      const prepareAddressObject = orderObject => ({
+        name: orderObject.get('billing_address').name,
+        street1: orderObject.get('billing_address').street_1,
+        city: orderObject.get('billing_address').city,
+        state: orderObject.get('billing_address').state,
+        zip: orderObject.get('billing_address').zip,
+        country: orderObject.get('billing_address').country_iso2,
+        email: orderObject.get('billing_address').email
       });
 
-      return CustomersController.getCustomerById(customerId)
+      return OrdersController.getOrderById(orderId)
         .then(prepareAddressObject);
     };
 
@@ -67,7 +67,7 @@ exports.ShipmentsController = new class ShipmentsController {
       attributes: rate.attributes,
     }));
 
-    return getCustomerAddress(customerId)
+    return getCustomerAddress(orderId)
       .then(customerAddress => createShipment(customerAddress, parcel, this.baseAddress))
       .then(shipmentObject => shippo.shipment.rates(shipmentObject.object_id))
       .then(response => minifyResponse(response.results));
