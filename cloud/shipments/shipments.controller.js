@@ -20,7 +20,7 @@ exports.ShipmentsController = new class ShipmentsController {
 
   getRatesForOrderShipment(parcelParams, orderId) {
     if (!parcelParams || !orderId)
-      throw new Error({ message: 'Information of parcel and order\'s address is required.' });
+      throw { message: 'Information of parcel and order\'s address is required.' };
 
     const parcel = {
       ...parcelParams,
@@ -70,6 +70,10 @@ exports.ShipmentsController = new class ShipmentsController {
     return getCustomerAddress(orderId)
       .then(customerAddress => createShipment(customerAddress, parcel, this.baseAddress))
       .then(shipmentObject => shippo.shipment.rates(shipmentObject.object_id))
-      .then(response => minifyResponse(response.results));
+      .then(response => minifyResponse(response.results))
+      .then(rates => ({
+        success: true,
+        rates,
+      }));
   }
 }

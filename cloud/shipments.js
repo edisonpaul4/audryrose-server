@@ -60,7 +60,7 @@ Parse.Cloud.define("getShipments", function(request, response) {
 Parse.Cloud.define("getRatesForOrderShipment", (req, res) => {
   logInfo('getRatesForOrderShipment cloud function --------------------------', true);
   var startTime = moment();
-  ShipmentsController.getRatesForOrderShipment(req.params.parcelParams, req.params.customerId)
+  ShipmentsController.getRatesForOrderShipment(req.params.parcelParams, req.params.orderId)
     .then(shipmentRates => {
       logInfo('getRatesForOrderShipment completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
       res.success(shipmentRates);
