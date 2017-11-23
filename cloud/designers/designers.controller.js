@@ -1,7 +1,53 @@
-var { DesignersModel } = require('./designers.model');
+const { DesignersModel } = require('./designers.model');
+const { ProductsModel } = require('../products/products.model');
+const { OrdersModel } = require('../orders/orders.model');
 
 exports.DesignersController = new class DesignersController {
   constructor(){}
+
+  getAllPendingVendorOrders(page = 0, sort = "date_added" , direction = "ASC", ordersToSkip = []) {
+    const objectFromVendorOrder = object => {
+      const vendorOrderVariant = object.get('vendorOrderVariants')[0];
+      const productVariant = vendorOrderVariant.get('variant');
+
+      const getOrderProductByProductId = productId => OrdersModel.getOrderProductsByFilters({
+        includes: ['product_options'],
+        equal: [{ key: 'product_id', value: productId }]
+      }).first();
+
+      return getOrderProductByProductId(productVariant.get('productId'))
+        .then(productObject => ({
+          dateAdded: object.get('createdAt'),
+          designerName: object.get('vendor').get('name'),
+          productName: productVariant.get('productName'),
+          retailPrice: productVariant.get('adjustedPrice'),
+          productOptions: productObject.get('product_options').map(productOption => ({
+            displayName: productOption.display_name,
+            displayValue: productOption.display_value,
+          })),
+          totalInventory: productVariant.get('inventoryLevel'),
+          totalAwaiting: productVariant.get('totalAwaitingInventory'),
+          unitsToOrder: vendorOrderVariant.get('units'),
+          note: vendorOrderVariant.get('notes'),
+          internalNote: vendorOrderVariant.get('internalNotes'),
+        }));
+    };
+
+    const filters = {
+      limit: 1000,
+      skip: page * 100,
+      includes: ['vendor', 'vendorOrderVariants', 'vendorOrderVariants.variant'],
+      equal: [{ key: 'orderedAll', value: false }, { key: 'receivedAll', value: false }]
+    }
+    return DesignersModel.getVendorOrdersByFilters(filters)
+      .find()
+      .then(objects => Promise.all(objects.map(objectFromVendorOrder)))
+      .then(vendorOrders => ({
+        success: true,
+        count: vendorOrders.length,
+        vendorOrders
+      }));
+  }
 
   /**
    * @returns {Promise} <{ success: boolean }>

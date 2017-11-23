@@ -50,7 +50,7 @@ exports.ShipmentsController = new class ShipmentsController {
         "address_from": { ...addressFrom, object_purpose: "QUOTE" },
         "address_to": addressTo,
         "parcel": parcel,
-        "async": false,
+        "async": true,
         "carrier_accounts": ["c67f85102205443e813814c72f2d48c6"]
       })
     }

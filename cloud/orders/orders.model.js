@@ -1,5 +1,6 @@
 const { BaseModel } = require('../database/base.model');
 const { ProductsModel } = require('../products/products.model');
+const { OrdersModel } = require('../orders/orders.model');
 
 exports.OrdersModel = new class OrdersModel extends BaseModel{
   constructor() {
