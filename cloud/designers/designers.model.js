@@ -8,6 +8,15 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
     this.Vendor = new Parse.Object.extend('Vendor');
     this.VendorOrder = new Parse.Object.extend('VendorOrder');
   }
+
+  /**
+   * @returns {Promise} - Array of objects
+   * @param {Object} params - base query params
+   */
+  getVendorOrdersByFilters(params) {
+    const ordersQuery = new Parse.Query(this.VendorOrder);
+    return this.searchDatabase(params, ordersQuery);
+  } // END getOrdersByFilters
   
   finishVendorOrder(vendorOrderNumber){
     console.log('DesignersModel::finishVendorOrder => searching order with vendorOrderNumber:', vendorOrderNumber);
