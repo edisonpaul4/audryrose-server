@@ -6,9 +6,10 @@ exports.DesignersController = new class DesignersController {
   constructor(){}
 
   getAllPendingVendorOrders(page = 0, sort = "date_added" , direction = "ASC", ordersToSkip = []) {
-    const objectFromVendorOrder = object => {
-      const vendorOrderVariant = object.get('vendorOrderVariants')[0];
+    const objectFromVendorOrder = vendorOrder => {
+      const vendorOrderVariant = vendorOrder.get('vendorOrderVariants')[0];
       const productVariant = vendorOrderVariant.get('variant');
+      const designer = vendorOrder.get('vendor').get('designers')[0];
 
       const getOrderProductByProductId = productId => OrdersModel.getOrderProductsByFilters({
         includes: ['product_options'],
@@ -17,8 +18,10 @@ exports.DesignersController = new class DesignersController {
 
       return getOrderProductByProductId(productVariant.get('productId'))
         .then(productObject => ({
-          dateAdded: object.get('createdAt'),
-          designerName: object.get('vendor').get('name'),
+          designerId: designer.get('designerId'),
+          productId: productVariant.get('productId'),
+          dateAdded: vendorOrder.get('createdAt'),
+          designerName: designer.get('name'),
           productName: productVariant.get('productName'),
           retailPrice: productVariant.get('adjustedPrice'),
           productOptions: productObject.get('product_options').map(productOption => ({
@@ -36,7 +39,7 @@ exports.DesignersController = new class DesignersController {
     const filters = {
       limit: 1000,
       skip: page * 100,
-      includes: ['vendor', 'vendorOrderVariants', 'vendorOrderVariants.variant'],
+      includes: ['vendor', 'vendor.designers', 'vendorOrderVariants', 'vendorOrderVariants.variant'],
       equal: [{ key: 'orderedAll', value: false }, { key: 'receivedAll', value: false }]
     }
     return DesignersModel.getVendorOrdersByFilters(filters)
