@@ -18,6 +18,9 @@ exports.DesignersController = new class DesignersController {
 
       return getOrderProductByProductId(productVariant.get('productId'))
         .then(productObject => ({
+          vendorOrderObjectId: vendorOrder.id,
+          vendorOrderVariantObjectId: vendorOrderVariant.id,
+          designerObjectId: designer.id,
           designerId: designer.get('designerId'),
           productId: productVariant.get('productId'),
           dateAdded: vendorOrder.get('createdAt'),
@@ -51,6 +54,19 @@ exports.DesignersController = new class DesignersController {
         vendorOrders
       }));
   }
+
+  /**
+   * 
+   * @param {String} vendorOrderObjectId
+   * @param {String} vendorOrderVariantObjectId
+   */
+  finishPendingVendorOrderProduct(vendorOrderObjectId, vendorOrderVariantObjectId) {
+    return DesignersModel.finishPendingVendorOrderProduct(vendorOrderObjectId, vendorOrderVariantObjectId)
+      .then(result => ({
+        success: true,
+        ...result
+      }));
+  } // END finishPendingVendorOrderProduct
 
   /**
    * @returns {Promise} <{ success: boolean }>

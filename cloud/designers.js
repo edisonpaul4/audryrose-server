@@ -445,6 +445,13 @@ Parse.Cloud.define("getAllPendingVendorOrders", (req, res) => {
     .catch(error => res.error(error));
 });
 
+Parse.Cloud.define("finishPendingVendorOrderProduct", (req, res) => {
+  var { vendorOrderObjectId, vendorOrderVariantObjectId } = req.params;
+  DesignersController.finishPendingVendorOrderProduct(vendorOrderObjectId, vendorOrderVariantObjectId)
+    .then(success => res.success(success))
+    .catch(error => res.error(error));
+});
+
 Parse.Cloud.define("getUpdatedDesigner", function(request, response) {
   var designerId = request.params.data.designerId;
   var updatedDesigner;

@@ -134,6 +134,51 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
       .then(destroyProduct);
   }
 
+  finishPendingVendorOrderProduct(vendorOrderObjectId, vendorOrderVariantObjectId) {
+    if (typeof vendorOrderObjectId === 'undefined' || typeof vendorOrderVariantObjectId === 'undefined')
+      throw { message: `The vendor order and variant id ${productObjectId} doesn't exist.` };
+
+    const getVendorOrder = vendorOrderObjectId => this.searchDatabase({
+      includes: ['vendorOrderVariants', 'vendorOrderVariants.variant'],
+      equal: [{ key: 'objectId', value: vendorOrderObjectId }]
+    }, new Parse.Query(this.VendorOrder)).first();
+
+    const extractVendorOrderVariant = (vendorOrder, vendorOrderVariantObjectId) => {
+     const vendorOrderVariants = vendorOrder.get('vendorOrderVariants');
+     const index = vendorOrderVariants.findIndex(vov => vov.id === vendorOrderVariantObjectId);
+     return {
+       vendorOrder,
+       vendorOrderVariant: vendorOrderVariants[index]
+     };
+    }
+
+    const finishVariant = ({ vendorOrder, vendorOrderVariant }) => {
+      return vendorOrderVariant.set('deleted', true)
+        .set('deletedAt', new Date())
+        .set('done', true)
+        .save()
+        .then(vendorOrderVariant => ({
+          vendorOrder,
+          vendorOrderVariant
+        }));
+    }
+
+    const transformToJSON = ({ vendorOrder, vendorOrderVariant }) => {
+      return Promise.all([
+        vendorOrder.toJSON(),
+        vendorOrderVariant.toJSON()
+      ]).then(results => ({
+        vendorOrder: results[0],
+        vendorOrderVariant: results[1]
+      }));
+    }
+
+    return getVendorOrder(vendorOrderObjectId)
+      .then(vendorOrder => extractVendorOrderVariant(vendorOrder, vendorOrderVariantObjectId))
+      .then(finishVariant)
+      .then(transformToJSON);
+  }
+
   getForcedClearedOrders() {
     // the search will start always from 15th October 2017
     var query = new Parse.Query(this.VendorOrder);
