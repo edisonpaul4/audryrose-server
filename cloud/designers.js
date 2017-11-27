@@ -315,7 +315,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
       return;
     }
     vendor = vendorOrder.get('vendor');
-    vendorOrderVariants = vendorOrder.get('vendorOrderVariants');
+    vendorOrderVariants = vendorOrder.get('vendorOrderVariants').filter(vov => !vov.get('deleted'));
 
     if (vendorOrder.get('orderedAll') == true) {
       errors.push('Error sending order: order already sent.');
@@ -441,6 +441,13 @@ Parse.Cloud.define("deleteProductFromVendorOrder", (req, res) => {
 Parse.Cloud.define("getAllPendingVendorOrders", (req, res) => {
   var { page, sort, direction, ordersToSkip } = req.params;
   DesignersController.getAllPendingVendorOrders(page, sort, direction, ordersToSkip)
+    .then(success => res.success(success))
+    .catch(error => res.error(error));
+});
+
+Parse.Cloud.define("finishPendingVendorOrderProduct", (req, res) => {
+  var { vendorOrderObjectId, vendorOrderVariantObjectId } = req.params;
+  DesignersController.finishPendingVendorOrderProduct(vendorOrderObjectId, vendorOrderVariantObjectId)
     .then(success => res.success(success))
     .catch(error => res.error(error));
 });
