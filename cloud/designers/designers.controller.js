@@ -6,9 +6,8 @@ exports.DesignersController = new class DesignersController {
   constructor(){}
 
   getAllPendingVendorOrders(page = 0, sort = "date_added" , direction = "ASC", ordersToSkip = []) {
-    const objectFromVendorOrder = vendorOrder => {
-      const vendorOrderVariant = vendorOrder.get('vendorOrderVariants')[0];
-      const productVariant = vendorOrderVariant.get('variant');
+    const variantsObjectsFromVendorOrder = vendorOrder => {
+      const vendorOrderVariants = vendorOrder.get('vendorOrderVariants');
       const designer = vendorOrder.get('vendor').get('designers')[0];
 
       const getOrderProductByProductId = productId => OrdersModel.getOrderProductsByFilters({
@@ -16,28 +15,39 @@ exports.DesignersController = new class DesignersController {
         equal: [{ key: 'product_id', value: productId }]
       }).first();
 
-      return getOrderProductByProductId(productVariant.get('productId'))
-        .then(productObject => ({
-          vendorOrderObjectId: vendorOrder.id,
-          vendorOrderVariantObjectId: vendorOrderVariant.id,
-          designerObjectId: designer.id,
-          designerId: designer.get('designerId'),
-          productId: productVariant.get('productId'),
-          dateAdded: vendorOrder.get('createdAt'),
-          designerName: designer.get('name'),
-          productName: productVariant.get('productName'),
-          retailPrice: productVariant.get('adjustedPrice'),
-          productOptions: productObject.get('product_options').map(productOption => ({
-            displayName: productOption.display_name,
-            displayValue: productOption.display_value,
-          })),
-          totalInventory: productVariant.get('inventoryLevel'),
-          totalAwaiting: productVariant.get('totalAwaitingInventory'),
-          unitsToOrder: vendorOrderVariant.get('units'),
-          note: vendorOrderVariant.get('notes'),
-          internalNote: vendorOrderVariant.get('internalNotes'),
-        }));
+      return Promise.all(vendorOrderVariants.map(vendorOrderVariant => {
+        const productVariant = vendorOrderVariant.get('variant');
+        return getOrderProductByProductId(productVariant.get('productId'))
+          .then(productObject => ({
+            vendorOrderObjectId: vendorOrder.id,
+            vendorOrderVariantObjectId: vendorOrderVariant.id,
+            designerObjectId: designer.id,
+            designerId: designer.get('designerId'),
+            productId: productVariant.get('productId'),
+            dateAdded: vendorOrder.get('createdAt'),
+            designerName: designer.get('name'),
+            productName: productVariant.get('productName'),
+            retailPrice: productVariant.get('adjustedPrice'),
+            productOptions: productObject.get('product_options').map(productOption => ({
+              displayName: productOption.display_name,
+              displayValue: productOption.display_value,
+            })),
+            totalInventory: productVariant.get('inventoryLevel'),
+            totalAwaiting: productVariant.get('totalAwaitingInventory'),
+            unitsToOrder: vendorOrderVariant.get('units'),
+            note: vendorOrderVariant.get('notes'),
+            internalNote: vendorOrderVariant.get('internalNotes'),
+            ordered: vendorOrderVariant.get('ordered'),
+            deleted: vendorOrderVariant.get('deleted'),
+            deletedAt: vendorOrderVariant.get('deletedAt'),
+          }));
+      }))
     };
+    
+    const filterAndGroupObjects = objects => objects.reduce((all, current) => [
+      ...('push' in all ? all : []),
+      ...current.filter(current => !current.ordered && !current.deleted)
+    ], []);
 
     const filters = {
       limit: 1000,
@@ -47,7 +57,8 @@ exports.DesignersController = new class DesignersController {
     }
     return DesignersModel.getVendorOrdersByFilters(filters)
       .find()
-      .then(objects => Promise.all(objects.map(objectFromVendorOrder)))
+      .then(objects => Promise.all(objects.map(variantsObjectsFromVendorOrder)))
+      .then(filterAndGroupObjects)
       .then(vendorOrders => ({
         success: true,
         count: vendorOrders.length,

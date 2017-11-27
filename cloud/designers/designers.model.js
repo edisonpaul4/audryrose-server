@@ -169,7 +169,9 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
         vendorOrderVariant.toJSON()
       ]).then(results => ({
         vendorOrder: results[0],
-        vendorOrderVariant: results[1]
+        vendorOrderVariant: results[1],
+        vendorOrderObjectId,
+        vendorOrderVariantObjectId
       }));
     }
 
