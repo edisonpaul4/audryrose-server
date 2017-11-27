@@ -315,7 +315,7 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
       return;
     }
     vendor = vendorOrder.get('vendor');
-    vendorOrderVariants = vendorOrder.get('vendorOrderVariants');
+    vendorOrderVariants = vendorOrder.get('vendorOrderVariants').filter(vov => !vov.get('deleted'));
 
     if (vendorOrder.get('orderedAll') == true) {
       errors.push('Error sending order: order already sent.');
