@@ -439,16 +439,26 @@ Parse.Cloud.define("deleteProductFromVendorOrder", (req, res) => {
 });
 
 Parse.Cloud.define("getAllPendingVendorOrders", (req, res) => {
+  logInfo('getAllPendingVendorOrders cloud function --------------------------', true);
+  var startTime = moment();
   var { page, sort, direction, ordersToSkip } = req.params;
   DesignersController.getAllPendingVendorOrders(page, sort, direction, ordersToSkip)
-    .then(success => res.success(success))
+    .then(success => {
+      logInfo('getAllPendingVendorOrders completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      res.success(success);
+    })
     .catch(error => res.error(error));
 });
 
 Parse.Cloud.define("finishPendingVendorOrderProduct", (req, res) => {
+  logInfo('finishPendingVendorOrderProduct cloud function --------------------------', true);
+  var startTime = moment();
   var { vendorOrderObjectId, vendorOrderVariantObjectId } = req.params;
   DesignersController.finishPendingVendorOrderProduct(vendorOrderObjectId, vendorOrderVariantObjectId)
-    .then(success => res.success(success))
+    .then(success => {
+      logInfo('finishPendingVendorOrderProduct completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      res.success(success);
+    })
     .catch(error => res.error(error));
 });
 
