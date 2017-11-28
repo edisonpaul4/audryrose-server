@@ -28,9 +28,10 @@ exports.DesignersController = new class DesignersController {
             designerName: designer.get('name'),
             productName: productVariant.get('productName'),
             retailPrice: productVariant.get('adjustedPrice'),
-            productOptions: productObject.get('product_options').map(productOption => ({
-              displayName: productOption.display_name,
-              displayValue: productOption.display_value,
+            productOptions: typeof productObject === 'undefined' ? [] : productObject.get('product_options')
+              .map(productOption => ({
+                displayName: productOption.display_name,
+                displayValue: productOption.display_value,
             })),
             totalInventory: productVariant.get('inventoryLevel'),
             totalAwaiting: productVariant.get('totalAwaitingInventory'),
