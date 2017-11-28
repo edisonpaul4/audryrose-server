@@ -134,7 +134,7 @@ exports.OrdersController = new class OrdersController {
 
     const sendEmailToCustomer = (order, emailParams) => {
       const data = {
-        from: 'hello@loveaudryrose.com',
+        from: 'tracy@loveaudryrose.com',
         to: `${order.get('customer').get('firstName') + ' ' + order.get('customer').get('lastName')} <${process.env.NODE_ENV === 'production' ? order.get('billing_address').email : 'ejas94@gmail.com'}>`,
         cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <arrieta.e@outlook.com>',
         subject: emailParams.emailSubject,
