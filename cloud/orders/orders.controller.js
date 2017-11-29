@@ -49,11 +49,14 @@ exports.OrdersController = new class OrdersController {
     const formatOrder = order => ({
       objectId: order.objectId,
       orderId: order.orderId,
-      customerMessage: order.customerMessage,
       dateShipped: order.dateShipped,
       items_total: order.items_total,
       status_id: order.status_id,
       isEmailSended: order.isEmailSended,
+      customerMessage: order.customer_message,
+      staffNotes: order.staff_notes,
+      internalNotes: order.internalNotes,
+      designerNotes: order.designerNotes,
       orderProducts: order.orderProducts.map(orderProduct => ({
         objectId: orderProduct.objectId,
         productId: orderProduct.productId,
