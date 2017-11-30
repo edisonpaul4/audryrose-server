@@ -102,13 +102,13 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
 
     const getProductsObjects = productsIds => {
       const queries = productsIds.map(id => {
-        const filters = {
-          equal: [{ key: 'productId', value: id }] 
-        };
+        const filters = { equal: [{ key: 'productId', value: id }] };
         return ProductsModel.getProductsByFilters(filters)
       });
       return Parse.Query.or(...queries)
         .include('classification')
+        .include('designer')
+        .include('vendor')
         .find()
     };
 
@@ -121,6 +121,8 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
           const totalStock = findTotalStock(orderProduct);
           return {
             ...orderProduct,
+            vendor: productIndex !== -1 ? products[productIndex].get('vendor') : undefined,
+            designer: productIndex !== -1 ? products[productIndex].get('designer') : undefined,
             isActive: productIndex !== -1 ? products[productIndex].get('is_active') : false,
             totalInventory: totalStock !== null ? totalStock : productIndex !== -1 ? products[productIndex].get('total_stock') : 0,
             classificationName: productIndex !== -1 && products[productIndex].get('classification') ? products[productIndex].get('classification').get('name') : 'product',
@@ -130,7 +132,7 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
     };
 
     const ordersQuery = this.getOrdersByFilters({
-      includes: ['customer', 'orderProducts', 'orderProducts.product_options', 'orderProducts.variants', 'orderProducts.editedVariants'],
+      includes: ['customer', 'orderProducts', 'orderProducts.product_options', 'orderProducts.variants', 'orderProducts.editedVariants', 'orderProducts.awaitingInventory', 'orderProducts.awaitingInventoryVendorOrders', 'orderProducts.awaitingInventoryVendorOrders.vendorOrderVariants'],
       notEqual: [{ key: 'isEmailSended', value: true }],
       exists: ['customer'],
       notExists: ['date_shipped'],
