@@ -1105,7 +1105,7 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
   var thTag = '<th style="box-sizing: border-box; color: #999; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-size: 80%; margin: 0; padding: 8px; text-transform: uppercase; text-align:left;">';
   var thRightTag = '<th style="box-sizing: border-box; color: #999; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-size: 80%; margin: 0; padding: 8px; text-transform: uppercase; text-align:right;">';
   var trTag = '<tr style="box-sizing: border-box; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; margin: 0;">';
-  var tdTag = '<td style="border-top: #eee 1px solid; box-sizing: border-box; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; margin: 0; padding: 8px; vertical-align: top; text-align:left;">';
+  var tdTag = '<td style="border-top: #eee 1px solid; box-sizing: border-box; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; margin: 0; padding: 8px; vertical-align: top; text-align:left;border-right:1px solid #eee">';
   var tdRightTag = '<td style="border-top: #eee 1px solid; box-sizing: border-box; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; margin: 0; padding: 8px; vertical-align: top; text-align:right;">';
 
   message = message.replace(/(?:\r\n|\r\r|\n\n)/g, '</p>' + pTag);
@@ -1113,17 +1113,18 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
   message = pTag + message;
   message += '</p>';
 
-  var productsTable = '<table class="order" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; padding: 0; border: 1px solid #eee; border-radius: 5px;">';
-  productsTable += '<thead>';
+  var productsTable = '<table class="order" cellpadding="0" cellspacing="0" style="width:auto;margin: 20px 0; padding: 0; border: 1px solid #f1f1f1; border-radius: 5px;min-width: 800px">';
+  productsTable += '<thead style="background:#f1f1f1;">';
+  productsTable += thTag + 'Units</th>';
   productsTable += thTag + 'Style Name</th>';
   productsTable += thTag + 'Options</th>';
   productsTable += thTag + 'Notes</th>';
-  productsTable += thRightTag + 'Units</th>';
   productsTable += '</thead>';
   productsTable += '<tbody>';
-  _.each(vendorOrderVariants, function(vendorOrderVariant) {
-    productsTable += trTag;
+  _.each(vendorOrderVariants, function(vendorOrderVariant, key) {
+    productsTable += `<tr style="box-sizing: border-box; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0;background:${key % 2 !== 0 ? '#eee':'white'}">`;
     var variant = vendorOrderVariant.get('variant');
+    productsTable += tdTag + vendorOrderVariant.get('units') + '</td>';
     productsTable += tdTag;
     productsTable += variant.has('designerProductName') ? variant.get('designerProductName') : variant.get('productName');
     productsTable += '</td>';
@@ -1140,7 +1141,6 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
     productsTable += tdTag + optionsList + '</td>';
     var notes = vendorOrderVariant.get('notes');
     productsTable += tdTag + notes + '</td>';
-    productsTable += tdRightTag + vendorOrderVariant.get('units') + '</td>';
     productsTable += '</tr>';
   });
   productsTable += '</tbody></table>';
