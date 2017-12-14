@@ -22,6 +22,6 @@ exports.ProductsModel = new class ProductsModel extends BaseModel {
    */
   getProductsVariantsByFilters(params) {
     var productsVariantsQuery = new Parse.Query(this.ProductVariant);
-    return this.searchDatabase(params, productsQuery);
+    return this.searchDatabase(params, productsVariantsQuery);
   }
 }

@@ -2205,6 +2205,17 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
 
 });
 
+Parse.Cloud.define("updateInventoryOnHandByProductId", (req, res) => {
+  logInfo('updateInventoryOnHandByProductId cloud function --------------------------', true);
+  var startTime = moment();
+  ProductsController.updateInventoryOnHandByProductId(req.params.productId)
+    .then(success => {
+      logInfo('updateInventoryOnHandByProductId completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      res.success(success);
+    })
+    .catch(error => res.error(error));
+});
+
 
 /////////////////////////
 //  BEFORE SAVE        //

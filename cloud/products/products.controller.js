@@ -6,6 +6,8 @@ var moment = require('moment');
 
 var { ProductsModel } = require('./products.model');
 var { OrdersController } = require('../orders/orders.controller');
+var { OrdersModel } = require('../orders/orders.model');
+var { DesignersModel } = require('../designers/designers.model');
 
 exports.ProductsController = new class ProductsController {
   constructor(){ 
@@ -144,4 +146,72 @@ exports.ProductsController = new class ProductsController {
 
   } // End getProductsAsCSV
   
+  /**
+   * @return {ParseObject} Updated Product
+   * @param {Number} productId
+   */
+  updateInventoryOnHandByProductId(productId) {
+    if (typeof productId !== 'number')
+      return Promise.reject({ success: false, message: 'The product id is no valid or it doesn\'t exist.'})
+
+    const getProductById = productId => ProductsModel.getProductsByFilters({
+      includes: ["variants"],
+      equal: [
+        { key: 'productId', value: productId },
+        { key: 'isBundle', value: false }
+      ]
+    }).first();
+    
+    const getOrderProductsByProductId = productId => OrdersModel.getOrderProductsByFilters({
+      includes: ["variants"],
+      equal: [{ key: 'product_id', value: productId }, { key: 'is_refunded', value: false }],
+      greaterOrEqual: [{ key: 'createdAt', value: moment().subtract(75, 'days').toDate() }]
+    }).find();
+
+    const checkIfProductAndOrdersExists = results => {
+      if (!results.every(r => typeof r !== 'undefined'))
+        return Promise.reject({ success: false, message: 'The product doesn\'t exist.' });
+      return { product: results[0], orderProducts: results[1] };
+    };
+
+    const setVariantInventoryOnHand = (variant, orderProducts) => {
+      const variantTotalInventory = variant.get('inventoryLevel') ? variant.get('inventoryLevel') : 0;
+      const totalVariantSold = orderProducts.filter(op => 
+        op.get('variants').findIndex(opv => opv.id === variant.id) !== -1
+      ).reduce((sum, current) => {
+        let temp = typeof sum === 'number' ? sum : 0;
+        const totalFromOrder = current.get('quantity') - current.get('quantity_shipped');
+        return totalFromOrder >= 0 ? sum + totalFromOrder : sum;
+      }, 0);
+
+      const totalInventoryOnHand = variantTotalInventory - totalVariantSold;
+      return variant.set('inventoryOnHand', totalInventoryOnHand >= 0 ? totalInventoryOnHand : 0)
+        .save();
+    };
+
+    const setProductInventoryOnHand = (product, updatedVariants) => {
+      const totalInventoryOnHand = updatedVariants.reduce((sum, current) => {
+        let temp = typeof sum === 'number' ? sum : 0;
+        return current.get('inventoryOnHand') >= 0 ? sum + current.get('inventoryOnHand') : sum;
+      }, 0);
+
+      return product.set('inventoryOnHand', totalInventoryOnHand)
+        .save();
+    };
+
+
+    return Promise.all([
+        getProductById(productId),
+        getOrderProductsByProductId(productId)
+      ]).then(checkIfProductAndOrdersExists)
+        .then(data => 
+          Promise.all(data.product.get('variants').map(variant => 
+            setVariantInventoryOnHand(variant, data.orderProducts)
+          ))
+          .then(updatedVariants => setProductInventoryOnHand(data.product, updatedVariants))
+        );
+
+
+  } // End updateInventoryOnHandByProductId
+
 }
