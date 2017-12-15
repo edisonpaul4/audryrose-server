@@ -7,6 +7,7 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
     this.Designer = new Parse.Object.extend('Designer');
     this.Vendor = new Parse.Object.extend('Vendor');
     this.VendorOrder = new Parse.Object.extend('VendorOrder');
+    this.VendorOrderVariant = new Parse.Object.extend('VendorOrderVariant');
   }
 
   /**
@@ -17,6 +18,15 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
     const ordersQuery = new Parse.Query(this.VendorOrder);
     return this.searchDatabase(params, ordersQuery);
   } // END getOrdersByFilters
+
+  /**
+   * @returns {Promise} - Array of objects
+   * @param {Object} params - base query params
+   */
+  getVendorOrdersVariantsByFilters(params) {
+    const ordersQuery = new Parse.Query(this.VendorOrderVariant);
+    return this.searchDatabase(params, ordersQuery);
+  } // END getVendorOrdersVariantsByFilters
   
   finishVendorOrder(vendorOrderNumber){
     console.log('DesignersModel::finishVendorOrder => searching order with vendorOrderNumber:', vendorOrderNumber);

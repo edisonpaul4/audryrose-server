@@ -15,6 +15,8 @@ var VendorOrder = Parse.Object.extend('VendorOrder');
 var JobStatus = Parse.Object.extend('_JobStatus');
 var ReloadQueue = Parse.Object.extend('ReloadQueue');
 var { DesignersController } = require('./designers/designers.controller');
+var { ProductsController } = require('./products/products.controller');
+var { ProductsModel } = require('./products/products.model');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -1024,6 +1026,23 @@ Parse.Cloud.job("fixClearedOrders", function(request, status) {
     .then(result => {
       logInfo(result);
       logInfo('fixClearedOrders completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    });
+});
+
+Parse.Cloud.job("updateInventoryOnHandByProductId", function(request, status) {
+  logInfo('updateInventoryOnHandByProductId cloud job --------------------------', true);
+  status.success('updateInventoryOnHandByProductId job created');
+  var startTime = moment();
+
+  ProductsModel.getProductsByFilters({
+    limit: 10000,
+    notEqual: [{ key: 'isBundle', value: true }]
+  }).find()
+    .then(products => Promise.all(
+      products.map(product => ProductsController.updateInventoryOnHandByProductId(product.get('productId')))
+    ))
+    .then(result => {
+      logInfo('updateInventoryOnHandByProductId completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     });
 });
 
