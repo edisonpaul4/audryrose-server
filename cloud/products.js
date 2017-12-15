@@ -225,6 +225,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
     return productsQuery.find({useMasterKey:true});
 
   }).then(function(products) {
+    console.log(products[0].get('inventoryOnHand'))
     logInfo('getProducts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success({products: products, totalPages: totalPages, totalProducts: totalProducts, tabCounts: tabCounts});
 
@@ -2203,6 +2204,17 @@ Parse.Cloud.define("productBundleSave", function(request, response) {
 
 	});
 
+});
+
+Parse.Cloud.define("updateInventoryOnHandByProductId", (req, res) => {
+  logInfo('updateInventoryOnHandByProductId cloud function --------------------------', true);
+  var startTime = moment();
+  ProductsController.updateInventoryOnHandByProductId(req.params.productId)
+    .then(success => {
+      logInfo('updateInventoryOnHandByProductId completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      res.success(success);
+    })
+    .catch(error => res.error(error));
 });
 
 
