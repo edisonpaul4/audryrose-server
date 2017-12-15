@@ -2674,9 +2674,12 @@ var loadOrder = function(bcOrderId) {
     }
     logInfo('save order...');
 
-    return Promise.all(orderObj.get('orderProducts').map(op => 
-      ProductsController.updateInventoryOnHandByProductId(op.get('product_id'))
-    )).then(results => orderObj.save(null, {useMasterKey: true}));
+    if (orderObj.get('inventoryOnHandUpdated'))
+      return orderObj.save(null, {useMasterKey: true});
+    else
+      return Promise.all(orderObj.get('orderProducts').map(op => 
+        ProductsController.updateInventoryOnHandByProductId(op.get('product_id'))
+      )).then(results => orderObj.set('inventoryOnHandUpdated', true).save(null, {useMasterKey: true}));
 
   }, function(error) {
     logError(error);

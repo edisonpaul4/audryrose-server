@@ -1019,31 +1019,40 @@ Parse.Cloud.job("processReloadQueue", function(request, status) {
 
 Parse.Cloud.job("fixClearedOrders", function(request, status) {
   logInfo('fixClearedOrders cloud job --------------------------', true);
-  status.success('fixClearedOrders job created');
   var startTime = moment();
 
   DesignersController.fixClearedVendorOrdersResults()
     .then(result => {
       logInfo(result);
       logInfo('fixClearedOrders completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      status.success('fixClearedOrders job created');
     });
 });
 
 Parse.Cloud.job("updateInventoryOnHandByProductId", function(request, status) {
   logInfo('updateInventoryOnHandByProductId cloud job --------------------------', true);
-  status.success('updateInventoryOnHandByProductId job created');
   var startTime = moment();
+  status.success('updateInventoryOnHandByProductId job created');
 
   ProductsModel.getProductsByFilters({
+    notExists: ['inventoryOnHand'],
     limit: 10000,
-    notEqual: [{ key: 'isBundle', value: true }]
   }).find()
-    .then(products => Promise.all(
-      products.map(product => ProductsController.updateInventoryOnHandByProductId(product.get('productId')))
-    ))
+    .then(products => {
+      for (let index = 0; index < products.length; index++) {
+        const element = products[index];
+        setTimeout(() => {
+          ProductsController.updateInventoryOnHandByProductId(element.get('productId'))
+        }, (index * 2) * 1000);
+      }
+    })
+    // .then(products => Promise.all(
+    //   products.map(product => ProductsController.updateInventoryOnHandByProductId(product.get('productId')))
+    // ))
     .then(result => {
       logInfo('updateInventoryOnHandByProductId completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
-    });
+    })
+    .catch(e => console.error(e))
 });
 
 

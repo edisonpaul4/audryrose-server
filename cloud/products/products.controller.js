@@ -151,13 +151,13 @@ exports.ProductsController = new class ProductsController {
    * @param {Number} productId
    */
   updateInventoryOnHandByProductId(productId) {
-    if (typeof productId !== 'number')
-      return Promise.reject({ success: false, message: 'The product id is no valid or it doesn\'t exist.'})
+    if (typeof productId === 'undefined')
+      return Promise.reject({ success: false, message: `The product id #${productId} is not valid.`})
 
     const getProductById = productId => ProductsModel.getProductsByFilters({
       includes: ["variants"],
       equal: [{ key: 'productId', value: productId }],
-      notEqual: [{ key: 'isBundle', value: true }]
+      // notEqual: [{ key: 'isBundle', value: true }]
     }).first();
     
     const getOrderProductsByProductId = productId => OrdersModel.getOrderProductsByFilters({
@@ -168,14 +168,14 @@ exports.ProductsController = new class ProductsController {
 
     const checkIfProductAndOrdersExists = results => {
       if (typeof results[0] === 'undefined')
-        return Promise.reject({ success: false, message: 'The product doesn\'t exist.' });
+        return Promise.reject({ success: false, message: `The product #${productId} doesn\'t exist.` });
       return { product: results[0], orderProducts: results[1] };
     };
 
     const setVariantInventoryOnHand = (variant, orderProducts) => {
       const variantTotalInventory = variant.get('inventoryLevel') ? variant.get('inventoryLevel') : 0;
       const totalVariantSold = orderProducts.filter(op => 
-        op.get('variants').findIndex(opv => opv.id === variant.id) !== -1
+        op.get('variants') ? op.get('variants').findIndex(opv => opv.id === variant.id) !== -1 : false
       ).reduce((sum, current) => {
         let temp = typeof sum === 'number' ? sum : 0;
         const totalFromOrder = current.get('quantity') - current.get('quantity_shipped');
@@ -188,6 +188,9 @@ exports.ProductsController = new class ProductsController {
     };
 
     const setProductInventoryOnHand = (product, updatedVariants) => {
+      if(product.get('isBundle'))
+        return product;
+        
       const totalInventoryOnHand = updatedVariants.reduce((sum, current) => {
         let temp = typeof sum === 'number' ? sum : 0;
         return current.get('inventoryOnHand') >= 0 ? sum + current.get('inventoryOnHand') : sum;
