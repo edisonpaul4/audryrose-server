@@ -8,6 +8,7 @@ var streams = require('memory-streams');
 var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
 
 const { OrdersController } = require('./orders/orders.controller');
+const { ProductsController } = require('./products/products.controller');
 
 var Order = Parse.Object.extend('Order');
 var Customer = Parse.Object.extend('Customer');
@@ -2114,7 +2115,7 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
       order.set("search_terms", searchTerms);
       // Set order needs action
       order.set("needsAction", needsAction);
-      response.success();
+      response.success()
     });
   } else {
     // Add the product names as search terms
@@ -2672,7 +2673,10 @@ var loadOrder = function(bcOrderId) {
       orderObj.unset('orderShipments');
     }
     logInfo('save order...');
-    return orderObj.save(null, {useMasterKey: true});
+
+    return Promise.all(orderObj.get('orderProducts').map(op => 
+      ProductsController.updateInventoryOnHandByProductId(op.get('product_id'))
+    )).then(results => orderObj.save(null, {useMasterKey: true}));
 
   }, function(error) {
     logError(error);

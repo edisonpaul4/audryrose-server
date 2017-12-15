@@ -156,20 +156,18 @@ exports.ProductsController = new class ProductsController {
 
     const getProductById = productId => ProductsModel.getProductsByFilters({
       includes: ["variants"],
-      equal: [
-        { key: 'productId', value: productId },
-        { key: 'isBundle', value: false }
-      ]
+      equal: [{ key: 'productId', value: productId }],
+      notEqual: [{ key: 'isBundle', value: true }]
     }).first();
     
     const getOrderProductsByProductId = productId => OrdersModel.getOrderProductsByFilters({
       includes: ["variants"],
       equal: [{ key: 'product_id', value: productId }, { key: 'is_refunded', value: false }],
       greaterOrEqual: [{ key: 'createdAt', value: moment().subtract(75, 'days').toDate() }]
-    }).find();
+    }).find().then(orders => orders ? orders : []);
 
     const checkIfProductAndOrdersExists = results => {
-      if (!results.every(r => typeof r !== 'undefined'))
+      if (typeof results[0] === 'undefined')
         return Promise.reject({ success: false, message: 'The product doesn\'t exist.' });
       return { product: results[0], orderProducts: results[1] };
     };
@@ -209,7 +207,10 @@ exports.ProductsController = new class ProductsController {
             setVariantInventoryOnHand(variant, data.orderProducts)
           ))
           .then(updatedVariants => setProductInventoryOnHand(data.product, updatedVariants))
-        );
+        ).then(product => ({
+          success: true,
+          product,
+        }));
 
 
   } // End updateInventoryOnHandByProductId
