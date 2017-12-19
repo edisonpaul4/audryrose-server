@@ -157,19 +157,30 @@ exports.ProductsController = new class ProductsController {
     const getProductById = productId => ProductsModel.getProductsByFilters({
       includes: ["variants"],
       equal: [{ key: 'productId', value: productId }],
-      // notEqual: [{ key: 'isBundle', value: true }]
     }).first();
-    
-    const getOrderProductsByProductId = productId => OrdersModel.getOrderProductsByFilters({
-      includes: ["variants"],
-      equal: [{ key: 'product_id', value: productId }, { key: 'is_refunded', value: false }],
+
+    const getOrdersByProductId = productId => OrdersModel.getOrdersByFilters({
+      includes: ['orderProducts', 'orderProducts.variants'],
+      equal: [{ key: 'refunded_amount', value: 0 }],
+      contained: [{ key: 'productIds', value: [productId] }],
       greaterOrEqual: [{ key: 'createdAt', value: moment().subtract(75, 'days').toDate() }]
-    }).find().then(orders => orders ? orders : []);
+    }).find();
+
+    const getOrdersProducts = (orders, productId) => orders.reduce((ordersProducts, currentOrder) => {
+      let tempOrdersProducts = 'length' in ordersProducts ? ordersProducts : [];
+      if (currentOrder.get('status') === 'Cancelled' || !currentOrder.has('orderProducts'))
+        return tempOrdersProducts;
+      else
+        return [
+          ...tempOrdersProducts,
+          ...currentOrder.get('orderProducts').filter(op => op.get('product_id') === productId)
+        ];
+    }, []);
 
     const checkIfProductAndOrdersExists = results => {
-      if (typeof results[0] === 'undefined')
+      if (typeof results[0] === 'undefined' || !results)
         return Promise.reject({ success: false, message: `The product #${productId} doesn\'t exist.` });
-      return { product: results[0], orderProducts: results[1] };
+      return { product: results[0], orders: results[1] };
     };
 
     const setVariantInventoryOnHand = (variant, orderProducts) => {
@@ -203,11 +214,12 @@ exports.ProductsController = new class ProductsController {
 
     return Promise.all([
         getProductById(productId),
-        getOrderProductsByProductId(productId)
-      ]).then(checkIfProductAndOrdersExists)
+        getOrdersByProductId(productId)
+      ])
+        .then(checkIfProductAndOrdersExists)
         .then(data => 
           Promise.all(data.product.get('variants').map(variant => 
-            setVariantInventoryOnHand(variant, data.orderProducts)
+            setVariantInventoryOnHand(variant, getOrdersProducts(data.orders, data.product.get('productId')))
           ))
           .then(updatedVariants => setProductInventoryOnHand(data.product, updatedVariants))
         ).then(product => ({
