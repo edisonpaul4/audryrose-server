@@ -92,7 +92,9 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
           return ids;
         }
       })();
-      ordersObject.map(orderObject => {
+      ordersObject.forEach(orderObject => {
+        if (typeof orderObject.orderProducts === 'undefined')
+          return null;
         orderObject.orderProducts.forEach(orderProduct => {
           productsIds(findProductId(orderProduct));
         });
@@ -115,7 +117,7 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
     const mergeOrdersAndProducts = (orders, products) => {
       return orders.map(order => ({
         ...order,
-        orderProducts: order.orderProducts.map(orderProduct => {
+        orderProducts: order.orderProducts ? order.orderProducts.map(orderProduct => {
           const productId = findProductId(orderProduct);
           const productIndex = products.findIndex(product => product.get('productId') === productId);
           const totalStock = findTotalStock(orderProduct);
@@ -127,7 +129,7 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
             totalInventory: totalStock !== null ? totalStock : productIndex !== -1 ? products[productIndex].get('total_stock') : 0,
             classificationName: productIndex !== -1 && products[productIndex].get('classification') ? products[productIndex].get('classification').get('name') : 'product',
           };
-        })
+        }) : []
       }));
     };
 
