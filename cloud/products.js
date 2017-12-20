@@ -789,7 +789,9 @@ Parse.Cloud.define("reloadProduct", function(request, response) {
   var updatedProduct;
   var bcProduct;
 
-  Parse.Cloud.run('loadProduct', {productId: productId}).then(function(result) {
+  ProductsController.updateInventoryOnHandByProductId(productId)
+  .then(r => Parse.Cloud.run('loadProduct', {productId: productId}))
+  .then(function(result) {
     return Parse.Cloud.run('loadProductVariants', {productId: productId});
 
 	}).then(function(result) {
@@ -912,7 +914,8 @@ Parse.Cloud.define("saveProduct", function(request, response) {
     productQuery.include('vendor.vendorOrders.vendorOrderVariants');
     productQuery.include('vendor.vendorOrders.vendorOrderVariants.orderProducts');
     productQuery.include('bundleVariants');
-    return productQuery.first();
+    return ProductsController.updateInventoryOnHandByProductId(productId)
+      .then(r => productQuery.first());
 
   }).then(function(result) {
     updatedProduct = result;
@@ -1019,8 +1022,8 @@ Parse.Cloud.define("saveVariants", function(request, response) {
     _.each(productIds, function(productId) {
       logInfo('save product id: ' + productId);
 
-      promise = promise.then(function() {
-
+      promise = promise.then(e => ProductsController.updateInventoryOnHandByProductId(productId))
+      .then(function() {
         var productQuery = new Parse.Query(Product);
         productQuery.equalTo('productId', productId);
         productQuery.include('variants');
