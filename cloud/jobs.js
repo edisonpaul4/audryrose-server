@@ -1035,7 +1035,6 @@ Parse.Cloud.job("updateInventoryOnHandByProductId", function(request, status) {
   status.success('updateInventoryOnHandByProductId job created');
 
   ProductsModel.getProductsByFilters({
-    notExists: ['inventoryOnHand'],
     limit: 10000,
   }).find()
     .then(products => {
@@ -1046,13 +1045,9 @@ Parse.Cloud.job("updateInventoryOnHandByProductId", function(request, status) {
         }, (index * 2) * 1000);
       }
     })
-    // .then(products => Promise.all(
-    //   products.map(product => ProductsController.updateInventoryOnHandByProductId(product.get('productId')))
-    // ))
     .then(result => {
       logInfo('updateInventoryOnHandByProductId completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
-    })
-    .catch(e => console.error(e))
+    }); 
 });
 
 
