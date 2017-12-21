@@ -10,6 +10,7 @@ require('./options.js');
 require('./shipments.js');
 require('./customers.js');
 require('./webhooks.js');
+require('./returns.js');
 
 
 ///////////////////////
