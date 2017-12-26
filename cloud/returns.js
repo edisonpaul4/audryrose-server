@@ -32,6 +32,7 @@ Parse.Cloud.define('createReturn', function(req, res) {
         ]
       }).first(),
       OrdersModel.getOrderProductsByFilters({
+        includes: ['variants', 'variants.designer', 'variants.designer.vendors', 'variants.designer.vendors.vendorOrders', 'returns'],
         equal: [
           { key: 'orderProductId', value: orderProductId }
         ]

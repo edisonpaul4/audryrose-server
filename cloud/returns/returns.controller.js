@@ -28,7 +28,7 @@ exports.ReturnsController = new class ReturnsController {
       return Promise.reject().then(() => 'missing parameters');
     }
 
-    const createNewReturn = ({ object_id, label_url, rate, parcel  }) => {
+    const createNewReturn = ({ object_id, rate, tracking_number, tracking_url_provider, label_url, parcel }) => {
       const newReturn = new this.Return();
       return newReturn
         .set('checkedInAt', null)
@@ -49,7 +49,7 @@ exports.ReturnsController = new class ReturnsController {
         .set('returnOptions', null)
         .set('orderShipmentId', orderShipment.get('shipmentId'))
         .set('orderShipment', orderShipment)
-        .set('shippoReturnData', { object_id, label_url, rate, parcel })
+        .set('shippoReturnData', { object_id, rate, tracking_number, tracking_url_provider, label_url, parcel })
         .save();
     }
 
@@ -72,6 +72,7 @@ exports.ReturnsController = new class ReturnsController {
   }
 
   createReturnLabel(order, orderShipment) {
+    const shippedWithShippo = typeof orderShipment.get('shippo_object_id') !== undefined;
     const address_from = ShipmentsController.baseAddress;
     const address_to = ShipmentsController.shippoShipmentAddressFromOrder(order);
     const defaultParcel = ShipmentsController.defaultUPSSmallBox;
@@ -79,8 +80,14 @@ exports.ReturnsController = new class ReturnsController {
     return shippo.transaction.create({
       shipment: {
         "object_purpose": "PURCHASE",
-        "address_from": { ...address_from, object_purpose: "PURCHASE" },
-        "address_to": { ...address_to, object_purpose: "PURCHASE" },
+        "address_from": { 
+          ...(shippedWithShippo ? address_from : address_to),
+          object_purpose: "PURCHASE" 
+        },
+        "address_to": {
+          ...(shippedWithShippo ? address_to : address_from),
+          object_purpose: "PURCHASE"
+        },
         "parcel": defaultParcel,
         "extra": { "is_return": true },
         "return_of": orderShipment.get('shippo_object_id'),

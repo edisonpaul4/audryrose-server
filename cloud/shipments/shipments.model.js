@@ -16,9 +16,9 @@ exports.ShipmentsModel = new class ShipmentsModel extends BaseModel {
   } // END getOrderShipmentsByFilters
 
   /**
- * @returns {Promise} - Array of objects
- * @param {Object} params - base query params
- */
+  * @returns {Promise} - Array of objects
+  * @param {Object} params - base query params
+  */
   getOrderProductsByFilters(params) {
     var orderProductsQuery = new Parse.Query(this.OrderProducts);
     return this.searchDatabase(params, orderProductsQuery);
