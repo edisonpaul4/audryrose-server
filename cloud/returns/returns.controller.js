@@ -16,6 +16,7 @@ exports.ReturnsController = new class ReturnsController {
     product,
     productVariant,
     orderShipment,
+    options,
     returnTypeId,
   }) {
     if ((typeof order === 'undefined' || order === null) 
@@ -24,6 +25,7 @@ exports.ReturnsController = new class ReturnsController {
         || (typeof product === 'undefined' || product === null)
         || (typeof productVariant === 'undefined' || productVariant === null)
         || (typeof orderShipment === 'undefined' || orderShipment === null)
+        || (typeof options === 'undefined' || options === null)
         || (typeof returnTypeId === 'undefined' || returnTypeId === null)) {
       return Promise.reject().then(() => 'missing parameters');
     }
@@ -46,7 +48,7 @@ exports.ReturnsController = new class ReturnsController {
         .set('returnStatus', this.returnStatuses(0))
         .set('returnTypeId', returnTypeId)
         .set('returnType', this.returnTypes(returnTypeId))
-        .set('returnOptions', null)
+        .set('returnOptions', options)
         .set('orderShipmentId', orderShipment.get('shipmentId'))
         .set('orderShipment', orderShipment)
         .set('shippoReturnData', { object_id, rate, tracking_number, tracking_url_provider, label_url, parcel })

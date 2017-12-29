@@ -27,35 +27,23 @@ Parse.Cloud.define('createReturn', function(req, res) {
   }) => {
     return Promise.all([
       OrdersModel.getOrdersByFilters({
-        equal: [
-          { key: 'orderId', value: orderId }
-        ]
+        equal: [{ key: 'orderId', value: orderId }]
       }).first(),
       OrdersModel.getOrderProductsByFilters({
         includes: ['variants', 'variants.designer', 'variants.designer.vendors', 'variants.designer.vendors.vendorOrders', 'returns'],
-        equal: [
-          { key: 'orderProductId', value: orderProductId }
-        ]
+        equal: [{ key: 'orderProductId', value: orderProductId }]
       }).first(),
       CustomersModel.getCustomersByFilters({
-        equal: [
-          { key: 'customerId', value: customerId }
-        ]
+        equal: [{ key: 'customerId', value: customerId }]
       }).first(),
       ProductsModel.getProductsByFilters({
-        equal: [
-          { key: 'productId', value: productId }
-        ]
+        equal: [{ key: 'productId', value: productId }]
       }).first(),
       ProductsModel.getProductsVariantsByFilters({
-        equal: [
-          { key: 'variantId', value: productVariantId }
-        ]
+        equal: [{ key: 'variantId', value: productVariantId }]
       }).first(),
       ShipmentsModel.getOrderShipmentsByFilters({
-        equal: [
-          { key: 'shipmentId', value: orderShipmentId }
-        ]
+        equal: [{ key: 'shipmentId', value: orderShipmentId }]
       }).first(),
     ])
       .then(results => ReturnsController.createOrderProductReturn({
@@ -65,6 +53,7 @@ Parse.Cloud.define('createReturn', function(req, res) {
         product: results[3],
         productVariant: results[4],
         orderShipment: results[5],
+        options,
         returnTypeId
       }));
   }

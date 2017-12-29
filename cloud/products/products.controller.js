@@ -46,6 +46,28 @@ exports.ProductsController = new class ProductsController {
   }
 
   /**
+   * 
+   * @param {number} productId 
+   */
+  getSizesForProduct(productId) {
+    if(typeof productId !== 'number')
+      return Promise.reject().then(() => ({ success: false, message: "The productId field must be a number" }));
+
+    return ProductsModel.getProductsByFilters({
+      equal: [{ key: 'productId', value: productId }]
+    }).first()
+      .then(result => {
+        if (result) 
+          return result;
+        throw { success: false, message: `The product ${productId} doesn't exist.` };
+      })
+      .then(product => ({
+        productId: product.get('productId'),
+        sizes: product.get('sizes')
+      }));
+  }
+
+  /**
    * @returns CSV File url
    */
   getProductsAsCSV(){
