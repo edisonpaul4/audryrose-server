@@ -62,3 +62,21 @@ Parse.Cloud.define('createReturn', function(req, res) {
     .then(data => res.success(data))
     .catch(error => res.error(error));
 });
+
+Parse.Cloud.define('getReturnsWithInformation', function(req, res) {
+  return ReturnsController.getReturnsWithInformation()
+    .then(data => res.success(data))
+    .catch(error => res.error(error));
+})
+
+Parse.Cloud.define('checkInReturnedProduct', function(req, res) {
+  return ReturnsController.checkInReturnedProduct(req.params.returnId)
+    .then(data => res.success(data))
+    .catch(error => res.error(error));
+})
+
+Parse.Cloud.define('updateReturnStatus', function(req, res) {
+  return ReturnsController.updateReturnStatus(req.params.returnId, req.params.returnStatusId)
+    .then(data => res.success(data))
+    .catch(error => res.error(error));
+})

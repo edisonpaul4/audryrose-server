@@ -9,16 +9,15 @@ exports.ReturnsController = new class ReturnsController {
     this.Return = new Parse.Object.extend('Return');
   }
 
-  createOrderProductReturn({ 
-    order,
-    orderProduct,
-    customer,
-    product,
-    productVariant,
-    orderShipment,
-    options,
-    returnTypeId,
-  }) {
+  getReturnsWithInformation() {
+    return ReturnsModel.getReturnsByFilters({
+      includes: ['order', 'orderProduct', 'customer', 'product', 'productVariant', 'orderShipment'],
+      limit: 1000
+    }).find()
+      .then(returnsObjects => returnsObjects.map(returnObject => this.minifyReturnForFrontEnd(returnObject)));
+  }
+
+  createOrderProductReturn({ order, orderProduct, customer, product, productVariant, orderShipment, options, returnTypeId }) {
     if ((typeof order === 'undefined' || order === null) 
         || (typeof orderProduct === 'undefined' || orderProduct === null)
         || (typeof customer === 'undefined' || customer === null)
@@ -51,6 +50,8 @@ exports.ReturnsController = new class ReturnsController {
         .set('returnOptions', options)
         .set('orderShipmentId', orderShipment.get('shipmentId'))
         .set('orderShipment', orderShipment)
+        .set('requestReturnEmailSended', false)
+        .set('checkInEmailSended', false)
         .set('shippoReturnData', { object_id, rate, tracking_number, tracking_url_provider, label_url, parcel })
         .save();
     }
@@ -66,6 +67,7 @@ exports.ReturnsController = new class ReturnsController {
           orderProduct: updatedOrderProduct
         }));
     }
+    
     
     return this.createReturnLabel(order, orderShipment)
       .then(createNewReturn)
@@ -100,13 +102,89 @@ exports.ReturnsController = new class ReturnsController {
     });
   }
 
+  checkInReturnedProduct(returnId) {
+    const returnObject = returnId => ReturnsModel.getReturnsByFilters({
+      includes: ['order', 'orderProduct', 'customer', 'product', 'productVariant', 'orderShipment'],
+      equal: [{ key: 'objectId', value: returnId }]
+    }).first();
+
+    const isChecked = returnObject => {
+      if (returnObject.get('checkedInAt') === null)
+        return returnObject;
+      else
+        throw { success: false, message: 'Return already checked in' };
+    }
+    
+    const setReturnAsCheckedIn = returnObject => {
+      const returnTypeId = returnObject.get('returnTypeId');
+      const newReturnStatusId = returnTypeId === 1 ? 1 : 2;
+      return returnObject
+        .set('checkedInAt', new Date())
+        .set('returnStatusId', newReturnStatusId)
+        .set('returnStatus', this.returnStatuses(newReturnStatusId))
+        .save();
+    }
+
+    return returnObject(returnId)
+      .then(isChecked)
+      .then(setReturnAsCheckedIn)
+      .then(this.minifyReturnForFrontEnd);
+  }
+
+  updateReturnStatus(returnId, returnStatusId) {
+    const returnObject = returnId => ReturnsModel.getReturnsByFilters({
+      includes: ['order', 'orderProduct', 'customer', 'product', 'productVariant', 'orderShipment'],
+      equal: [{ key: 'objectId', value: returnId }]
+    }).first();
+
+    const updateReturnStatus = returnObject => {
+      return returnObject
+        .set('returnStatusId', returnStatusId)
+        .set('returnStatus', this.returnStatuses(returnStatusId))
+        .save();
+    }
+
+    return returnObject(returnId)
+      .then(updateReturnStatus)
+      .then(this.minifyReturnForFrontEnd);
+  }
+
+  /** ------------------------------------------- */
+  /** ------------- Extra Functions ------------- */
+  /** ------------------------------------------- */
+
+  minifyReturnForFrontEnd(returnObject) {
+    const order = returnObject.get('order');
+    const product = returnObject.get('product');
+    const customer = returnObject.get('customer');
+    return {
+      id: returnObject.id,
+      dateRequested: moment(returnObject.get('createdAt')).toISOString(),
+      dateCheckedIn: returnObject.get('checkedInAt') ? moment(returnObject.get('checkedInAt')).toISOString() : null,
+      orderId: returnObject.get('orderId'),
+      customerName: customer.get('firstName') + ' ' + customer.get('lastName'),
+      productName: product.get('name'),
+      productImage: product.get('primary_image').thumbnail_url,
+      orderNotes: {
+        staffNotes: order.get('staff_notes') ? order.get('staff_notes') : null,
+        internalNotes: order.get('internalNotes') ? order.get('internalNotes') : null,
+        designerNotes: order.get('designerNotes') ? order.get('designerNotes') : null,
+        customerNotes: order.get('customer_message') ? order.get('customer_message') : null,
+      },
+      returnStatus: returnObject.get('returnStatus'),
+      returnStatusId: returnObject.get('returnStatusId'),
+      returnType: returnObject.get('returnType'),
+      returnTypeId: returnObject.get('returnTypeId'),
+    }
+  }
+
   returnTypes(index) {
-    const returnTypes = ['return', 'resize', 'repair'];
+    const returnTypes = ['return', 'repair', 'resize'];
     return typeof index !== 'undefined' ? returnTypes[index] : returnTypes;
   }
 
   returnStatuses(index) {
-    const returnStatuses = ['requested', 'being repaired', 'being resized', 'resize completed', 'repair completed'];
+    const returnStatuses = ['requested', 'being repaired', 'being resized', 'resize completed', 'repair completed', 'ready to ship'];
     return typeof index !== 'undefined' ? returnStatuses[index] : returnStatuses;
   }  
 
