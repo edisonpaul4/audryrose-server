@@ -4,7 +4,6 @@ const { OrdersController } = require('../orders/orders.controller');
 exports.ShipmentsController = new class ShipmentsController {
   constructor() {
     this.baseAddress = {
-      object_purpose: "PURCHASE",
       name: "Audry Rose",
       company: "",
       street1: "1515 7TH ST.",
@@ -15,6 +14,16 @@ exports.ShipmentsController = new class ShipmentsController {
       country: "US",
       phone: "+1 424 387 8000",
       email: "hello@loveaudryrose.com"
+    };
+
+    this.defaultUPSSmallBox = {
+      length: "8.69",
+      width: "5.44",
+      height: "1.75",
+      distance_unit: "in",
+      weight: "3",
+      mass_unit: "oz",
+      template: "USPS_SmallFlatRateBox"
     }
   }
 
@@ -75,5 +84,18 @@ exports.ShipmentsController = new class ShipmentsController {
         success: true,
         rates,
       }));
+  }
+
+  shippoShipmentAddressFromOrder(orderObject) {
+    return {
+      name: orderObject.get('billing_address').first_name + ' ' + orderObject.get('billing_address').last_name,
+      street1: orderObject.get('billing_address').street_1,
+      city: orderObject.get('billing_address').city,
+      state: orderObject.get('billing_address').state,
+      zip: orderObject.get('billing_address').zip,
+      country: orderObject.get('billing_address').country_iso2,
+      email: orderObject.get('billing_address').email,
+      phone: orderObject.get('billing_address').phone,
+    }
   }
 }

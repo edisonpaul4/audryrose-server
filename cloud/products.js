@@ -2220,6 +2220,13 @@ Parse.Cloud.define("updateInventoryOnHandByProductId", (req, res) => {
     .catch(error => res.error(error));
 });
 
+Parse.Cloud.define("getSizesForProduct", (req, res) => {
+  const { productIds } = req.params;
+  Promise.all(productIds.map(productId => ProductsController.getSizesForProduct(productId)))
+    .then(r => res.success(r))
+    .catch(e => res.error(e));
+})
+
 
 /////////////////////////
 //  BEFORE SAVE        //
