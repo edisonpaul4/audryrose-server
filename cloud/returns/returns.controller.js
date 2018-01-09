@@ -1,5 +1,7 @@
 const shippo = require('shippo')(process.env.SHIPPO_API_TOKEN);
 var moment = require('moment');
+const Mailgun = require('mailgun-js');
+const mailgun = new Mailgun({ apiKey: process.env.MAILGUN_API_KEY, domain: process.env.MAILGUN_DOMAIN });
 
 const { ShipmentsController } = require('../shipments/shipments.controller');
 const { ReturnsModel } = require('./returns.model');
@@ -11,7 +13,7 @@ exports.ReturnsController = new class ReturnsController {
 
   getReturnsWithInformation() {
     return ReturnsModel.getReturnsByFilters({
-      includes: ['order', 'orderProduct', 'customer', 'product', 'productVariant', 'orderShipment'],
+      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment'],
       limit: 1000
     }).find()
       .then(returnsObjects => returnsObjects.map(returnObject => this.minifyReturnForFrontEnd(returnObject)));
@@ -26,7 +28,7 @@ exports.ReturnsController = new class ReturnsController {
         || (typeof orderShipment === 'undefined' || orderShipment === null)
         || (typeof options === 'undefined' || options === null)
         || (typeof returnTypeId === 'undefined' || returnTypeId === null)) {
-      return Promise.reject().then(() => 'missing parameters');
+      return Promise.reject('missing parameters');
     }
 
     const createNewReturn = ({ object_id, rate, tracking_number, tracking_url_provider, label_url, parcel }) => {
@@ -51,7 +53,7 @@ exports.ReturnsController = new class ReturnsController {
         .set('orderShipmentId', orderShipment.get('shipmentId'))
         .set('orderShipment', orderShipment)
         .set('requestReturnEmailSended', false)
-        .set('checkInEmailSended', false)
+        .set('checkedInEmailSended', false)
         .set('shippoReturnData', { object_id, rate, tracking_number, tracking_url_provider, label_url, parcel })
         .save();
     }
@@ -68,7 +70,7 @@ exports.ReturnsController = new class ReturnsController {
         }));
     }
     
-    
+    // return createNewReturn({})
     return this.createReturnLabel(order, orderShipment)
       .then(createNewReturn)
       .then(returnObject => addReturnToOrderProduct(returnObject, orderProduct));
@@ -104,7 +106,7 @@ exports.ReturnsController = new class ReturnsController {
 
   checkInReturnedProduct(returnId) {
     const returnObject = returnId => ReturnsModel.getReturnsByFilters({
-      includes: ['order', 'orderProduct', 'customer', 'product', 'productVariant', 'orderShipment'],
+      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment'],
       equal: [{ key: 'objectId', value: returnId }]
     }).first();
 
@@ -133,7 +135,7 @@ exports.ReturnsController = new class ReturnsController {
 
   updateReturnStatus(returnId, returnStatusId) {
     const returnObject = returnId => ReturnsModel.getReturnsByFilters({
-      includes: ['order', 'orderProduct', 'customer', 'product', 'productVariant', 'orderShipment'],
+      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment'],
       equal: [{ key: 'objectId', value: returnId }]
     }).first();
 
@@ -149,6 +151,74 @@ exports.ReturnsController = new class ReturnsController {
       .then(this.minifyReturnForFrontEnd);
   }
 
+  returnsForEmails() {
+    const toRequestReturns = ReturnsModel.getReturnsByFilters({
+      equal: [
+        { key: 'returnStatusId', value: 0 },
+        { key: 'requestReturnEmailSended', value: false },
+        { key: 'checkedInEmailSended', value: false },
+        { key: 'checkedInAt', value: null }
+      ]
+    });
+    
+    const checkedInReturnsEmails = ReturnsModel.getReturnsByFilters({
+      equal: [
+        { key: 'checkedInEmailSended', value: false },
+      ],
+      notEqual: [
+        { key: 'returnTypeId', value: 0 },
+        { key: 'returnStatusId', value: 0 },
+        { key: 'checkedInAt', value: null }
+      ]
+    })
+
+    return Parse.Query.or(toRequestReturns, checkedInReturnsEmails)
+      .include('order')
+      .include('orderProduct')
+      .include('customer')
+      .include('product')
+      .include('product.classification')
+      .include('productVariant')
+      .include('orderShipment')
+      .find()
+      .then(returnsObjects => returnsObjects.map(ro => this.minifyReturnForFrontEnd(ro)));
+  }
+
+  sendReturnEmail(returnId, emailSubject, emailText) {
+    const returnObject = returnId => ReturnsModel.getReturnsByFilters({
+      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment'],
+      equal: [{ key: 'objectId', value: returnId }]
+    }).first();
+
+    const updateReturnObject = returnObject => {
+      if (returnObject.get('returnStatusId') === 0)
+        returnObject.set('requestReturnEmailSended', true);
+      else if (returnObject.get('requestReturnEmailSended') && returnObject.get('returnStatusId') !== 0)
+        returnObject.set('checkedInEmailSended', true);
+      else 
+        return Promise.reject(`There is a problem sending the email about the return #${returnObject.id}`)
+
+      return returnObject.save();
+    }
+
+    const sendEmail = returnObject => {
+      const data = {
+        from: 'tracy@loveaudryrose.com',
+        to: `${returnObject.get('order').get('customer').get('firstName') + ' ' + returnObject.get('order').get('customer').get('lastName')} <${process.env.NODE_ENV === 'production' ? returnObject.get('order').get('billing_address').email : 'ejas94@gmail.com'}>`,
+        cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <arrieta.e@outlook.com>',
+        subject: emailSubject,
+        text: emailText,
+      }
+      return mailgun.messages().send(data)
+        .then(emailResult => returnObject);
+    }
+
+    return returnObject(returnId)
+      .then(returnObject => sendEmail(returnObject))
+      .then(updateReturnObject)
+      .then(this.minifyReturnForFrontEnd);
+  }
+
   /** ------------------------------------------- */
   /** ------------- Extra Functions ------------- */
   /** ------------------------------------------- */
@@ -156,6 +226,7 @@ exports.ReturnsController = new class ReturnsController {
   minifyReturnForFrontEnd(returnObject) {
     const order = returnObject.get('order');
     const product = returnObject.get('product');
+    const classification = product.get('classification');
     const customer = returnObject.get('customer');
     return {
       id: returnObject.id,
@@ -163,8 +234,14 @@ exports.ReturnsController = new class ReturnsController {
       dateCheckedIn: returnObject.get('checkedInAt') ? moment(returnObject.get('checkedInAt')).toISOString() : null,
       orderId: returnObject.get('orderId'),
       customerName: customer.get('firstName') + ' ' + customer.get('lastName'),
+      customerLifetime: {
+        totalSpend: customer.get('totalSpend'),
+        totalOrders: customer.get('totalOrders'),
+      },
       productName: product.get('name'),
-      productImage: product.get('primary_image').thumbnail_url,
+      productImage: product.get('primary_image') ? product.get('primary_image').thumbnail_url : null,
+      productClassification: classification ? classification.get('name') : null,
+      returnOptions: returnObject.get('returnOptions'),
       orderNotes: {
         staffNotes: order.get('staff_notes') ? order.get('staff_notes') : null,
         internalNotes: order.get('internalNotes') ? order.get('internalNotes') : null,

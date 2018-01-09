@@ -80,3 +80,16 @@ Parse.Cloud.define('updateReturnStatus', function(req, res) {
     .then(data => res.success(data))
     .catch(error => res.error(error));
 })
+
+Parse.Cloud.define('returnsForEmails', function(req, res) {
+  return ReturnsController.returnsForEmails()
+    .then(data => res.success(data))
+    .catch(error => res.error(error));
+})
+
+Parse.Cloud.define('sendReturnEmail', function(req, res) {
+  const { returnId, emailSubject, emailText } = req.params;
+  return ReturnsController.sendReturnEmail(returnId, emailSubject, emailText)
+    .then(data => res.success(data))
+    .catch(error => res.error(error));
+})
