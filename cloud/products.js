@@ -4,6 +4,7 @@ var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 
 var { ProductsController } = require('./products/products.controller');
+var { StatsController } = require('./stats/stats.controller')
 
 var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');
@@ -2223,6 +2224,12 @@ Parse.Cloud.define("updateInventoryOnHandByProductId", (req, res) => {
 Parse.Cloud.define("getSizesForProduct", (req, res) => {
   const { productIds } = req.params;
   Promise.all(productIds.map(productId => ProductsController.getSizesForProduct(productId)))
+    .then(r => res.success(r))
+    .catch(e => res.error(e));
+})
+
+Parse.Cloud.define("getProductStats", (req, res) => {
+  StatsController.getProductStats()
     .then(r => res.success(r))
     .catch(e => res.error(e));
 })
