@@ -2,6 +2,7 @@ const shippo = require('shippo')(process.env.SHIPPO_API_TOKEN);
 var moment = require('moment');
 const Mailgun = require('mailgun-js');
 const mailgun = new Mailgun({ apiKey: process.env.MAILGUN_API_KEY, domain: process.env.MAILGUN_DOMAIN });
+const request = require('request-promise');
 
 const { ShipmentsController } = require('../shipments/shipments.controller');
 const { ReturnsModel } = require('./returns.model');
@@ -202,14 +203,29 @@ exports.ReturnsController = new class ReturnsController {
     }
 
     const sendEmail = returnObject => {
-      const data = {
-        from: 'tracy@loveaudryrose.com',
-        to: `${returnObject.get('order').get('customer').get('firstName') + ' ' + returnObject.get('order').get('customer').get('lastName')} <${process.env.NODE_ENV === 'production' ? returnObject.get('order').get('billing_address').email : 'ejas94@gmail.com'}>`,
-        cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <arrieta.e@outlook.com>',
-        subject: emailSubject,
-        text: emailText,
-      }
-      return mailgun.messages().send(data)
+      if (typeof returnObject.get('shippoReturnData').label_url === 'undefined')
+        return Promise.reject(`This shipment wasn't made with Shippo so is not possible to make the automatic return with it.`);
+
+        return request
+        .defaults({ encoding: null })
+        .get(returnObject.get('shippoReturnData').label_url)
+        .then(label => {
+          const attch = new mailgun.Attachment({ 
+            data: label, 
+            filename: 'label.pdf',
+            contentType: 'application/pdf'
+          });
+
+          return {
+            from: 'tracy@loveaudryrose.com',
+            to: `${returnObject.get('order').get('customer').get('firstName') + ' ' + returnObject.get('order').get('customer').get('lastName')} <${process.env.NODE_ENV === 'production' ? returnObject.get('order').get('billing_address').email : 'ejas94@gmail.com'}>`,
+            cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <arrieta.e@outlook.com>',
+            subject: emailSubject,
+            text: emailText,
+            attachment: !returnObject.get('requestReturnEmailSended') ? attch : null
+          }
+        })
+        .then(message => mailgun.messages().send(message))
         .then(emailResult => returnObject);
     }
 
