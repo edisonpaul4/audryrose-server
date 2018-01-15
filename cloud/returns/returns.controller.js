@@ -79,7 +79,7 @@ exports.ReturnsController = new class ReturnsController {
   }
 
   createReturnLabel(order, orderShipment) {
-    const shippedWithShippo = typeof orderShipment.get('shippo_object_id') !== undefined;
+    const shippedWithShippo = orderShipment.has('shippo_object_id');
     const address_from = ShipmentsController.baseAddress;
     const address_to = ShipmentsController.shippoShipmentAddressFromOrder(order);
     const defaultParcel = ShipmentsController.defaultUPSSmallBox;
@@ -96,8 +96,8 @@ exports.ReturnsController = new class ReturnsController {
           object_purpose: "PURCHASE"
         },
         "parcel": defaultParcel,
-        "extra": { "is_return": true },
-        "return_of": orderShipment.get('shippo_object_id'),
+        "extra": { "is_return": shippedWithShippo },
+        "return_of": shippedWithShippo ? orderShipment.get('shippo_object_id') : undefined,
       },
       "carrier_account": "c67f85102205443e813814c72f2d48c6",
       "servicelevel_token": "usps_priority",
