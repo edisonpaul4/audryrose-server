@@ -8,39 +8,22 @@ exports.StatsController = new class StatsCrontroller {
     const products = () => ProductsModel.getProductsByFilters({
       limit: 1000000
     }).find();
-    
-    const getReturnedTotal = productId => ReturnsModel.getReturnsByFilters({
-      equal: [
-        { key: 'productId', value: productId },
-        { key: 'returnTypeId', value: 0 }
-      ]
-    }).count();
-
-    const getRepairedTotal = productId => ReturnsModel.getReturnsByFilters({
-      equal: [
-        { key: 'productId', value: productId },
-        { key: 'returnTypeId', value: 1 }
-      ]
-    }).count();
 
     return products()
-      .then(products => 
-        Promise.all([...products.map(product => 
-          Promise.all([getReturnedTotal(product.get('productId')), getRepairedTotal(product.get('productId'))])
-            .then(results => this.createProductStatsObject(product, results[0], results[1]))
-        )])
-      );
+      .then(products => products.map(this.createProductStatsObject));
   }
 
-  createProductStatsObject(productObject, returnedTotal, repairedTotal) {
+  createProductStatsObject(productObject) {
+    const unitsReturned = typeof productObject.get('totalReturned') !== 'undefined' ? productObject.get('totalReturned') : 0;
+    const unitsRepaired = typeof productObject.get('totalRepaired') !== 'undefined' ? productObject.get('totalRepaired') : 0;
     return {
       productId: productObject.get('productId'),
       productName: productObject.get('name'),
       totalSold: productObject.get('total_sold'),
-      unitsReturned: returnedTotal,
-      unitsReturnedP: productObject.get('total_sold') !== 0 ? (returnedTotal * 100) / productObject.get('total_sold') : 0,
-      unitsRepaired: repairedTotal,
-      unitsRepairedP: repairedTotal !== 0 ? (repairedTotal * 100) / productObject.get('total_sold') : 0,
+      unitsReturned,
+      unitsReturnedP: productObject.get('total_sold') !== 0 ? (unitsReturned * 100) / productObject.get('total_sold') : 0,
+      unitsRepaired,
+      unitsRepairedP: productObject.get('total_sold') !== 0 ? (unitsRepaired * 100) / productObject.get('total_sold') : 0,
       totalReveneu: productObject.get('price') * productObject.get('total_sold')
     };
   }

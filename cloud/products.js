@@ -5,6 +5,7 @@ var bugsnag = require("bugsnag");
 
 var { ProductsController } = require('./products/products.controller');
 var { StatsController } = require('./stats/stats.controller')
+var { ReturnsModel } = require('./returns/returns.model');
 
 var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');
@@ -2266,11 +2267,37 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
     product.set('hasResizeRequest', false);
   }
 
+  const updateReturnRepair = product => {
+      return Promise.all([
+        ReturnsModel.getReturnsByFilters({
+          equal: [
+            { key: 'productId', value: product.get('productId') },
+            { key: 'returnTypeId', value: 0 }
+          ]
+        }).count(),
+        ReturnsModel.getReturnsByFilters({
+          equal: [
+            { key: 'productId', value: product.get('productId') },
+            { key: 'returnTypeId', value: 1 }
+          ]
+        }).count()
+      ])
+      .then(results => {
+        return product
+          .set('totalReturned', results[0])
+          .set('totalRepaired', results[1])
+      })
+  }
+
   if (!product.has('variants')) {
     logInfo('product has no variants');
     product.set('total_stock', 0);
-    response.success();
 
+    // Calculate returns 
+    updateReturnRepair(product)
+      .then(product => {
+        response.success();
+      });
   } else {
     logInfo('get stock for product variants');
     variants = product.get('variants');
@@ -2448,8 +2475,11 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
 
     }).then(function(result) {
       logInfo('Variants saved');
-
-      response.success();
+      // Calculate returns 
+      return updateReturnRepair(product)
+        .then(product => {
+          response.success();
+        });
     }, function(error) {
     	logError(error);
   		response.error(error.message);
