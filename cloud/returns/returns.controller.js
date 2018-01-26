@@ -80,24 +80,24 @@ exports.ReturnsController = new class ReturnsController {
 
   createReturnLabel(order, orderShipment) {
     const shippedWithShippo = orderShipment.has('shippo_object_id');
-    const address_from = ShipmentsController.baseAddress;
-    const address_to = ShipmentsController.shippoShipmentAddressFromOrder(order);
+    const address_to = ShipmentsController.baseAddress;
+    const address_from = ShipmentsController.shippoShipmentAddressFromOrder(order);
     const defaultParcel = ShipmentsController.defaultUPSSmallBox;
 
     return shippo.transaction.create({
       shipment: {
         "object_purpose": "PURCHASE",
         "address_from": { 
-          ...(shippedWithShippo ? address_from : address_to),
+          ...address_from,
           object_purpose: "PURCHASE" 
         },
         "address_to": {
-          ...(shippedWithShippo ? address_to : address_from),
+          ...address_to,
           object_purpose: "PURCHASE"
         },
         "parcel": defaultParcel,
-        "extra": { "is_return": shippedWithShippo },
-        "return_of": shippedWithShippo ? orderShipment.get('shippo_object_id') : undefined,
+        // "extra": { "is_return": shippedWithShippo },
+        // "return_of": shippedWithShippo ? orderShipment.get('shippo_object_id') : undefined,
       },
       "carrier_account": "c67f85102205443e813814c72f2d48c6",
       "servicelevel_token": "usps_priority",
@@ -221,7 +221,7 @@ exports.ReturnsController = new class ReturnsController {
             to: `${returnObject.get('order').get('customer').get('firstName') + ' ' + returnObject.get('order').get('customer').get('lastName')} <${process.env.NODE_ENV === 'production' ? returnObject.get('order').get('billing_address').email : 'ejas94@gmail.com'}>`,
             cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <arrieta.e@outlook.com>',
             subject: emailSubject,
-            text: emailText,
+            html: '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="ie=edge"><style>a{display:none;}</style><title></title></head><body><p>' + emailText.replace(/\n/g, '<br>') + '</p></body></html >',
             attachment: !returnObject.get('requestReturnEmailSended') ? attch : null
           }
         })
@@ -272,12 +272,23 @@ exports.ReturnsController = new class ReturnsController {
   }
 
   returnTypes(index) {
-    const returnTypes = ['return', 'repair', 'resize'];
+    const returnTypes = [
+      'return',
+      'repair',
+      'resize'
+    ];
     return typeof index !== 'undefined' ? returnTypes[index] : returnTypes;
   }
 
   returnStatuses(index) {
-    const returnStatuses = ['requested', 'being repaired', 'being resized', 'resize completed', 'repair completed', 'ready to ship'];
+    const returnStatuses = [
+      'requested',
+      'being repaired',
+      'being resized',
+      'resize completed',
+      'repair completed',
+      'ready to ship'
+    ];
     return typeof index !== 'undefined' ? returnStatuses[index] : returnStatuses;
   }  
 
