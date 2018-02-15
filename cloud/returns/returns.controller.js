@@ -120,7 +120,20 @@ exports.ReturnsController = new class ReturnsController {
     
     const setReturnAsCheckedIn = returnObject => {
       const returnTypeId = returnObject.get('returnTypeId');
-      const newReturnStatusId = returnTypeId === 1 ? 1 : 2;
+      let newReturnStatusId;
+      switch(returnTypeId) {
+        case 1:
+          newReturnStatusId = 1;
+        break;
+
+        case 2:
+          newReturnStatusId = 2;
+        break;
+
+        default:
+          newReturnStatusId = 5;
+        break;
+      }
       return returnObject
         .set('checkedInAt', new Date())
         .set('returnStatusId', newReturnStatusId)
@@ -287,7 +300,7 @@ exports.ReturnsController = new class ReturnsController {
       'being resized',
       'resize completed',
       'repair completed',
-      'ready to ship'
+      'completed'
     ];
     return typeof index !== 'undefined' ? returnStatuses[index] : returnStatuses;
   }  
