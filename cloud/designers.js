@@ -962,7 +962,7 @@ Parse.Cloud.beforeSave("Vendor", function(request, response) {
   var hasPendingVendorOrder = false;
   var hasSentVendorOrder = false;
 
-  if (!vendor.has('abbreviation')) {
+  if (!vendor.has('abbreviation') && vendor.has('name')) {
     var abbreviation = getAbbreviation(vendor.get('name'));
     vendor.set('abbreviation', abbreviation);
   }
