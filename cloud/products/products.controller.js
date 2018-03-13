@@ -16,6 +16,15 @@ exports.ProductsController = new class ProductsController {
     this.ProductsCSV = new Parse.Object.extend('ProductsCSV');
   }
 
+  getProductAndVariants(id) {
+    return ProductsModel.getProductsByFilters({
+      equal: [
+        { key: 'productId', value: id }
+      ],
+      includes: ['variants']
+    }).first().then(p => p.toJSON());
+  }
+
   /**
    * @param productId<number>
    * @returns Promise<number> - Need to order for products

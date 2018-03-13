@@ -681,6 +681,12 @@ Parse.Cloud.define("addDesignerProductToVendorOrder", function(request, response
   });
 });
 
+Parse.Cloud.define("updateVendorOrderProduct", (req, res) => {
+  DesignersController.updateVendorOrderProduct(req.params.options)
+    .then(success => res.success(success))
+    .catch(error => res.error(error));
+});
+
 
 /////////////////////////
 //  CLOUD JOBS         //

@@ -1,3 +1,4 @@
+const { ProductsController } = require('../products/products.controller');
 const { DesignersModel } = require('./designers.model');
 const { ProductsModel } = require('../products/products.model');
 const { OrdersModel } = require('../orders/orders.model');
@@ -130,6 +131,37 @@ exports.DesignersController = new class DesignersController {
         vendorOrder: results.vendorOrder.toJSON(),
         vendorOrderVariant: results.vendorOrderVariant.toJSON(),
       }))
+  }
+
+  updateVendorOrderProduct(variantOptions) {
+    const vendorOrderVariant = vendorOrderVariantObjectId => DesignersModel.getVendorOrdersVariantsByFilters({
+      equal: [ { key: 'objectId', value: vendorOrderVariantObjectId } ]
+    }).first();
+
+    const productVariant = productVariantId => ProductsModel.getProductsVariantsByFilters({
+      equal: [{ key: 'variantId', value: productVariantId }]
+    }).first();
+
+    return Promise.all([
+      vendorOrderVariant(variantOptions.vendorOrderVariantId),
+      productVariant(variantOptions.productVariantId)
+    ]).then(results => {
+      results[0].set('notes', variantOptions.notes);
+      results[0].set('variant', results[1]);
+      results[0].set('units', parseInt(variantOptions.units, 10));
+      results[0].set('internalNotes', variantOptions.internalNotes);
+
+      return Promise.all([
+        results[0].save(),
+        results[1].save(),
+      ]);
+    }).then(results => 
+      Parse.Cloud.run('getDesigners', { subpage: "pending" })
+      // ProductsModel.getProductsByFilters({
+      //   equal: [{ key: 'productId', value: results[1].get("productId") }],
+      //   includes: ['variants']
+      // }).first().then(p => p.toJSON())
+    );
   }
 
 }
