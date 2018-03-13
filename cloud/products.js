@@ -238,6 +238,12 @@ Parse.Cloud.define("getProducts", function(request, response) {
   });
 });
 
+Parse.Cloud.define("getProductAndVariants", function(request, response) {
+  ProductsController.getProductAndVariants(request.params.productId)
+    .then(r => response.success(r))
+    .catch(e => response.error(e));
+});
+
 Parse.Cloud.define("getProductsAsCSV", function(request, response){
   ProductsController.getProductsAsCSV()
     .then(fileUrl => response.success(fileUrl))
