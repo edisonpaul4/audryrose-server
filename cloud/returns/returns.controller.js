@@ -239,7 +239,7 @@ exports.ReturnsController = new class ReturnsController {
             attachment: !returnObject.get('requestReturnEmailSended') ? attch : null
           }
         })
-        .then(message => console.log(message))
+        .then(message => mailgun.messages().send(message)) 
         .then(emailResult => returnObject);
     }
 
