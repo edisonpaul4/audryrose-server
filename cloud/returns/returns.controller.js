@@ -198,7 +198,7 @@ exports.ReturnsController = new class ReturnsController {
       .then(returnsObjects => returnsObjects.map(ro => this.minifyReturnForFrontEnd(ro)));
   }
 
-  sendReturnEmail(returnId, emailSubject, emailText) {
+  sendReturnEmail(returnId, emailSubject, emailText, emailTo) {
     const returnObject = returnId => ReturnsModel.getReturnsByFilters({
       includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment'],
       equal: [{ key: 'objectId', value: returnId }]
@@ -228,17 +228,18 @@ exports.ReturnsController = new class ReturnsController {
             filename: 'label.pdf',
             contentType: 'application/pdf'
           });
-
+          var emailToSend = `${returnObject.get('order').get('customer').get('firstName') + ' ' + returnObject.get('order').get('customer').get('lastName')} <${process.env.NODE_ENV === 'production' ? returnObject.get('order').get('billing_address').email : 'ejas94@gmail.com'}>`;
+          (emailTo != undefined && emailTo != '') ? emailToSend = emailTo : emailToSend = emailToSend;
           return {
             from: 'tracy@loveaudryrose.com',
-            to: `${returnObject.get('order').get('customer').get('firstName') + ' ' + returnObject.get('order').get('customer').get('lastName')} <${process.env.NODE_ENV === 'production' ? returnObject.get('order').get('billing_address').email : 'ejas94@gmail.com'}>`,
-            cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <arrieta.e@outlook.com>',
+            to: emailToSend,
+            cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <edisonpaul4@gmail.com>',
             subject: emailSubject,
             html: '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="ie=edge"><style>a{display:none;}</style><title></title></head><body><p>' + emailText.replace(/\n/g, '<br>') + '</p></body></html >',
             attachment: !returnObject.get('requestReturnEmailSended') ? attch : null
           }
         })
-        .then(message => mailgun.messages().send(message))
+        .then(message => console.log(message))
         .then(emailResult => returnObject);
     }
 

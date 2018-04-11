@@ -88,8 +88,8 @@ Parse.Cloud.define('returnsForEmails', function(req, res) {
 })
 
 Parse.Cloud.define('sendReturnEmail', function(req, res) {
-  const { returnId, emailSubject, emailText } = req.params;
-  return ReturnsController.sendReturnEmail(returnId, emailSubject, emailText)
+  const { returnId, emailSubject, emailText, emailTo } = req.params;
+  return ReturnsController.sendReturnEmail(returnId, emailSubject, emailText, emailTo)
     .then(data => res.success(data))
     .catch(error => res.error(error));
 })

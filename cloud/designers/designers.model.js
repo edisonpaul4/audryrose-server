@@ -34,6 +34,8 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
 
     var setVendorOrderAsCompleted = vendorOrder => {
       console.log('DesignersModel::finishVendorOrder::setVendorOrderAsCompleted');
+      console.log('AQUI');
+      console.log(vendorOrder);
       return new Promise((resolve, reject) => {
         switch (true) {
           case typeof vendorOrder === 'undefined':

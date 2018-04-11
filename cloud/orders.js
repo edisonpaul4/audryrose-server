@@ -1230,6 +1230,7 @@ Parse.Cloud.define("batchPrintShipments", function(request, response) {
 
 Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
   logInfo('addOrderProductToVendorOrder cloud function --------------------------', true);
+  logInfo(request.params.orders);
   var startTime = moment();
 
   var completed = false;
