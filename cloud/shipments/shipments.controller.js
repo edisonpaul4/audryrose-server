@@ -6,11 +6,11 @@ exports.ShipmentsController = new class ShipmentsController {
     this.baseAddress = {
       name: "Audry Rose",
       company: "",
-      street1: "1515 7TH ST.",
-      street2: "#433",
+      street1: "2665 Main Street",
+      street2: "Suite B",
       city: "Santa Monica",
       state: "CA",
-      zip: "90401",
+      zip: "90405",
       country: "US",
       phone: "+1 424 387 8000",
       email: "hello@loveaudryrose.com"
