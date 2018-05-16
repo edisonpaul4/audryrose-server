@@ -4021,6 +4021,8 @@ var getOrderIncludes = function(query) {
   query.include('orderProducts.resizes');
   query.include('orderProducts.awaitingInventory');
   query.include('orderProducts.awaitingInventoryVendorOrders');
+  query.include('orderProducts.awaitingInventoryVendorOrders.vendorOrderVariants');
+  query.include('orderProducts.awaitingInventoryVendorOrders.vendor');
   query.include('orderShipments');
   query.include('customer');
   return query;

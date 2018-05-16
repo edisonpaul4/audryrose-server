@@ -1980,12 +1980,13 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
                 // if (orderProduct.get('order_id') === 8751) logInfo(item.reserved + ' now reserved for ' + variant.get('variantId'));
                 // if (orderProduct.get('order_id') === 8751) logInfo('set awaiting inventory ' + variant.get('variantId') + ' for order ' + orderProduct.get('order_id'));
                 orderProductAwaitingInventory.push(item.object);
-                if (item.vendorOrder) {
-                  // logInfo('set awaiting inventory vendor order ' + item.vendorOrder.get('vendorOrderNumber') + ' for order ' + orderProduct.get('order_id'));
-                  orderProductAwaitingInventoryVendorOrders.push(item.vendorOrder);
-                }
+               
               } else {
                 // if (orderProduct.get('order_id') === 8751) logInfo('No more available for ' + variant.get('variantId'));
+              }
+              if (item.vendorOrder) {
+                // logInfo('set awaiting inventory vendor order ' + item.vendorOrder.get('vendorOrderNumber') + ' for order ' + orderProduct.get('order_id'));
+                orderProductAwaitingInventoryVendorOrders.push(item.vendorOrder);
               }
             }
             return item;
