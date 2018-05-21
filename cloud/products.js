@@ -93,6 +93,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
       var designerQuery = new Parse.Query(Designer);
       designerQuery.equalTo('name', filters.designer);
       productsQuery.matchesQuery('designer', designerQuery);
+      console.log('DENTRO IF');
     }
 
     if (filters.price && filters.price != 'all') {
@@ -155,7 +156,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
   productsQuery.include('vendor.vendorOrders.vendorOrderVariants.orderProducts');
   productsQuery.include('bundleVariants');
   productsQuery.limit(PRODUCTS_PER_PAGE);
-
+  console.log('AAA');
   var tabCountsQuery = new Parse.Query(MetricGroup);
   tabCountsQuery.equalTo('objectClass', 'Product');
   tabCountsQuery.equalTo('slug', 'tabCounts');
@@ -192,7 +193,8 @@ Parse.Cloud.define("getProducts", function(request, response) {
         }
       });
     }
-    if (productsCount == undefined || (filters.hiddenProducts && filters.hiddenProducts == 'true')) {
+    console.log('BBB');
+    if (productsCount == undefined || (filters.hiddenProducts && filters.hiddenProducts == 'true') || filters.designer) {
       logInfo('count em')
       return productsQuery.count();
     } else {
@@ -224,6 +226,8 @@ Parse.Cloud.define("getProducts", function(request, response) {
     }
     totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
     productsQuery.skip((currentPage - 1) * PRODUCTS_PER_PAGE);
+    console.log('CCC', totalPages);
+    console.log('CCC2', totalProducts);
     return productsQuery.find({useMasterKey:true});
 
   }).then(function(products) {

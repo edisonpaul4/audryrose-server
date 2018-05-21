@@ -14,7 +14,7 @@ exports.ReturnsController = new class ReturnsController {
 
   getReturnsWithInformation() {
     return ReturnsModel.getReturnsByFilters({
-      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment'],
+      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment','shippoReturnData'],
       limit: 1000
     }).find()
       .then(returnsObjects => returnsObjects.map(returnObject => this.minifyReturnForFrontEnd(returnObject)));
@@ -282,6 +282,7 @@ exports.ReturnsController = new class ReturnsController {
       returnStatusId: returnObject.get('returnStatusId'),
       returnType: returnObject.get('returnType'),
       returnTypeId: returnObject.get('returnTypeId'),
+      shippoInfo: returnObject.get('shippoReturnData')
     }
   }
 
