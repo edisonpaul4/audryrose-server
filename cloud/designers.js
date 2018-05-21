@@ -29,7 +29,7 @@ var bigCommerce = new BigCommerce({
 });
 bigCommerce.config.accessToken = process.env.BC_ACCESS_TOKEN;
 bigCommerce.config.storeHash = process.env.BC_STORE_HASH;
-var mailgun = new Mailgun({apiKey: process.env.MAILGUN_API_KEY, domain: process.env.MAILGUN_DOMAIN});
+var mailgun = new Mailgun({ apiKey: process.env.MAILGUN_API_KEY, domain: process.env.MAILGUN_DOMAIN });
 const BIGCOMMERCE_BATCH_SIZE = 250;
 const DESIGNERS_PER_PAGE = 50;
 const PENDING_ORDER_STATUSES = [3, 7, 8, 9, 11, 12];
@@ -40,7 +40,25 @@ const isDebug = process.env.DEBUG == 'true';
 //  CLOUD FUNCTIONS    //
 /////////////////////////
 
-Parse.Cloud.define("getDesigners", function(request, response) {
+Parse.Cloud.define("updateVendorOrderProduct2", (req, res) => {
+
+  console.log(req.params.order);
+  var vendorOrderNumber = req.params.order;
+  if (vendorOrderNumber) {
+    var vendorOrderQuery = new Parse.Query(VendorOrder);
+    vendorOrderQuery.equalTo('vendorOrderNumber', vendorOrderNumber);
+    vendorOrderQuery.first({ useMasterKey: true }).then(result => {
+      var vendorOrder = result;
+      vendorOrder.set('emailConfirmed', 'true');
+      vendorOrder.save(null, { useMasterKey: true });
+    }).catch(e => console.log(e))
+  } else {
+    req.error('No Data');
+  }
+  res.success('SUCCESS');
+});
+
+Parse.Cloud.define("getDesigners", function (request, response) {
   logInfo('getDesigners cloud function --------------------------', true);
   var totalDesigners;
   var designers;
@@ -51,7 +69,6 @@ Parse.Cloud.define("getDesigners", function(request, response) {
   var search = request.params.search ? request.params.search : null;
 
   var designersQuery = new Parse.Query(Designer);
-
   if (search) {
     var searchDesignerIdQuery = new Parse.Query(Designer);
     searchDesignerIdQuery.equalTo('designerId', parseFloat(search));
@@ -64,6 +81,8 @@ Parse.Cloud.define("getDesigners", function(request, response) {
         designersQuery.equalTo('hasPendingVendorOrder', true);
         break;
       case 'sent':
+        designersQuery.equalTo('hasSentVendorOrder', true);
+      case 'confirmed':
         designersQuery.equalTo('hasSentVendorOrder', true);
       default:
         break;
@@ -80,15 +99,14 @@ Parse.Cloud.define("getDesigners", function(request, response) {
     designersQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
   }
 
-  Parse.Promise.as().then(function(count) {
+  Parse.Promise.as().then(function (count) {
     totalDesigners = count;
     totalPages = Math.ceil(totalDesigners / 10000);
     designersQuery.skip((currentPage - 1) * 10000);
-    return designersQuery.find({useMasterKey:true});
+    return designersQuery.find({ useMasterKey: true });
 
-  }).then(function(results) {
+  }).then(function (results) {
     designers = results;
-
     if (subpage === 'completed') {
       var vendorOrderQuery = new Parse.Query(VendorOrder);
       vendorOrderQuery.equalTo('receivedAll', true);
@@ -100,24 +118,43 @@ Parse.Cloud.define("getDesigners", function(request, response) {
       vendorOrderQuery.limit(1000);
       return vendorOrderQuery.find();
     } else {
+
       return true;
     }
-
-  }).then(function(results) {
+  }).then(function (results) {
+    console.log('RESULTS', results);
     var completedVendorOrders;
     if (results && results.length > 0) {
       completedVendorOrders = results;
     };
-	  response.success({designers: designers, totalPages: totalPages, completedVendorOrders: completedVendorOrders});
+    if (subpage === 'confirmed') {
+      console.log('dentro');
+      _.filter(designers, function (des) {
+        console.log('de nuevo')
+        console.log(des.get('name'));
+        console.log(des.get('vendors'));
+        return _.filter(des.get('vendors'), function (vendor) {
+          console.log('VENDOR', vendor);
+          return _.filter(vendor.get('vendorOrders'), function (vendorOrder) {
+            console.log('VENDORORDER', vendorOrder);
+            console.log('VENDORORDER', vendorOrder.get('emailConfirmed'));
+            if (vendorOrder.get('emailConfirmed') != undefined) {
+              return vendorOrder;
+            }
+          }) ? vendorOrder : undefined;
+        }) ? vendor : undefined;
+      }) ? des : undefined;
+    }
+    response.success({ designers: designers, totalPages: totalPages, completedVendorOrders: completedVendorOrders });
 
-  }, function(error) {
-	  logError(error);
-	  response.error(error.message);
+  }, function (error) {
+    logError(error);
+    response.error(error.message);
 
   });
 });
 
-Parse.Cloud.define("loadDesigner", function(request, response) {
+Parse.Cloud.define("loadDesigner", function (request, response) {
   logInfo('loadDesigner cloud function --------------------------', true);
   var designer = request.params.designer;
   var designerObj;
@@ -126,17 +163,17 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
   var designerQuery = new Parse.Query(Designer);
   designerQuery.equalTo('designerId', parseInt(designer.id));
   designerQuery.include('vendor');
-  designerQuery.first().then(function(designerResult) {
+  designerQuery.first().then(function (designerResult) {
     if (designerResult) {
       logInfo('designer ' + designerResult.get('designerId') + ' exists.');
-      return createDesignerObject(designer, designerResult).save(null, {useMasterKey: true});
+      return createDesignerObject(designer, designerResult).save(null, { useMasterKey: true });
     } else {
       logInfo('designer ' + designer.id + ' is new.');
       added = true;
-      return createDesignerObject(designer).save(null, {useMasterKey: true});
+      return createDesignerObject(designer).save(null, { useMasterKey: true });
     }
 
-  }).then(function(designerObject) {
+  }).then(function (designerObject) {
     designerObj = designerObject;
 
     if (designerObject.has('vendors')) {
@@ -155,28 +192,28 @@ Parse.Cloud.define("loadDesigner", function(request, response) {
       return [vendor];
     }
 
-  }).then(function(vendors) {
-      designerObj.set('vendors', vendors);
-      return designerObj.save(null, {useMasterKey: true});
+  }).then(function (vendors) {
+    designerObj.set('vendors', vendors);
+    return designerObj.save(null, { useMasterKey: true });
 
-  }).then(function(result) {
-    response.success({added: added});
+  }).then(function (result) {
+    response.success({ added: added });
 
-  }, function(error) {
+  }, function (error) {
     logError(error);
     response.error(error.message);
 
-	});
+  });
 });
 
-Parse.Cloud.define("saveVendor", function(request, response) {
+Parse.Cloud.define("saveVendor", function (request, response) {
   logInfo('saveVendor cloud function --------------------------', true);
 
   var startTime = moment();
 
   var completed = false;
-  setTimeout(function() {
-    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  setTimeout(function () {
+    if (!completed) response.success({ timeout: 'Your request is still processing, please reload the page.' });
   }, 20000);
 
   var designerId = request.params.data.designerId;
@@ -191,7 +228,7 @@ Parse.Cloud.define("saveVendor", function(request, response) {
   var designerQuery = new Parse.Query(Designer);
   designerQuery.equalTo('objectId', designerId);
   designerQuery.include('vendors');
-  designerQuery.first().then(function(result) {
+  designerQuery.first().then(function (result) {
     designer = result;
 
     if (vendorId) {
@@ -201,10 +238,10 @@ Parse.Cloud.define("saveVendor", function(request, response) {
       return vendorQuery.first();
     } else {
       var vendor = new Vendor();
-      return vendor.save(null, {useMasterKey: true});
+      return vendor.save(null, { useMasterKey: true });
     }
 
-  }).then(function(vendor) {
+  }).then(function (vendor) {
 
     if (name && name != '') {
       vendor.set('name', name);
@@ -238,10 +275,10 @@ Parse.Cloud.define("saveVendor", function(request, response) {
       vendor.set('designers', [designer]);
     }
 
-    return vendor.save(null, {useMasterKey: true});
+    return vendor.save(null, { useMasterKey: true });
 
 
-  }).then(function(vendorObject) {
+  }).then(function (vendorObject) {
 
     if (designer.has('vendors')) {
       designer.addUnique('vendors', vendorObject);
@@ -249,9 +286,9 @@ Parse.Cloud.define("saveVendor", function(request, response) {
       designer.set('vendors', [vendorObject]);
     }
 
-    return designer.save(null, {useMasterKey: true});
+    return designer.save(null, { useMasterKey: true });
 
-  }).then(function(designerObject) {
+  }).then(function (designerObject) {
 
     designerQuery = new Parse.Query(Designer);
     designerQuery.equalTo('objectId', designerId);
@@ -263,27 +300,27 @@ Parse.Cloud.define("saveVendor", function(request, response) {
     designerQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
     return designerQuery.first();
 
-  }).then(function(designerObject) {
+  }).then(function (designerObject) {
     completed = true;
     logInfo('saveVendor completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
-    response.success({updatedDesigner: designerObject});
+    response.success({ updatedDesigner: designerObject });
 
-  }, function(error) {
-		logError(error);
-		response.error(error.message);
+  }, function (error) {
+    logError(error);
+    response.error(error.message);
 
-	});
+  });
 
 });
 
-Parse.Cloud.define("sendVendorOrder", function(request, response) {
+Parse.Cloud.define("sendVendorOrder", function (request, response) {
   logInfo('sendVendorOrder cloud function --------------------------', true);
 
   var startTime = moment();
 
   var completed = false;
-  setTimeout(function() {
-    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  setTimeout(function () {
+    if (!completed) response.success({ timeout: 'Your request is still processing, please reload the page.' });
   }, 28000);
 
   var designerId = request.params.data.designerId;
@@ -306,12 +343,12 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
   vendorOrderQuery.include('vendorOrderVariants');
   vendorOrderQuery.include('vendorOrderVariants.variant');
   vendorOrderQuery.include('vendorOrderVariants.resizeVariant');
-  vendorOrderQuery.first().then(function(result) {
+  vendorOrderQuery.first().then(function (result) {
     if (result) {
       vendorOrder = result;
     } else {
       errors.push('Error sending order: vendor order not found.');
-      response.success({errors: errors});
+      response.success({ errors: errors });
       return;
     }
     vendor = vendorOrder.get('vendor');
@@ -319,20 +356,20 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
 
     if (vendorOrder.get('orderedAll') == true) {
       errors.push('Error sending order: order already sent.');
-      response.success({errors: errors});
+      response.success({ errors: errors });
       return;
     }
 
-    _.each(vendorOrderVariants, function(vendorOrderVariant) {
+    _.each(vendorOrderVariants, function (vendorOrderVariant) {
       vendorOrderVariant.set('ordered', true);
       var variant = vendorOrderVariant.get('variant');
       if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
     });
-    messageProductsHTML = convertVendorOrderMessage(messageProductsHTML, vendorOrderVariants);
+    messageProductsHTML = convertVendorOrderMessage(messageProductsHTML, vendorOrderVariants, vendorOrder.get('vendorOrderNumber'));
 
     if (!vendor.has('email')) {
       errors.push('Error sending order: ' + vendor.get('name') + ' needs an email address.');
-      response.success({errors: errors});
+      response.success({ errors: errors });
       return;
     }
     var data = {
@@ -343,63 +380,64 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
       text: messageProductsText,
       html: messageProductsHTML
     }
+
     return mailgun.messages().send(data);
 
-  }).then(function(body) {
+  }).then(function (body) {
     emailId = body.id;
     successMessage = 'Order ' + vendorOrder.get('vendorOrderNumber') + ' successfully sent to ' + vendor.get('email');
     logInfo(successMessage, true);
 
-    return Parse.Object.saveAll(vendorOrderVariants, {useMasterKey: true});
+    return Parse.Object.saveAll(vendorOrderVariants, { useMasterKey: true });
 
-  }).then(function() {
+  }).then(function () {
     logInfo(vendorOrderVariants.length + ' vendorOrderVariants saved');
     vendorOrder.set('orderedAll', true);
     vendorOrder.set('emailId', emailId);
     vendorOrder.set('dateOrdered', moment().toDate());
-    return vendorOrder.save(null, {useMasterKey: true});
+    return vendorOrder.save(null, { useMasterKey: true });
 
-  }).then(function() {
+  }).then(function () {
     logInfo('vendorOrder saved');
     vendor.addUnique('vendorOrders', vendorOrder);
-    return vendor.save(null, {useMasterKey: true});
+    return vendor.save(null, { useMasterKey: true });
 
-  }).then(function() {
+  }).then(function () {
     logInfo('vendor saved');
 
-  	logInfo(resizeVariants.length + ' resize variants to save');
-  	return Parse.Object.saveAll(vendorOrderVariants, {useMasterKey: true});
+    logInfo(resizeVariants.length + ' resize variants to save');
+    return Parse.Object.saveAll(vendorOrderVariants, { useMasterKey: true });
 
-	}).then(function() {
+  }).then(function () {
     logInfo(resizeVariants.length + ' resize variants saved');
 
     logInfo(productIds.length + ' product ids to save');
 
     var promise = Parse.Promise.as();
 
-    _.each(productIds, function(productId) {
+    _.each(productIds, function (productId) {
       logInfo('get product id: ' + productId);
 
-      promise = promise.then(function() {
+      promise = promise.then(function () {
         var productQuery = new Parse.Query(Product);
         productQuery.equalTo('productId', productId);
         return productQuery.first();
 
-      }).then(function(product) {
-        return product.save(null, {useMasterKey: true});
+      }).then(function (product) {
+        return product.save(null, { useMasterKey: true });
 
-      }).then(function() {
+      }).then(function () {
         return;
 
-      }, function(error) {
-    		logError(error);
+      }, function (error) {
+        logError(error);
 
-    	});
-  	});
+      });
+    });
 
-  	return promise;
+    return promise;
 
-  }).then(function(result) {
+  }).then(function (result) {
     logInfo('products saved');
 
     var designerQuery = new Parse.Query(Designer);
@@ -411,17 +449,17 @@ Parse.Cloud.define("sendVendorOrder", function(request, response) {
     designerQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
     return designerQuery.first();
 
-  }).then(function(designerObject) {
+  }).then(function (designerObject) {
     logInfo('sendVendorOrder complete');
     completed = true;
     logInfo('sendVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
-    response.success({updatedDesigner: designerObject, successMessage: successMessage, errors: errors});
+    response.success({ updatedDesigner: designerObject, successMessage: successMessage, errors: errors });
 
-  }, function(error) {
-		logError(error);
-		response.error(error.message);
+  }, function (error) {
+    logError(error);
+    response.error(error.message);
 
-	});
+  });
 
 });
 
@@ -462,7 +500,7 @@ Parse.Cloud.define("finishPendingVendorOrderProduct", (req, res) => {
     .catch(error => res.error(error));
 });
 
-Parse.Cloud.define("getUpdatedDesigner", function(request, response) {
+Parse.Cloud.define("getUpdatedDesigner", function (request, response) {
   var designerId = request.params.data.designerId;
   var updatedDesigner;
   var completedVendorOrders = [];
@@ -474,14 +512,14 @@ Parse.Cloud.define("getUpdatedDesigner", function(request, response) {
   designerQuery.include('vendors.vendorOrders.vendorOrderVariants');
   designerQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
   designerQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
-  designerQuery.first().then(function(designerObject) {
-  	updatedDesigner = designerObject;
+  designerQuery.first().then(function (designerObject) {
+    updatedDesigner = designerObject;
 
     var promise = Parse.Promise.as();
 
-    _.each(updatedDesigner.get('vendors'), function(vendor) {
+    _.each(updatedDesigner.get('vendors'), function (vendor) {
 
-      promise = promise.then(function() {
+      promise = promise.then(function () {
         logInfo('get completed vendor orders for ' + vendor.id);
         var vendorOrderQuery = new Parse.Query(VendorOrder);
         vendorOrderQuery.equalTo('receivedAll', true);
@@ -494,33 +532,33 @@ Parse.Cloud.define("getUpdatedDesigner", function(request, response) {
         vendorOrderQuery.limit(20);
         return vendorOrderQuery.find();
 
-      }).then(function(results) {
+      }).then(function (results) {
         logInfo(results.length + ' completed vendor order results for ' + vendor.id);
         completedVendorOrders = completedVendorOrders.concat(results);
 
-      }, function(error) {
-    		logError(error);
+      }, function (error) {
+        logError(error);
 
-    	});
-  	});
+      });
+    });
 
-  	return promise;
+    return promise;
 
-  }).then(function() {
-    response.success({updatedDesigner: updatedDesigner, completedVendorOrders: completedVendorOrders})
-  }, function(error) {
+  }).then(function () {
+    response.success({ updatedDesigner: updatedDesigner, completedVendorOrders: completedVendorOrders })
+  }, function (error) {
     response.error(error);
   });
 });
 
-Parse.Cloud.define("getDesignerProducts", function(request, response) {
+Parse.Cloud.define("getDesignerProducts", function (request, response) {
   logInfo('getDesignerProducts cloud function --------------------------', true);
 
   var startTime = moment();
 
   var completed = false;
-  setTimeout(function() {
-    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  setTimeout(function () {
+    if (!completed) response.success({ timeout: 'Your request is still processing, please reload the page.' });
   }, 28000);
 
   var designerId = request.params.designerId;
@@ -532,9 +570,9 @@ Parse.Cloud.define("getDesignerProducts", function(request, response) {
   var designerQuery = new Parse.Query(Designer);
   designerQuery.equalTo('objectId', designerId);
   designerQuery.include('vendors');
-  designerQuery.first().then(function(result) {
+  designerQuery.first().then(function (result) {
     var designer = result;
-    var vendors = designer.get('vendors').map(function(vendor) {
+    var vendors = designer.get('vendors').map(function (vendor) {
       var vendorData = {
         objectId: vendor.id,
         name: vendor.get('name')
@@ -557,16 +595,16 @@ Parse.Cloud.define("getDesignerProducts", function(request, response) {
     productsQuery.limit(999999);
     return productsQuery.find();
 
-  }).then(function(results) {
+  }).then(function (results) {
     // responseData.products = results;
-    responseData.products = results ? results.map(function(result) {
+    responseData.products = results ? results.map(function (result) {
       var product = {
         productId: result.get('productId'),
         name: result.get('name'),
         vendor: result.get('vendor').toJSON()
       }
       if (result.has('variants')) {
-        var variantsData = result.get('variants').map(function(variant) {
+        var variantsData = result.get('variants').map(function (variant) {
           return {
             objectId: variant.id,
             product_id: variant.get('product_id'),
@@ -587,7 +625,7 @@ Parse.Cloud.define("getDesignerProducts", function(request, response) {
         product.variants = variantsData;
       }
       return product;
-    } ) : [];
+    }) : [];
     logInfo(responseData.products.length + ' products found');
 
     var query = new Parse.Query(ColorCode);
@@ -596,8 +634,8 @@ Parse.Cloud.define("getDesignerProducts", function(request, response) {
     query.limit(10000);
     return query.find();
 
-  }).then(function(results) {
-    responseData.colorCodes = results ? results.map(function(result) { return result.toJSON() } ) : [];
+  }).then(function (results) {
+    responseData.colorCodes = results ? results.map(function (result) { return result.toJSON() }) : [];
     logInfo(responseData.colorCodes.length + ' colorCodes loaded');
 
     var query = new Parse.Query(StoneCode);
@@ -606,8 +644,8 @@ Parse.Cloud.define("getDesignerProducts", function(request, response) {
     query.limit(10000);
     return query.find();
 
-  }).then(function(results) {
-    responseData.stoneCodes = results ? results.map(function(result) { return result.toJSON() } ) : [];
+  }).then(function (results) {
+    responseData.stoneCodes = results ? results.map(function (result) { return result.toJSON() }) : [];
     logInfo(responseData.stoneCodes.length + ' stoneCodes loaded');
 
     var query = new Parse.Query(SizeCode);
@@ -616,8 +654,8 @@ Parse.Cloud.define("getDesignerProducts", function(request, response) {
     query.limit(10000);
     return query.find();
 
-  }).then(function(results) {
-    responseData.sizeCodes = results ? results.map(function(result) { return result.toJSON() } ) : [];
+  }).then(function (results) {
+    responseData.sizeCodes = results ? results.map(function (result) { return result.toJSON() }) : [];
     logInfo(responseData.sizeCodes.length + ' sizeCodes loaded');
 
     var query = new Parse.Query(MiscCode);
@@ -626,8 +664,8 @@ Parse.Cloud.define("getDesignerProducts", function(request, response) {
     query.limit(10000);
     return query.find();
 
-  }).then(function(results) {
-    responseData.miscCodes = results ? results.map(function(result) { return result.toJSON() } ) : [];
+  }).then(function (results) {
+    responseData.miscCodes = results ? results.map(function (result) { return result.toJSON() }) : [];
     logInfo(responseData.miscCodes.length + ' miscCodes loaded');
 
     logInfo('getDesignerProducts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
@@ -636,13 +674,13 @@ Parse.Cloud.define("getDesignerProducts", function(request, response) {
   });
 });
 
-Parse.Cloud.define("addDesignerProductToVendorOrder", function(request, response) {
+Parse.Cloud.define("addDesignerProductToVendorOrder", function (request, response) {
   logInfo('addDesignerProductToVendorOrder cloud function --------------------------', true);
   var startTime = moment();
 
   var completed = false;
-  setTimeout(function() {
-    if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
+  setTimeout(function () {
+    if (!completed) response.success({ timeout: 'Your request is still processing, please reload the page.' });
   }, 28000);
 
   var orders = request.params.orders;
@@ -651,7 +689,7 @@ Parse.Cloud.define("addDesignerProductToVendorOrder", function(request, response
 
   logInfo('addDesignerProductToVendorOrder ' + designerId + ' ------------------------');
 
-  Parse.Cloud.run('addToVendorOrder', {orders: orders, getUpdatedProducts: false}).then(function(result) {
+  Parse.Cloud.run('addToVendorOrder', { orders: orders, getUpdatedProducts: false }).then(function (result) {
 
     logInfo('get updated designer');
     var designerQuery = new Parse.Query(Designer);
@@ -663,20 +701,20 @@ Parse.Cloud.define("addDesignerProductToVendorOrder", function(request, response
     designerQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
     return designerQuery.first();
 
-  }).then(function(result) {
+  }).then(function (result) {
     updatedDesigner = result;
 
     completed = true;
-	  response.success({updatedDesigner: updatedDesigner});
+    response.success({ updatedDesigner: updatedDesigner });
 
     return Parse.Cloud.run('updateAwaitingInventoryQueue');
 
-  }).then(function(result) {
+  }).then(function (result) {
     logInfo('addDesignerProductToVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
-    
-  }, function(error) {
-	  logError(error);
-	  response.error(error.message);
+
+  }, function (error) {
+    logError(error);
+    response.error(error.message);
 
   });
 });
@@ -688,11 +726,13 @@ Parse.Cloud.define("updateVendorOrderProduct", (req, res) => {
 });
 
 
+
+
 /////////////////////////
 //  CLOUD JOBS         //
 /////////////////////////
 
-Parse.Cloud.job("saveVendorOrder", function(request, status) {
+Parse.Cloud.job("saveVendorOrder", function (request, status) {
   logInfo('saveVendorOrder cloud function --------------------------', true);
 
   var startTime = moment();
@@ -715,15 +755,15 @@ Parse.Cloud.job("saveVendorOrder", function(request, status) {
   vendorOrderQuery.equalTo('objectId', orderId);
   vendorOrderQuery.include('vendor');
   vendorOrderQuery.include('vendor.vendorOrders');
-  vendorOrderQuery.first().then(function(result) {
+  vendorOrderQuery.first().then(function (result) {
     vendorOrder = result;
     vendor = vendorOrder.get('vendor');
 
     var promise = Parse.Promise.as();
 
-    _.each(variantsData, function(variantData) {
+    _.each(variantsData, function (variantData) {
       var variant;
-      promise = promise.then(function() {
+      promise = promise.then(function () {
         var vendorOrderVariantQuery = new Parse.Query(VendorOrderVariant);
         vendorOrderVariantQuery.equalTo('objectId', variantData.objectId);
         vendorOrderVariantQuery.include('variant');
@@ -734,12 +774,12 @@ Parse.Cloud.job("saveVendorOrder", function(request, status) {
         vendorOrderVariantQuery.include('orderProducts.awaitingInventoryVendorOrders');
         return vendorOrderVariantQuery.first();
 
-      }).then(function(vendorOrderVariant) {
+      }).then(function (vendorOrderVariant) {
         if (vendorOrderVariant) {
           variant = vendorOrderVariant.get('variant');
           var beforeInventory = variant.get('inventoryLevel');
 
-          if (variantData.internalNotes != undefined) 
+          if (variantData.internalNotes != undefined)
             vendorOrderVariant.set('internalNotes', variantData.internalNotes);
 
           logInfo('VendorOrderVariant found, set to ' + parseFloat(variantData.units) + ' units');
@@ -749,8 +789,8 @@ Parse.Cloud.job("saveVendorOrder", function(request, status) {
             logInfo('received:' + parseFloat(variantData.received))
             if (parseFloat(variantData.received) > vendorOrderVariant.get('received')) {
               var receivedDiff = parseFloat(variantData.received) - vendorOrderVariant.get('received');
-                logInfo('Variant ' + variant.id + ' add ' + receivedDiff + ' to variant inventory', true);
-                variant.increment('inventoryLevel', receivedDiff);
+              logInfo('Variant ' + variant.id + ' add ' + receivedDiff + ' to variant inventory', true);
+              variant.increment('inventoryLevel', receivedDiff);
               logInfo('Set inventory for variant ' + variant.id + ' to ' + variant.get('inventoryLevel'), true);
             }
             vendorOrderVariant.set('received', parseFloat(variantData.received));
@@ -761,13 +801,13 @@ Parse.Cloud.job("saveVendorOrder", function(request, status) {
           var afterInventory = variant.get('inventoryLevel');
           var inventoryDiff = afterInventory - beforeInventory;
           if (inventoryDiff !== 0) logInfo('inventory change ' + (inventoryDiff >= 0 ? '+' : '-') + Math.abs(inventoryDiff) + ' for variant ' + variant.get('variantId'), true);
-          return vendorOrderVariant.save(null, {useMasterKey:true});
+          return vendorOrderVariant.save(null, { useMasterKey: true });
         } else {
           logInfo('VendorOrderVariant not found');
           return;
         }
 
-      }).then(function(vendorOrderVariant) {
+      }).then(function (vendorOrderVariant) {
         if (vendorOrderVariant && vendorOrderVariant.has('units')) {
           logInfo('VendorOrderVariant saved');
           logInfo('Variant has ' + vendorOrderVariant.get('units') + ' units');
@@ -782,28 +822,28 @@ Parse.Cloud.job("saveVendorOrder", function(request, status) {
 
         if (variant) {
           if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
-          return variant.save(null, {useMasterKey:true});
+          return variant.save(null, { useMasterKey: true });
         } else {
           return;
         }
-      }).then(function(result) {
+      }).then(function (result) {
         logInfo('ProductVariant saved');
 
-      }, function(error) {
+      }, function (error) {
         logError(error);
       });
     });
 
     return promise;
 
-  }, function(error) {
-		logError(error);
-		status.error(error.message);
+  }, function (error) {
+    logError(error);
+    status.error(error.message);
 
-	}).then(function() {
+  }).then(function () {
     vendorOrder.set('vendorOrderVariants', vendorOrderVariants);
     var totalWithUnits = 0;
-    _.each(vendorOrderVariants, function(vendorOrderVariant) {
+    _.each(vendorOrderVariants, function (vendorOrderVariant) {
       if (vendorOrderVariant.get('units') > 0) totalWithUnits++;
     });
     logInfo('Total ' + vendorOrderVariants.length + ' vendorOrderVariants, ' + totalWithUnits + ' are requesting units');
@@ -815,73 +855,73 @@ Parse.Cloud.job("saveVendorOrder", function(request, status) {
         vendorOrder.set('dateReceived', moment().toDate());
         vendor.remove('vendorOrders', vendorOrder);
       }
-      return vendorOrder.save(null, {useMasterKey:true});
+      return vendorOrder.save(null, { useMasterKey: true });
     } else {
       logInfo('All variants removed, destroy the vendor order');
       vendor.remove('vendorOrders', vendorOrder);
       return destroyVendorOrder(vendorOrder);
     }
 
-  }, function(error) {
-		logError(error);
-		status.error(error.message);
+  }, function (error) {
+    logError(error);
+    status.error(error.message);
 
-	}).then(function() {
-    return vendor.save(null, {useMasterKey:true})
+  }).then(function () {
+    return vendor.save(null, { useMasterKey: true })
 
-  }, function(error) {
-		logError(error);
-		status.error(error.message);
+  }, function (error) {
+    logError(error);
+    status.error(error.message);
 
-	}).then(function() {
+  }).then(function () {
     logInfo('vendor saved');
 
-  //   var designerQuery = new Parse.Query(Designer);
-  //   designerQuery.equalTo('objectId', designerId);
-  //   designerQuery.include('vendors');
-  //   designerQuery.include('vendors.vendorOrders');
-  //   designerQuery.include('vendors.vendorOrders.vendorOrderVariants');
-  //   designerQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
-  //   designerQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
-  //   return designerQuery.first();
-  //
-  // }, function(error) {
-	// 	logError(error);
-	// 	status.error(error.message);
-  //
-	// }).then(function(designerObject) {
-  // 	updatedDesigner = designerObject;
-  //
-  //   var promise = Parse.Promise.as();
-  //
-  //   _.each(updatedDesigner.get('vendors'), function(vendor) {
-  //
-  //     promise = promise.then(function() {
-  //       logInfo('get completed vendor orders for ' + vendor.id);
-  //       var vendorOrderQuery = new Parse.Query(VendorOrder);
-  //       vendorOrderQuery.equalTo('receivedAll', true);
-  //       vendorOrderQuery.equalTo('vendor', vendor);
-  //       vendorOrderQuery.include('vendor');
-  //       vendorOrderQuery.include('vendorOrderVariants.orderProducts');
-  //       vendorOrderQuery.include('vendorOrderVariants.variant');
-  //       vendorOrderQuery.include('vendorOrderVariants.resizeVariant');
-  //       vendorOrderQuery.descending('dateReceived');
-  //       vendorOrderQuery.limit(20);
-  //       return vendorOrderQuery.find();
-  //
-  //     }).then(function(results) {
-  //       logInfo(results.length + ' completed vendor order results for ' + vendor.id);
-  //       completedVendorOrders = completedVendorOrders.concat(results);
-  //
-  //     }, function(error) {
-  //   		logError(error);
-  //
-  //   	});
-  // 	});
-  //
-  // 	return promise;
-  //
-  // }).then(function() {
+    //   var designerQuery = new Parse.Query(Designer);
+    //   designerQuery.equalTo('objectId', designerId);
+    //   designerQuery.include('vendors');
+    //   designerQuery.include('vendors.vendorOrders');
+    //   designerQuery.include('vendors.vendorOrders.vendorOrderVariants');
+    //   designerQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
+    //   designerQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
+    //   return designerQuery.first();
+    //
+    // }, function(error) {
+    // 	logError(error);
+    // 	status.error(error.message);
+    //
+    // }).then(function(designerObject) {
+    // 	updatedDesigner = designerObject;
+    //
+    //   var promise = Parse.Promise.as();
+    //
+    //   _.each(updatedDesigner.get('vendors'), function(vendor) {
+    //
+    //     promise = promise.then(function() {
+    //       logInfo('get completed vendor orders for ' + vendor.id);
+    //       var vendorOrderQuery = new Parse.Query(VendorOrder);
+    //       vendorOrderQuery.equalTo('receivedAll', true);
+    //       vendorOrderQuery.equalTo('vendor', vendor);
+    //       vendorOrderQuery.include('vendor');
+    //       vendorOrderQuery.include('vendorOrderVariants.orderProducts');
+    //       vendorOrderQuery.include('vendorOrderVariants.variant');
+    //       vendorOrderQuery.include('vendorOrderVariants.resizeVariant');
+    //       vendorOrderQuery.descending('dateReceived');
+    //       vendorOrderQuery.limit(20);
+    //       return vendorOrderQuery.find();
+    //
+    //     }).then(function(results) {
+    //       logInfo(results.length + ' completed vendor order results for ' + vendor.id);
+    //       completedVendorOrders = completedVendorOrders.concat(results);
+    //
+    //     }, function(error) {
+    //   		logError(error);
+    //
+    //   	});
+    // 	});
+    //
+    // 	return promise;
+    //
+    // }).then(function() {
     // Send the cloud job status
     status.success('succeeded');
 
@@ -889,54 +929,54 @@ Parse.Cloud.job("saveVendorOrder", function(request, status) {
 
     var promise = Parse.Promise.as();
 
-    _.each(productIds, function(productId) {
+    _.each(productIds, function (productId) {
       logInfo('get product id: ' + productId);
 
-      promise = promise.then(function() {
+      promise = promise.then(function () {
         var productQuery = new Parse.Query(Product);
         productQuery.equalTo('productId', productId);
         return productQuery.first();
 
-      }).then(function(product) {
-        return product.save(null, {useMasterKey: true});
+      }).then(function (product) {
+        return product.save(null, { useMasterKey: true });
 
-      }).then(function() {
+      }).then(function () {
         var ordersQuery = new Parse.Query(Order);
         ordersQuery.equalTo('productIds', productId);
         ordersQuery.containedIn('status_id', PENDING_ORDER_STATUSES);
         return ordersQuery.find();
 
-      }).then(function(orders) {
+      }).then(function (orders) {
         if (!orders) return true;
 
         var items = [];
-    		_.each(orders, function(order) {
+        _.each(orders, function (order) {
           items.push(order.get('orderId'));
         });
 
         if (items.length > 0) {
-          return Parse.Cloud.run('addToReloadQueue', {objectClass: 'Order', items: items});
+          return Parse.Cloud.run('addToReloadQueue', { objectClass: 'Order', items: items });
         } else {
           return true;
         }
 
-      }, function(error) {
-    		logError(error);
+      }, function (error) {
+        logError(error);
 
-    	});
-  	});
+      });
+    });
 
-  	return promise;
+    return promise;
 
-  }, function(error) {
-		logError(error);
-		status.error(error.message);
+  }, function (error) {
+    logError(error);
+    status.error(error.message);
 
-	}).then(function(result) {
+  }).then(function (result) {
     logInfo('products saved');
     return Parse.Cloud.run('updateAwaitingInventoryQueue');
 
-  }).then(function(result) {
+  }).then(function (result) {
     return Parse.Cloud.httpRequest({
       method: 'POST',
       url: process.env.SERVER_URL + '/jobs/processReloadQueue',
@@ -946,14 +986,14 @@ Parse.Cloud.job("saveVendorOrder", function(request, status) {
       }
     });
 
-  }).then(function(result) {
-  	logInfo('saveVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+  }).then(function (result) {
+    logInfo('saveVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 
-  }, function(error) {
-		logError(error);
-		status.error(error.message);
+  }, function (error) {
+    logError(error);
+    status.error(error.message);
 
-	});
+  });
 
 });
 
@@ -962,7 +1002,7 @@ Parse.Cloud.job("saveVendorOrder", function(request, status) {
 //  BEFORE SAVE        //
 /////////////////////////
 
-Parse.Cloud.beforeSave("Vendor", function(request, response) {
+Parse.Cloud.beforeSave("Vendor", function (request, response) {
   logInfo('Vendor beforeSave --------------------------', true);
   var vendor = request.object;
   var hasPendingVendorOrder = false;
@@ -973,16 +1013,16 @@ Parse.Cloud.beforeSave("Vendor", function(request, response) {
     vendor.set('abbreviation', abbreviation);
   }
 
-  delay(10).then(function() {
+  delay(10).then(function () {
     if (vendor.has('vendorOrders') && vendor.get('vendorOrders').length > 0) {
       return Parse.Object.fetchAll(vendor.get('vendorOrders'));
     } else {
       return [];
     }
 
-  }).then(function(vendorOrders) {
+  }).then(function (vendorOrders) {
     logInfo('vendor has ' + vendorOrders.length + ' vendor orders');
-    _.each(vendorOrders, function(vendorOrder) {
+    _.each(vendorOrders, function (vendorOrder) {
       var orderedAll = vendorOrder.get('orderedAll');
       var receivedAll = vendorOrder.get('receivedAll');
       if (!orderedAll) {
@@ -1000,30 +1040,30 @@ Parse.Cloud.beforeSave("Vendor", function(request, response) {
       return [];
     }
 
-  }).then(function(designers) {
+  }).then(function (designers) {
     logInfo('vendor has ' + designers.length + ' vendor orders');
-    _.each(designers, function(designer) {
+    _.each(designers, function (designer) {
       designer.set('hasPendingVendorOrder', hasPendingVendorOrder);
       designer.set('hasSentVendorOrder', hasSentVendorOrder);
     });
     if (designers.length > 0) {
-      return Parse.Object.saveAll(designers, {useMasterKey: true});
+      return Parse.Object.saveAll(designers, { useMasterKey: true });
     } else {
       return [];
     }
 
-  }).then(function() {
+  }).then(function () {
     logInfo('Vendor beforeSave complete');
     response.success();
   });
 
 });
 
-Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
+Parse.Cloud.beforeSave("VendorOrder", function (request, response) {
   logInfo('VendorOrder beforeSave --------------------------------');
   var vendorOrder = request.object;
-
-  delay(10).then(function() {
+  vendorOrder.set('emailConfirmed','false');
+  delay(10).then(function () {
     logInfo('go');
     // Remove any vendor order variants who have 0 units to order
     if (vendorOrder.has('vendorOrderVariants') && vendorOrder.get('vendorOrderVariants').length > 0) {
@@ -1033,9 +1073,9 @@ Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
       return [];
     }
 
-  }).then(function(vendorOrderVariants) {
+  }).then(function (vendorOrderVariants) {
     logInfo('vendor order has ' + vendorOrderVariants.length + ' vendor order variants');
-    _.each(vendorOrderVariants, function(vendorOrderVariant) {
+    _.each(vendorOrderVariants, function (vendorOrderVariant) {
       if (vendorOrderVariant.has('units')) logInfo('vendor order variant has ' + vendorOrderVariant.get('units') + ' units');
       if (vendorOrderVariant.get('units') == 0) vendorOrder.remove('vendorOrderVariants', vendorOrderVariant);
     });
@@ -1043,19 +1083,19 @@ Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
     // Create a unique vendor order number
     return vendorOrder.get('vendor').fetch();
 
-  }).then(function(vendor){
+  }).then(function (vendor) {
     if (!vendorOrder.has('vendorOrderNumber')) {
       vendor.increment('vendorOrderCount', 1);
       var vendorOrderNumber = vendor.get('abbreviation') + vendor.get('vendorOrderCount');
       logInfo(vendorOrderNumber);
       vendorOrder.set('vendorOrderNumber', vendorOrderNumber);
-      return vendor.save(null, {useMasterKey:true});
+      return vendor.save(null, { useMasterKey: true });
 
     } else {
       return false;
     }
 
-  }).then(function(result) {
+  }).then(function (result) {
     logInfo('VendorOrder beforeSave complete');
     response.success();
   });
@@ -1066,7 +1106,7 @@ Parse.Cloud.beforeSave("VendorOrder", function(request, response) {
 //  UTILITY FUNCTIONS  //
 /////////////////////////
 
-var createDesignerObject = function(designerData, currentDesigner) {
+var createDesignerObject = function (designerData, currentDesigner) {
   var designer = (currentDesigner) ? currentDesigner : new Designer();
 
   designer.set('designerId', parseInt(designerData.id));
@@ -1080,7 +1120,7 @@ var createDesignerObject = function(designerData, currentDesigner) {
   return designer;
 }
 
-var getAbbreviation = function(name) {
+var getAbbreviation = function (name) {
   var abbreviation = name;
   abbreviation = abbreviation.toUpperCase();
   abbreviation = abbreviation.replace(/-/g, '');
@@ -1091,7 +1131,7 @@ var getAbbreviation = function(name) {
   return abbreviation.substring(0, 3);
 }
 
-var getDesignerSort = function(designersQuery, currentSort) {
+var getDesignerSort = function (designersQuery, currentSort) {
   switch (currentSort) {
     case 'name-desc':
       designersQuery.descending("name");
@@ -1106,7 +1146,7 @@ var getDesignerSort = function(designersQuery, currentSort) {
   return designersQuery;
 }
 
-var convertVendorOrderMessage = function(message, vendorOrderVariants) {
+var convertVendorOrderMessage = function (message, vendorOrderVariants, vendorOrderNumber) {
   var pTag = '<p style="box-sizing: border-box; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-weight: normal; margin: 0 0 10px 0;">';
   var thTag = '<th style="box-sizing: border-box; color: #999; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-size: 80%; margin: 0; padding: 8px; text-transform: uppercase; text-align:left;">';
   var thRightTag = '<th style="box-sizing: border-box; color: #999; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-size: 80%; margin: 0; padding: 8px; text-transform: uppercase; text-align:right;">';
@@ -1127,44 +1167,45 @@ var convertVendorOrderMessage = function(message, vendorOrderVariants) {
   productsTable += thTag + 'Notes</th>';
   productsTable += '</thead>';
   productsTable += '<tbody>';
-  _.each(vendorOrderVariants, function(vendorOrderVariant, key) {
-    productsTable += `<tr style="box-sizing: border-box; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0;background:${key % 2 !== 0 ? '#eee':'white'}">`;
+  _.each(vendorOrderVariants, function (vendorOrderVariant, key) {
+    productsTable += `<tr style="box-sizing: border-box; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0;background:${key % 2 !== 0 ? '#eee' : 'white'}">`;
     var variant = vendorOrderVariant.get('variant');
     productsTable += tdTag + vendorOrderVariant.get('units') + '</td>';
     productsTable += tdTag;
     productsTable += variant.has('designerProductName') ? variant.get('designerProductName') : variant.get('productName');
     productsTable += '</td>';
     var optionsList = '';
-		if (variant) {
-  		if (variant.has('color_value')) optionsList += 'COLOR: ' + variant.get('color_value') + '<br/>';
-  		if (variant.has('size_value')) optionsList += 'SIZE: ' + variant.get('size_value') + '<br/>';
-  		if (variant.has('gemstone_value')) optionsList += 'STONE: ' + variant.get('gemstone_value') + '<br/>';
-  		if (variant.has('length_value')) optionsList += 'LENGTH: ' + variant.get('length_value') + '<br/>';
-  		if (variant.has('font_value')) optionsList += 'FONT: ' + variant.get('font_value') + '<br/>';
-  		if (variant.has('letter_value')) optionsList += 'LETTER: ' + variant.get('letter_value') + '<br/>';
-  		if (variant.has('singlepair_value')) optionsList += 'SINGLE/PAIR: ' + variant.get('singlepair_value') + '<br/>';
-		}
+    if (variant) {
+      if (variant.has('color_value')) optionsList += 'COLOR: ' + variant.get('color_value') + '<br/>';
+      if (variant.has('size_value')) optionsList += 'SIZE: ' + variant.get('size_value') + '<br/>';
+      if (variant.has('gemstone_value')) optionsList += 'STONE: ' + variant.get('gemstone_value') + '<br/>';
+      if (variant.has('length_value')) optionsList += 'LENGTH: ' + variant.get('length_value') + '<br/>';
+      if (variant.has('font_value')) optionsList += 'FONT: ' + variant.get('font_value') + '<br/>';
+      if (variant.has('letter_value')) optionsList += 'LETTER: ' + variant.get('letter_value') + '<br/>';
+      if (variant.has('singlepair_value')) optionsList += 'SINGLE/PAIR: ' + variant.get('singlepair_value') + '<br/>';
+    }
     productsTable += tdTag + optionsList + '</td>';
     var notes = vendorOrderVariant.get('notes');
     productsTable += tdTag + notes + '</td>';
     productsTable += '</tr>';
   });
   productsTable += '</tbody></table>';
-
+  message += '<div style="text-align: center; width:100%"><a target="_blank" href="https://audryrose.herokuapp.com/verifyEmail/{{vendorOrderNumber}}" style="background-color: lightgreen; padding: 10px; border-radius: 10px; font-weight: bold; color: gray; cursor: pointer">Please Click Here to Confirm you have received this order</a></div>';
+  message = message.replace('{{vendorOrderNumber}}', vendorOrderNumber.toUpperCase())
   message = message.replace('{{PRODUCTS}}', productsTable);
 
   return message;
 }
 
-var destroyVendorOrder = function(vendorOrder) {
+var destroyVendorOrder = function (vendorOrder) {
   var vendorOrderVariants = vendorOrder.get('vendorOrderVariants');
   var orderProductsToSave = [];
 
   // Get all VendorOrderVariants and their OrderProducts
-  _.each(vendorOrderVariants, function(vendorOrderVariant) {
-    _.each(vendorOrderVariant.get('orderProducts'), function(orderProduct) {
+  _.each(vendorOrderVariants, function (vendorOrderVariant) {
+    _.each(vendorOrderVariant.get('orderProducts'), function (orderProduct) {
       var addedToSave = false;
-      _.each(orderProduct.get('vendorOrders'), function(orderProductVendorOrder) {
+      _.each(orderProduct.get('vendorOrders'), function (orderProductVendorOrder) {
         if (orderProductVendorOrder.id == vendorOrder.id) {
           logInfo('removing vendorOrder from order product ' + orderProduct.get('orderProductId') + ' vendorOrders');
           orderProduct.remove('vendorOrders', orderProductVendorOrder);
@@ -1172,7 +1213,7 @@ var destroyVendorOrder = function(vendorOrder) {
           addedToSave = true;
         }
       });
-      _.each(orderProduct.get('awaitingInventoryVendorOrders'), function(orderProductVendorOrder) {
+      _.each(orderProduct.get('awaitingInventoryVendorOrders'), function (orderProductVendorOrder) {
         if (orderProductVendorOrder.id == vendorOrder.id) {
           logInfo('removing vendorOrder from order product ' + orderProduct.get('orderProductId') + ' awaitingInventoryVendorOrders');
           orderProduct.remove('awaitingInventoryVendorOrders', orderProductVendorOrder);
@@ -1180,7 +1221,7 @@ var destroyVendorOrder = function(vendorOrder) {
           addedToSave = true;
         }
       });
-      _.each(orderProduct.get('awaitingInventory'), function(orderProductVendorOrderVariant) {
+      _.each(orderProduct.get('awaitingInventory'), function (orderProductVendorOrderVariant) {
         if (orderProductVendorOrderVariant.id == vendorOrderVariant.id) {
           logInfo('removing vendorOrderVariant from order product ' + orderProduct.get('orderProductId') + ' awaitingInventory');
           orderProduct.remove('awaitingInventory', vendorOrderVariant);
@@ -1191,40 +1232,40 @@ var destroyVendorOrder = function(vendorOrder) {
     });
   });
 
-  return Parse.Object.saveAll(orderProductsToSave, {useMasterKey: true}).then(function() {
+  return Parse.Object.saveAll(orderProductsToSave, { useMasterKey: true }).then(function () {
     logInfo('order products saved');
     return Parse.Object.destroyAll(vendorOrderVariants);
 
-  }).then(function() {
+  }).then(function () {
     logInfo('destroy vendorOrder ' + vendorOrder.get('vendorOrderNumber'));
     return vendorOrder.destroy();
 
-  }, function(error) {
+  }, function (error) {
     logError(error);
     return error;
 
   });
 }
 
-var queryResultsToJSON = function(results) {
+var queryResultsToJSON = function (results) {
   var jsonArray = [];
-  _.each(results, function(result) {
+  _.each(results, function (result) {
     jsonArray.push(result.toJSON());
   });
   return jsonArray;
 }
 
-var delay = function(t) {
-  return new Promise(function(resolve) {
+var delay = function (t) {
+  return new Promise(function (resolve) {
     setTimeout(resolve, t)
   });
 }
 
-var logInfo = function(i, alwaysLog) {
+var logInfo = function (i, alwaysLog) {
   if (!isProduction || isDebug || alwaysLog) console.info(i);
 }
 
-var logError = function(e) {
+var logError = function (e) {
   console.error(e);
-	if (isProduction) bugsnag.notify(e);
+  if (isProduction) bugsnag.notify(e);
 }
