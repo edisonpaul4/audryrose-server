@@ -1062,7 +1062,11 @@ Parse.Cloud.beforeSave("Vendor", function (request, response) {
 Parse.Cloud.beforeSave("VendorOrder", function (request, response) {
   logInfo('VendorOrder beforeSave --------------------------------');
   var vendorOrder = request.object;
-  vendorOrder.set('emailConfirmed','false');
+  if (vendorOrder.get('emailConfirmed')) {
+
+  } else {
+    vendorOrder.set('emailConfirmed', 'false');
+  }
   delay(10).then(function () {
     logInfo('go');
     // Remove any vendor order variants who have 0 units to order
