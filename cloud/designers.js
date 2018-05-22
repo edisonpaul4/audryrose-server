@@ -82,8 +82,10 @@ Parse.Cloud.define("getDesigners", function (request, response) {
         break;
       case 'sent':
         designersQuery.equalTo('hasSentVendorOrder', true);
-      case 'confirmed':
+        break;
+      case 'unconfirmed':
         designersQuery.equalTo('hasSentVendorOrder', true);
+        break;
       default:
         break;
     }
@@ -122,29 +124,10 @@ Parse.Cloud.define("getDesigners", function (request, response) {
       return true;
     }
   }).then(function (results) {
-    console.log('RESULTS', results);
     var completedVendorOrders;
     if (results && results.length > 0) {
       completedVendorOrders = results;
     };
-    if (subpage === 'confirmed') {
-      console.log('dentro');
-      _.filter(designers, function (des) {
-        console.log('de nuevo')
-        console.log(des.get('name'));
-        console.log(des.get('vendors'));
-        return _.filter(des.get('vendors'), function (vendor) {
-          console.log('VENDOR', vendor);
-          return _.filter(vendor.get('vendorOrders'), function (vendorOrder) {
-            console.log('VENDORORDER', vendorOrder);
-            console.log('VENDORORDER', vendorOrder.get('emailConfirmed'));
-            if (vendorOrder.get('emailConfirmed') != undefined) {
-              return vendorOrder;
-            }
-          }) ? vendorOrder : undefined;
-        }) ? vendor : undefined;
-      }) ? des : undefined;
-    }
     response.success({ designers: designers, totalPages: totalPages, completedVendorOrders: completedVendorOrders });
 
   }, function (error) {
