@@ -18,6 +18,7 @@ exports.ReturnsController = new class ReturnsController {
     })
   }
   
+  
   getReturnsWithInformation() {
     return ReturnsModel.getReturnsByFilters({
       includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment','shippoReturnData'],
