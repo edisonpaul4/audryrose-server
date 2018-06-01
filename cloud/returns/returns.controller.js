@@ -17,8 +17,13 @@ exports.ReturnsController = new class ReturnsController {
       return result.set('deleted', true).save().then(() => {return returnId;})
     })
   }
-  
-  
+
+  deleteReturnEmail(returnId){
+    return ReturnsModel.getReturnsByFilters({equal: [{ key: 'objectId', value: returnId }]}).first().then(result =>{
+      return result.set('emailDeleted', true).save().then(() => {return returnId;})
+    })
+  }
+
   getReturnsWithInformation() {
     return ReturnsModel.getReturnsByFilters({
       includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment','shippoReturnData'],
@@ -180,7 +185,8 @@ exports.ReturnsController = new class ReturnsController {
         { key: 'requestReturnEmailSended', value: false },
         { key: 'checkedInEmailSended', value: false },
         { key: 'checkedInAt', value: null }
-      ]
+      ],
+      notEqual:[{key:'emailDeleted', key: true}]
     });
     
     const checkedInReturnsEmails = ReturnsModel.getReturnsByFilters({
