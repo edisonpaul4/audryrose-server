@@ -149,12 +149,11 @@ exports.OrdersController = new class OrdersController {
         subject: emailParams.emailSubject,
         text: emailParams.emailMessage,
       }
-      console.log(data)
-      //return mailgun.messages().send(data)
-      //  .then(emailResult => ({
-      //    emailResult,
-      //    order
-      //  }));
+      return mailgun.messages().send(data)
+        .then(emailResult => ({
+          emailResult,
+          order
+        }));
     }
 
     return getOrder(orderId)
