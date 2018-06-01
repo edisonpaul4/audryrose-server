@@ -17,7 +17,7 @@ exports.StatsController = new class StatsCrontroller {
       //return OrdersModel.getOrderProductsByFilters(
       //  { limit: 10000,greaterOrEqual: [{ key: 'createdAt', value: moment('20180128').toDate() }] }).find().then(productOrders => {
       console.log('done order product')
-      return ReturnsModel.getReturnsByFilters({ limit: 100000 }).find().then(productReturns => {
+      return ReturnsModel.getReturnsByFilters({ limit: 100000, greaterOrEqual: [{ key: 'createdAt', value: moment('20180101').toDate() }] }).find().then(productReturns => {
         console.log('done return')
         return Promise.all(products.map(product => this.createProductStatsObject(product, null, productReturns)))
       })
@@ -34,7 +34,7 @@ exports.StatsController = new class StatsCrontroller {
     // _.filter(productOrders,result => result.get('product_id') == productObject.get('productId')).map(result => countingSold += result.get('quantity'))
 
     return OrdersModel.getOrderProductsByFilters(
-      { limit: 10000, equal: [{ key: 'product_id', value: productObject.get('productId') }] }).find().then(productOrders => {
+      { limit: 10000, equal: [{ key: 'product_id', value: productObject.get('productId') }], greaterOrEqual: [{ key: 'createdAt', value: moment('20180101').toDate() }] }).find().then(productOrders => {
         productOrders.map(result => countingSold += result.get('quantity'))
         return {
           productId: productObject.get('productId'),
