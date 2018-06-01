@@ -93,3 +93,10 @@ Parse.Cloud.define('sendReturnEmail', function(req, res) {
     .then(data => res.success(data))
     .catch(error => res.error(error));
 })
+
+Parse.Cloud.define('deleteReturn', function(req, res) {
+  const { returnId } = req.params;
+  return ReturnsController.deleteReturn(returnId)
+    .then(data => res.success(data))
+    .catch(error => res.error(error));
+})

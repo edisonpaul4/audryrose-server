@@ -11,11 +11,18 @@ exports.ReturnsController = new class ReturnsController {
   constructor() {
     this.Return = new Parse.Object.extend('Return');
   }
-
+  
+  deleteReturn(returnId){
+    return ReturnsModel.getReturnsByFilters({equal: [{ key: 'objectId', value: returnId }]}).first().then(result =>{
+      return result.set('deleted', true).save().then(() => {return returnId;})
+    })
+  }
+  
   getReturnsWithInformation() {
     return ReturnsModel.getReturnsByFilters({
       includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment','shippoReturnData'],
-      limit: 1000
+      limit: 1000,
+      notEqual: [{key:'deleted', value:true}]
     }).find()
       .then(returnsObjects => returnsObjects.map(returnObject => this.minifyReturnForFrontEnd(returnObject)));
   }
