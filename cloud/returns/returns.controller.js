@@ -186,7 +186,9 @@ exports.ReturnsController = new class ReturnsController {
         { key: 'checkedInEmailSended', value: false },
         { key: 'checkedInAt', value: null }
       ],
-      notEqual:[{key:'emailDeleted', key: true}]
+      notEqual:[
+        {key:'emailDeleted', value: true}
+      ]
     });
     
     const checkedInReturnsEmails = ReturnsModel.getReturnsByFilters({
