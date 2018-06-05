@@ -75,18 +75,20 @@ Parse.Cloud.define('getFollowUpEmails', function (request, response) {
           return customer;
         })
         PromiseB.map(customers, PromiseB.props).then(result => { response.success(result) })
-      }).catch(error => console.log(error));
+      }).catch(error => response.error(error));
   })
 })
 Parse.Cloud.define('deleteFollowUpEmail', function (request, response) {
-  console.log(request)
   customerQuery = new Parse.Query(Customer);
   customerQuery.equalTo('customerId', request.params.customerId)
-  customerQuery.first().then(customer =>{
+  customerQuery.first().then(customer => {
     customer.set('followUpEmailDeleted', true);
-    console.log(customer.toJSON())
-    customer.save().then(()=>response.success({customerId: customer.get('customerId')}))
+    customer.save().then(() => response.success({ customerId: customer.get('customerId') }))
   })
+})
+
+Parse.Cloud.define('sendFollowUpEmail', function (request, response) {
+  
 })
 /////////////////////////
 //  BEFORE SAVE        //

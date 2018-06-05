@@ -16,4 +16,19 @@ exports.CustomersController = new class CustomersController {
     }).first().then(object => json ? object.toJSON() : object);
   } // END fixClearedVendorOrdersResults
 
+  sendEmailToCustomer(order, emailParams) {
+    const data = {
+      from: 'tracy@loveaudryrose.com',
+      to: `${order.get('customer').get('firstName') + ' ' + order.get('customer').get('lastName')} <${process.env.NODE_ENV === 'production' ? order.get('billing_address').email : 'ejas94@gmail.com'}>`,
+      cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <arrieta.e@outlook.com>',
+      subject: emailParams.emailSubject,
+      text: emailParams.emailMessage,
+    }
+    return mailgun.messages().send(data)
+      .then(emailResult => ({
+        emailResult,
+        order
+      })
+    );
+  }
 }
