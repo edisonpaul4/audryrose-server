@@ -11,37 +11,37 @@ exports.ReturnsController = new class ReturnsController {
   constructor() {
     this.Return = new Parse.Object.extend('Return');
   }
-  
-  deleteReturn(returnId){
-    return ReturnsModel.getReturnsByFilters({equal: [{ key: 'objectId', value: returnId }]}).first().then(result =>{
-      return result.set('deleted', true).save().then(() => {return returnId;})
+
+  deleteReturn(returnId) {
+    return ReturnsModel.getReturnsByFilters({ equal: [{ key: 'objectId', value: returnId }] }).first().then(result => {
+      return result.set('deleted', true).save().then(() => { return returnId; })
     })
   }
 
-  deleteReturnEmail(returnId){
-    return ReturnsModel.getReturnsByFilters({equal: [{ key: 'objectId', value: returnId }]}).first().then(result =>{
-      return result.set('emailDeleted', true).save().then(() => {return returnId;})
+  deleteReturnEmail(returnId) {
+    return ReturnsModel.getReturnsByFilters({ equal: [{ key: 'objectId', value: returnId }] }).first().then(result => {
+      return result.set('emailDeleted', true).save().then(() => { return returnId; })
     })
   }
 
   getReturnsWithInformation() {
     return ReturnsModel.getReturnsByFilters({
-      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment','shippoReturnData'],
+      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment', 'shippoReturnData'],
       limit: 1000,
-      notEqual: [{key:'deleted', value:true}]
+      notEqual: [{ key: 'deleted', value: true }]
     }).find()
       .then(returnsObjects => returnsObjects.map(returnObject => this.minifyReturnForFrontEnd(returnObject)));
   }
 
   createOrderProductReturn({ order, orderProduct, customer, product, productVariant, orderShipment, options, returnTypeId }) {
-    if ((typeof order === 'undefined' || order === null) 
-        || (typeof orderProduct === 'undefined' || orderProduct === null)
-        || (typeof customer === 'undefined' || customer === null)
-        || (typeof product === 'undefined' || product === null)
-        || (typeof productVariant === 'undefined' || productVariant === null)
-        || (typeof orderShipment === 'undefined' || orderShipment === null)
-        || (typeof options === 'undefined' || options === null)
-        || (typeof returnTypeId === 'undefined' || returnTypeId === null)) {
+    if ((typeof order === 'undefined' || order === null)
+      || (typeof orderProduct === 'undefined' || orderProduct === null)
+      || (typeof customer === 'undefined' || customer === null)
+      || (typeof product === 'undefined' || product === null)
+      || (typeof productVariant === 'undefined' || productVariant === null)
+      || (typeof orderShipment === 'undefined' || orderShipment === null)
+      || (typeof options === 'undefined' || options === null)
+      || (typeof returnTypeId === 'undefined' || returnTypeId === null)) {
       return Promise.reject('missing parameters');
     }
 
@@ -83,7 +83,7 @@ exports.ReturnsController = new class ReturnsController {
           orderProduct: updatedOrderProduct
         }));
     }
-    
+
     // return createNewReturn({})
     return this.createReturnLabel(order, orderShipment)
       .then(createNewReturn)
@@ -100,9 +100,9 @@ exports.ReturnsController = new class ReturnsController {
     return shippo.transaction.create({
       shipment: {
         "object_purpose": "PURCHASE",
-        "address_from": { 
+        "address_from": {
           ...address_from,
-          object_purpose: "PURCHASE" 
+          object_purpose: "PURCHASE"
         },
         "address_to": {
           ...address_to,
@@ -130,22 +130,22 @@ exports.ReturnsController = new class ReturnsController {
       else
         throw { success: false, message: 'Return already checked in' };
     }
-    
+
     const setReturnAsCheckedIn = returnObject => {
       const returnTypeId = returnObject.get('returnTypeId');
       let newReturnStatusId;
-      switch(returnTypeId) {
+      switch (returnTypeId) {
         case 1:
           newReturnStatusId = 1;
-        break;
+          break;
 
         case 2:
           newReturnStatusId = 2;
-        break;
+          break;
 
         default:
           newReturnStatusId = 5;
-        break;
+          break;
       }
       return returnObject
         .set('checkedInAt', new Date())
@@ -186,11 +186,11 @@ exports.ReturnsController = new class ReturnsController {
         { key: 'checkedInEmailSended', value: false },
         { key: 'checkedInAt', value: null }
       ],
-      notEqual:[
-        {key:'emailDeleted', value: true}
+      notEqual: [
+        { key: 'emailDeleted', value: true }
       ]
     });
-    
+
     const checkedInReturnsEmails = ReturnsModel.getReturnsByFilters({
       equal: [
         { key: 'checkedInEmailSended', value: false },
@@ -225,7 +225,7 @@ exports.ReturnsController = new class ReturnsController {
         returnObject.set('requestReturnEmailSended', true);
       else if (returnObject.get('requestReturnEmailSended') && returnObject.get('returnStatusId') !== 0)
         returnObject.set('checkedInEmailSended', true);
-      else 
+      else
         return Promise.reject(`There is a problem sending the email about the return #${returnObject.id}`)
 
       return returnObject.save();
@@ -235,12 +235,12 @@ exports.ReturnsController = new class ReturnsController {
       if (typeof returnObject.get('shippoReturnData').label_url === 'undefined')
         return Promise.reject(`This shipment wasn't made with Shippo so is not possible to make the automatic return with it.`);
 
-        return request
+      return request
         .defaults({ encoding: null })
         .get(returnObject.get('shippoReturnData').label_url)
         .then(label => {
-          const attch = new mailgun.Attachment({ 
-            data: label, 
+          const attch = new mailgun.Attachment({
+            data: label,
             filename: 'label.pdf',
             contentType: 'application/pdf'
           });
@@ -255,7 +255,7 @@ exports.ReturnsController = new class ReturnsController {
             attachment: !returnObject.get('requestReturnEmailSended') ? attch : null
           }
         })
-        .then(message => mailgun.messages().send(message)) 
+        .then(message => mailgun.messages().send(message))
         .then(emailResult => returnObject);
     }
 
@@ -298,7 +298,8 @@ exports.ReturnsController = new class ReturnsController {
       returnStatusId: returnObject.get('returnStatusId'),
       returnType: returnObject.get('returnType'),
       returnTypeId: returnObject.get('returnTypeId'),
-      shippoInfo: returnObject.get('shippoReturnData')
+      shippoInfo: returnObject.get('shippoReturnData'),
+      emailDeleted: returnObject.get('emailDeleted')
     }
   }
 
@@ -321,6 +322,6 @@ exports.ReturnsController = new class ReturnsController {
       'completed'
     ];
     return typeof index !== 'undefined' ? returnStatuses[index] : returnStatuses;
-  }  
+  }
 
 }
