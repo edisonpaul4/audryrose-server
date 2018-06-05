@@ -33,6 +33,7 @@ Parse.Cloud.define('getFollowUpEmails', function (request, response) {
   Customer1Orders.greaterThanOrEqualTo('totalSpend', 850);
   var mainQuery = Parse.Query.or(Customer1Orders, Customer2Orders);
   mainQuery.notEqualTo('followUpEmailDeleted', true);
+  mainQuery.notEqualTo('isFollowUpEmailSended', true);
   return mainQuery.find().then(customers => {
     var ordersQuery;
     return customers = Promise.all(customers.map(customer => {
@@ -87,9 +88,16 @@ Parse.Cloud.define('deleteFollowUpEmail', function (request, response) {
   })
 })
 
-Parse.Cloud.define('sendFollowUpEmail', function (request, response) {
-  
-})
+Parse.Cloud.define("sendFollowUpEmail", (req, res) => {
+  logInfo('sendFollowUpEmail cloud function --------------------------', true);
+  var startTime = moment();
+  CustomersController.sendOrderEmail(req.params.orderId, req.params.emailParams)
+    .then(order => {
+      logInfo('sendFollowUpEmail completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+      res.success(order);
+    })
+    .catch(error => res.error(error));
+});
 /////////////////////////
 //  BEFORE SAVE        //
 /////////////////////////
