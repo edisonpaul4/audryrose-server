@@ -1,5 +1,4 @@
 const { ProductsModel } = require('../products/products.model');
-const { ReturnsModel } = require('../returns/returns.model');
 
 exports.StatsController = new class StatsCrontroller {
   constructor() {}

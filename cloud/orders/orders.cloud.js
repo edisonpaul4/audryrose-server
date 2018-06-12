@@ -5,7 +5,7 @@ var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 var hummus = require('hummus');
 var streams = require('memory-streams');
-var PDFRStreamForBuffer = require('../../lib/pdfr-stream-for-buffer.js');
+var PDFRStreamForBuffer = require('../utils/pdfr-stream-for-buffer');
 
 const { OrdersController } = require('./orders.controller');
 const { ProductsController } = require('../products/products.controller');
