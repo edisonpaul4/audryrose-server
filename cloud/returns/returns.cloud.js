@@ -2,14 +2,14 @@
 // bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 
 // controllers
-const { ReturnsController } = require('./returns/returns.controller');
+const { ReturnsController } = require('./returns.controller');
 
 // models
-const { ReturnsModel } = require('./returns/returns.model');
-const { OrdersModel } = require('./orders/orders.model');
-const { CustomersModel } = require('./customers/customers.model');
-const { ProductsModel } = require('./products/products.model');
-const { ShipmentsModel } = require('./shipments/shipments.model');
+const { ReturnsModel } = require('./returns.model');
+const { OrdersModel } = require('../orders/orders.model');
+const { CustomersModel } = require('../customers/customers.model');
+const { ProductsModel } = require('../products/products.model');
+const { ShipmentsModel } = require('../shipments/shipments.model');
 
 Parse.Cloud.define('createReturn', function(req, res) {
   const { returnTypeId, products } = req.params;
@@ -104,6 +104,13 @@ Parse.Cloud.define('deleteReturn', function(req, res) {
 Parse.Cloud.define('deleteReturnEmail', function(req, res) {
   const { returnId } = req.params;
   return ReturnsController.deleteReturnEmail(returnId)
+    .then(data => res.success(data))
+    .catch(error => res.error(error));
+})
+
+Parse.Cloud.define('updateResizeSize', function(req, res){
+  const { returnId, newSize } = req.params;
+  return ReturnsController.updateResizeSize(returnId, newSize)
     .then(data => res.success(data))
     .catch(error => res.error(error));
 })

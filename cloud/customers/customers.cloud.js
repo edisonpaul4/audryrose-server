@@ -7,8 +7,8 @@ var PromiseB = require("bluebird");
 var Product = Parse.Object.extend('Product');
 var Customer = Parse.Object.extend('Customer');
 var Order = Parse.Object.extend('Order');
-const { CustomersController } = require('./customers/customers.controller');
-const { ProductsController } = require('./products/products.controller');
+const { CustomersController } = require('./customers.controller');
+const { ProductsController } = require('../products/products.controller');
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
 // Set up Bigcommerce API

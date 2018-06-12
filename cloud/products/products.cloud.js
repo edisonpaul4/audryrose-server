@@ -3,9 +3,9 @@ var moment = require('moment-timezone');
 var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 
-var { ProductsController } = require('./products/products.controller');
-var { StatsController } = require('./stats/stats.controller')
-var { ReturnsModel } = require('./returns/returns.model');
+var { ProductsController } = require('./products.controller');
+var { StatsController } = require('../stats/stats.controller')
+var { ReturnsModel } = require('../returns/returns.model');
 
 var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');

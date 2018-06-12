@@ -5,10 +5,10 @@ var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 var hummus = require('hummus');
 var streams = require('memory-streams');
-var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
+var PDFRStreamForBuffer = require('../../lib/pdfr-stream-for-buffer.js');
 
-const { OrdersController } = require('./orders/orders.controller');
-const { ProductsController } = require('./products/products.controller');
+const { OrdersController } = require('./orders.controller');
+const { ProductsController } = require('../products/products.controller');
 
 var Order = Parse.Object.extend('Order');
 var Customer = Parse.Object.extend('Customer');

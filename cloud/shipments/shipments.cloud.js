@@ -6,7 +6,7 @@ var bugsnag = require("bugsnag");
 var Product = Parse.Object.extend('Product');
 var Order = Parse.Object.extend('Order');
 var OrderShipment = Parse.Object.extend('OrderShipment');
-const { ShipmentsController } = require('./shipments/shipments.controller');
+const { ShipmentsController } = require('./shipments.controller');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
