@@ -33,6 +33,19 @@ exports.ReturnsController = new class ReturnsController {
       .then(returnsObjects => returnsObjects.map(returnObject => this.minifyReturnForFrontEnd(returnObject)));
   }
 
+  updateResizeSize(returnId, newSize) {
+    return ReturnsModel.getReturnsByFilters({
+      equal: [{ key: 'objectId', value: returnId }],
+      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment', 'shippoReturnData']
+    }).first()
+      .then(returnObject => {
+        returnObject.set('returnOptions', [{ optionType: 'resize', newSize: newSize }]);
+        returnObject.save();
+        return returnObject;
+      })
+      .then(returnsObject => this.minifyReturnForFrontEnd(returnsObject));
+  }
+  
   createOrderProductReturn({ order, orderProduct, customer, product, productVariant, orderShipment, options, returnTypeId }) {
     if ((typeof order === 'undefined' || order === null)
       || (typeof orderProduct === 'undefined' || orderProduct === null)

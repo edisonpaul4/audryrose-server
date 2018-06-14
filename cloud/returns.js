@@ -107,3 +107,10 @@ Parse.Cloud.define('deleteReturnEmail', function(req, res) {
     .then(data => res.success(data))
     .catch(error => res.error(error));
 })
+
+Parse.Cloud.define('updateResizeSize', function(req, res){
+  const { returnId, newSize } = req.params;
+  return ReturnsController.updateResizeSize(returnId, newSize)
+  .then(data => res.success(data))
+  .catch(error => res.error(error));
+  })
