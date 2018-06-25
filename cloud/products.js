@@ -93,7 +93,6 @@ Parse.Cloud.define("getProducts", function(request, response) {
       var designerQuery = new Parse.Query(Designer);
       designerQuery.equalTo('name', filters.designer);
       productsQuery.matchesQuery('designer', designerQuery);
-      console.log('DENTRO IF');
     }
 
     if (filters.price && filters.price != 'all') {
@@ -165,6 +164,7 @@ Parse.Cloud.define("getProducts", function(request, response) {
 
   tabCountsQuery.first().then(function(result) {
     var productsCount;
+    result.add
     if (result) {
       _.each(result.get('metrics'), function(metric) {
         switch (metric.get('slug')) {
@@ -193,7 +193,6 @@ Parse.Cloud.define("getProducts", function(request, response) {
         }
       });
     }
-    console.log('BBB');
     if (productsCount == undefined || (filters.hiddenProducts && filters.hiddenProducts == 'true') || filters.designer) {
       logInfo('count em')
       return productsQuery.count();
@@ -226,12 +225,9 @@ Parse.Cloud.define("getProducts", function(request, response) {
     }
     totalPages = Math.ceil(totalProducts / PRODUCTS_PER_PAGE);
     productsQuery.skip((currentPage - 1) * PRODUCTS_PER_PAGE);
-    console.log('CCC', totalPages);
-    console.log('CCC2', totalProducts);
     return productsQuery.find({useMasterKey:true});
 
   }).then(function(products) {
-    console.log(products[0].get('inventoryOnHand'))
     logInfo('getProducts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
 	  response.success({products: products, totalPages: totalPages, totalProducts: totalProducts, tabCounts: tabCounts});
 
@@ -2245,6 +2241,7 @@ Parse.Cloud.define("getProductStats", (req, res) => {
     .then(r => res.success(r))
     .catch(e => res.error(e));
 })
+
 
 
 /////////////////////////

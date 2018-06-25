@@ -45,7 +45,7 @@ exports.ReturnsController = new class ReturnsController {
       })
       .then(returnsObject => this.minifyReturnForFrontEnd(returnsObject));
   }
-  
+
   createOrderProductReturn({ order, orderProduct, customer, product, productVariant, orderShipment, options, returnTypeId }) {
     if ((typeof order === 'undefined' || order === null)
       || (typeof orderProduct === 'undefined' || orderProduct === null)
@@ -312,7 +312,9 @@ exports.ReturnsController = new class ReturnsController {
       returnType: returnObject.get('returnType'),
       returnTypeId: returnObject.get('returnTypeId'),
       shippoInfo: returnObject.get('shippoReturnData'),
-      emailDeleted: returnObject.get('emailDeleted')
+      emailDeleted: returnObject.get('emailDeleted'),
+      pictureUrl: returnObject.get('pictureUrl') ? returnObject.get('pictureUrl') : null,
+      productId: returnObject.get('productId')
     }
   }
 
@@ -335,6 +337,29 @@ exports.ReturnsController = new class ReturnsController {
       'completed'
     ];
     return typeof index !== 'undefined' ? returnStatuses[index] : returnStatuses;
+  }
+  getRepairsPictures(productId) {
+    return ReturnsModel.getReturnsByFilters({ equal: [{ key: 'productId', value: productId }] }).find().then(results => {
+      let urls = [];
+      results = results.map(result => result.get('pictureUrl')).filter(results => results != undefined);
+      urls = results[0];
+      if (results.length > 1) {
+        for(a = 1; a < results.length; a++){
+          urls.concat(results[a])
+        }
+      } 
+      return urls;
+    })
+  }
+  saveRepairPicture(returnId, fileUrl) {
+    return ReturnsModel.getReturnsByFilters({ equal: [{ key: 'objectId', value: returnId }],
+    includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment', 'shippoReturnData'] }).first().then(result => {
+      result.add('pictureUrl', fileUrl);
+      return result.save().then(saved => {
+        return this.minifyReturnForFrontEnd(saved);
+      })
+
+    })
   }
 
 }
