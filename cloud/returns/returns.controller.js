@@ -339,16 +339,9 @@ exports.ReturnsController = new class ReturnsController {
     return typeof index !== 'undefined' ? returnStatuses[index] : returnStatuses;
   }
   getRepairsPictures(productId) {
-    return ReturnsModel.getReturnsByFilters({ equal: [{ key: 'productId', value: productId }] }).find().then(results => {
-      let urls = [];
-      results = results.map(result => result.get('pictureUrl')).filter(results => results != undefined);
-      urls = results[0];
-      if (results.length > 1) {
-        for(a = 1; a < results.length; a++){
-          urls.concat(results[a])
-        }
-      } 
-      return urls;
+    return ReturnsModel.getReturnsByFilters({ equal: [{ key: 'productId', value: productId }, { key: 'returnTypeId', value: 1}] }).find().then(results => {
+      results = results.filter(results => results.get('pictureUrl') != undefined);
+      return results;
     })
   }
   saveRepairPicture(returnId, fileUrl) {
