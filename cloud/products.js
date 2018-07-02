@@ -1067,7 +1067,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
   	return promise;
 
   }).then(function(result) {
-    logInfo('get product tab counts');
+    logInfo('get product tab counts2');
 
     return Parse.Cloud.run('updateProductTabCounts');
 
@@ -1337,15 +1337,15 @@ Parse.Cloud.define("addToVendorOrder", function(request, response) {
 
   }).then(function(result) {
 
-    logInfo('get product tab counts');
-    return Parse.Cloud.run('updateProductTabCounts');
+   // logInfo('get product tab counts3');
+    //return Parse.Cloud.run('updateProductTabCounts');
 
   }).then(function(result) {
     logInfo('success');
-    tabCounts = result;
+   // tabCounts = result;
     logInfo('addToVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
-	  response.success({updatedProducts: updatedProducts, updatedDesigners: updatedDesigners, tabCounts: tabCounts});
+	  response.success({updatedProducts: updatedProducts, updatedDesigners: updatedDesigners/*, tabCounts: tabCounts*/});
 
 	});
 
@@ -1609,7 +1609,7 @@ Parse.Cloud.define("createResize", function(request, response) {
       logInfo('get order tab counts');
       return Parse.Cloud.run('updateOrderTabCounts');
     } else {
-      logInfo('get product tab counts');
+      logInfo('get product tab counts4');
       return Parse.Cloud.run('updateProductTabCounts');
     }
 
@@ -1821,7 +1821,7 @@ Parse.Cloud.define("saveResize", function(request, response) {
   }).then(function(results) {
     logInfo('variants loaded');
     updatedVariants = results;
-    logInfo('get product tab counts');
+    logInfo('get product tab counts1');
     return Parse.Cloud.run('updateProductTabCounts');
 
   }).then(function(result) {
@@ -1857,7 +1857,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
   var completed = false;
   setTimeout(function() {
     if (!completed) response.success({timeout: 'Your request is still processing, please reload the page.'});
-  }, 20000);
+  }, 25000);
 
   var awaitingInventory = [];
   var orderProductsIneligible = [];
@@ -1873,7 +1873,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     var resizeObjects = results;
     logInfo(resizeObjects.length ? resizeObjects.length + ' resizes to parse' : 'No resizes to parse');
     if (resizeObjects.length) {
-      _.each(resizeObjects, function(resizeObject) {
+      _.map(resizeObjects, function(resizeObject) {
           if (resizeObject.get('done') == false/* && !resizeObject.has('orderProduct')*/) {
             // logInfo('resize ' + resizeObject.id + ' is available for queue');
             var numAvailable = resizeObject.get('units') - resizeObject.get('received');
@@ -1896,8 +1896,8 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     var vendorOrders = results;
     logInfo(vendorOrders.length ? vendorOrders.length + ' vendor orders to parse' : 'No vendor orders to parse');
     if (vendorOrders.length) {
-      _.each(vendorOrders, function(vendorOrder) {
-        _.each(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
+      _.map(vendorOrders, function(vendorOrder) {
+        _.map(vendorOrder.get('vendorOrderVariants'), function(vendorOrderVariant) {
           if (vendorOrderVariant.get('done') == false /*&& !vendorOrderVariant.has('orderProducts')*/) {
             // logInfo('vendorOrderVariant ' + vendorOrderVariant.id + ' is available for queue');
             var numAvailable = vendorOrderVariant.get('units') - vendorOrderVariant.get('received');
@@ -1921,7 +1921,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
     var orders = results;
     logInfo(orders.length ? orders.length + ' orders to parse' : 'No orders to parse');
     if (orders.length) {
-      _.each(orders, function(order) {
+      _.map(orders, function(order) {
         _.each(order.get('orderProducts'), function(orderProduct) {
           var eligible = true;
           if (orderProduct.get('quantity_shipped') >= orderProduct.get('quantity')) eligible = false;
@@ -1953,7 +1953,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
         var orderProductAwaitingInventory = [];
         var orderProductAwaitingInventoryVendorOrders = [];
         var variants = orderProduct.has('editedVariants') ? orderProduct.get('editedVariants') : orderProduct.has('variants') ? orderProduct.get('variants') : [];
-        _.each(variants, function(variant) {
+        _.map(variants, function(variant) {
           awaitingInventory = awaitingInventory.map(function(item) {
             // if (orderProduct.get('order_id') === 8751) logInfo(item.object.get('variant').id + ':' + variant.id)
             if (item.object.get('variant').id == variant.id && item.available > 0) {
