@@ -97,7 +97,7 @@ exports.ProductsController = new class ProductsController {
     var parseToCSVRows = responseProducts => {
       return new Promise((resolve, reject) => {
 
-        var fields = ["Dated Added", "Bigcommerce SKU", "Audry Rose Name", "Designer Name", "Designer", "Retail Price", "Wholesale Price", "Class", "Size Scale", "Status ", "Act OH", "Total awaiting", "Color", "OH size 2", "OH size 2.5", "OH size 3", "OH size 3.5", "OH size 4", "OH size 4.5", "OH size 5", "OH size 6.5", "OH size 6", "OH size 7", "OH size 7.5", "OH size 8", "OH size 8.5", "OH size 9", "OH size 9.5", "OH size 10", "OH size 10.5", "OH size 11", "awating size 2", "awating size 2.5", "awating size 3", "awating size 3.5", "awating size 4", "awating size 4.5", "awating size 5", "awating size 6.5", "awating size 6", "awating size 7", "awating size 7.5", "awating size 8", "awating size 8.5", "awating size 9", "awating size 9.5", "awating size 10", "awating size 10.5", "awating size 11"];
+        var fields = ["Dated Added", "Bigcommerce SKU", "Audry Rose Name", "Designer Name", "Designer", "Retail Price", "Wholesale Price", "Class", "Size Scale", "Status ", "Act OH", "Total awaiting", "Color", "OH size 2", "OH size 2.5", "OH size 3", "OH size 3.5", "OH size 4", "OH size 4.5", "OH size 5", "OH size 5.5",  "OH size 6","OH size 6.5", "OH size 7", "OH size 7.5", "OH size 8", "OH size 8.5", "OH size 9", "OH size 9.5", "OH size 10", "OH size 10.5", "OH size 11", "awating size 2", "awating size 2.5", "awating size 3", "awating size 3.5", "awating size 4", "awating size 4.5", "awating size 5", "awating size 6.5", "awating size 6", "awating size 7", "awating size 7.5", "awating size 8", "awating size 8.5", "awating size 9", "awating size 9.5", "awating size 10", "awating size 10.5", "awating size 11"];
 
         var productsRows = responseProducts.reduce((allProducts, currentProduct) => {
           var csvRows = allProducts || [];
@@ -163,7 +163,7 @@ exports.ProductsController = new class ProductsController {
 
     var filters = {
       includes: ["designer", "classification", "variants", "variants.colorCode"],
-      limit: 1000,
+      limit: 10000,
       notEqual: [
         { key: 'isBundle', value: true },
       ],
