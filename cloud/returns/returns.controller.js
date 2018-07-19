@@ -264,7 +264,7 @@ exports.ReturnsController = new class ReturnsController {
             to: emailToSend,
             cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <edisonpaul4@gmail.com>',
             subject: emailSubject,
-            html: '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="ie=edge"><style>a{display:none;}</style><title></title></head><body><p>' + emailText.replace(/\n/g, '<br>') + '</p></body></html >',
+            html: '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="ie=edge"><style>a{display:none;}</style><title></title></head><body><p>' + emailText.replace(/\n/g, '<br>') + '</p></body></html>',
             attachment: !returnObject.get('requestReturnEmailSended') ? attch : null
           }
         })
@@ -287,6 +287,7 @@ exports.ReturnsController = new class ReturnsController {
     const product = returnObject.get('product');
     const classification = product.get('classification');
     const customer = returnObject.get('customer');
+    const variant = returnObject.get('productVariant');
     return {
       id: returnObject.id,
       dateRequested: moment(returnObject.get('createdAt')).toISOString(),
@@ -314,7 +315,8 @@ exports.ReturnsController = new class ReturnsController {
       shippoInfo: returnObject.get('shippoReturnData'),
       emailDeleted: returnObject.get('emailDeleted'),
       pictureUrl: returnObject.get('pictureUrl') ? returnObject.get('pictureUrl') : null,
-      productId: returnObject.get('productId')
+      productId: returnObject.get('productId'),
+      originalSize: variant.get('size_value') ? variant.get('size_value') : null
     }
   }
 
