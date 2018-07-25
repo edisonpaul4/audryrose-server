@@ -14,6 +14,15 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
    * @returns {Promise} - Array of objects
    * @param {Object} params - base query params
    */
+  getDesigners (params) {
+    const designersQuery = new Parse.Query(this.Designer);
+    return this.searchDatabase(params, designersQuery);
+  }
+
+  /**
+   * @returns {Promise} - Array of objects
+   * @param {Object} params - base query params
+   */
   getVendorOrdersByFilters(params) {
     const ordersQuery = new Parse.Query(this.VendorOrder);
     return this.searchDatabase(params, ordersQuery);
@@ -27,7 +36,7 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
     const ordersQuery = new Parse.Query(this.VendorOrderVariant);
     return this.searchDatabase(params, ordersQuery);
   } // END getVendorOrdersVariantsByFilters
-  
+
   finishVendorOrder(vendorOrderNumber){
     console.log('DesignersModel::finishVendorOrder => searching order with vendorOrderNumber:', vendorOrderNumber);
     var query = new Parse.Query(this.VendorOrder);
@@ -39,14 +48,14 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
       return new Promise((resolve, reject) => {
         switch (true) {
           case typeof vendorOrder === 'undefined':
-            reject({ 
-              message: `Vendor order ${vendorOrderNumber} doesn't exist.` 
+           reject({
+              message: `Vendor order ${vendorOrderNumber} doesn't exist.`
             });
           break;
 
           case vendorOrder.get('receivedAll') === true:
-            reject({ 
-              message: `Vendor order ${vendorOrderNumber} is already completed.` 
+           reject({
+              message: `Vendor order ${vendorOrderNumber} is already completed.`
             });
           break;
 
@@ -81,7 +90,7 @@ exports.DesignersModel = new class DesignersModel extends BaseModel {
             })
         })
       ).then(list => vendorOrder);
-      
+
     }
 
     var filter = {

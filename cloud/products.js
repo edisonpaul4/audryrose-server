@@ -1984,7 +1984,7 @@ Parse.Cloud.define("updateAwaitingInventoryQueue", function(request, response) {
                 // if (orderProduct.get('order_id') === 8751) logInfo(item.reserved + ' now reserved for ' + variant.get('variantId'));
                 // if (orderProduct.get('order_id') === 8751) logInfo('set awaiting inventory ' + variant.get('variantId') + ' for order ' + orderProduct.get('order_id'));
                 orderProductAwaitingInventory.push(item.object);
-               
+
               } else {
                 // if (orderProduct.get('order_id') === 8751) logInfo('No more available for ' + variant.get('variantId'));
               }
@@ -2246,6 +2246,15 @@ Parse.Cloud.define("getProductStats", (req, res) => {
     .catch(e => res.error(e));
 })
 
+Parse.Cloud.define("getDesignerStats", async function (req, res){
+  try {
+    let stats = await StatsController.getDesignerStats();
+    res.success(stats);
+  } catch (e) {
+    res.error(e);
+  }
+})
+
 
 /////////////////////////
 //  BEFORE SAVE        //
@@ -2304,7 +2313,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
     logInfo('product has no variants');
     product.set('total_stock', 0);
 
-    // Calculate returns 
+    // Calculate returns
     updateReturnRepair(product)
       .then(product => {
         response.success();
@@ -2486,7 +2495,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
 
     }).then(function(result) {
       logInfo('Variants saved');
-      // Calculate returns 
+      // Calculate returns
       return updateReturnRepair(product)
         .then(product => {
           response.success();
@@ -2667,7 +2676,7 @@ Parse.Cloud.afterSave("Product", function(request) {
 
   }).then(function(result) {
     logInfo('Product afterSave success for product ' + productId);
-    
+
   });
 });
 
