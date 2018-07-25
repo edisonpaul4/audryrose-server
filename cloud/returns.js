@@ -93,3 +93,45 @@ Parse.Cloud.define('sendReturnEmail', function(req, res) {
     .then(data => res.success(data))
     .catch(error => res.error(error));
 })
+
+Parse.Cloud.define('deleteReturn', function(req, res) {
+  const { returnId } = req.params;
+  return ReturnsController.deleteReturn(returnId)
+    .then(data => res.success(data))
+    .catch(error => res.error(error));
+})
+
+Parse.Cloud.define('deleteReturnEmail', function(req, res) {
+  const { returnId } = req.params;
+  return ReturnsController.deleteReturnEmail(returnId)
+    .then(data => res.success(data))
+    .catch(error => res.error(error));
+})
+
+Parse.Cloud.define('updateResizeSize', function(req, res){
+  const { returnId, newSize } = req.params;
+  return ReturnsController.updateResizeSize(returnId, newSize)
+  .then(data => res.success(data))
+  .catch(error => res.error(error));
+  })
+
+  Parse.Cloud.define('getRepairsPicturesByProduct',(req, res) =>{
+    const { productId } = req.params;
+    return ReturnsController.getRepairsPictures(productId)
+    .then(data => res.success(data))
+    .catch(error => res.error(error))
+  })
+  
+  Parse.Cloud.define('saveRepairPicture',(req, res) =>{
+    const { returnId, fileUrl } = req.params;
+    return ReturnsController.saveRepairPicture(returnId, fileUrl)
+    .then(data => res.success(data))
+    .catch(error => res.error(error))
+  })
+
+  Parse.Cloud.define('deleteRepairPicture',(req, res) =>{
+    const { productId } = req.params;
+    return ReturnsController.saveRepairPicture(productId)
+    .then(data => res.success(data))
+    .catch(error => res.error(error))
+  })
