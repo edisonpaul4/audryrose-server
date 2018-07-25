@@ -12,23 +12,49 @@ exports.ReturnsController = new class ReturnsController {
     this.Return = new Parse.Object.extend('Return');
   }
 
+  deleteReturn(returnId) {
+    return ReturnsModel.getReturnsByFilters({ equal: [{ key: 'objectId', value: returnId }] }).first().then(result => {
+      return result.set('deleted', true).save().then(() => { return returnId; })
+    })
+  }
+
+  deleteReturnEmail(returnId) {
+    return ReturnsModel.getReturnsByFilters({ equal: [{ key: 'objectId', value: returnId }] }).first().then(result => {
+      return result.set('emailDeleted', true).save().then(() => { return returnId; })
+    })
+  }
+
   getReturnsWithInformation() {
     return ReturnsModel.getReturnsByFilters({
-      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment','shippoReturnData'],
-      limit: 1000
+      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment', 'shippoReturnData'],
+      limit: 1000,
+      notEqual: [{ key: 'deleted', value: true }]
     }).find()
       .then(returnsObjects => returnsObjects.map(returnObject => this.minifyReturnForFrontEnd(returnObject)));
   }
 
+  updateResizeSize(returnId, newSize) {
+    return ReturnsModel.getReturnsByFilters({
+      equal: [{ key: 'objectId', value: returnId }],
+      includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment', 'shippoReturnData']
+    }).first()
+      .then(returnObject => {
+        returnObject.set('returnOptions', [{ optionType: 'resize', newSize: newSize }]);
+        returnObject.save();
+        return returnObject;
+      })
+      .then(returnsObject => this.minifyReturnForFrontEnd(returnsObject));
+  }
+
   createOrderProductReturn({ order, orderProduct, customer, product, productVariant, orderShipment, options, returnTypeId }) {
-    if ((typeof order === 'undefined' || order === null) 
-        || (typeof orderProduct === 'undefined' || orderProduct === null)
-        || (typeof customer === 'undefined' || customer === null)
-        || (typeof product === 'undefined' || product === null)
-        || (typeof productVariant === 'undefined' || productVariant === null)
-        || (typeof orderShipment === 'undefined' || orderShipment === null)
-        || (typeof options === 'undefined' || options === null)
-        || (typeof returnTypeId === 'undefined' || returnTypeId === null)) {
+    if ((typeof order === 'undefined' || order === null)
+      || (typeof orderProduct === 'undefined' || orderProduct === null)
+      || (typeof customer === 'undefined' || customer === null)
+      || (typeof product === 'undefined' || product === null)
+      || (typeof productVariant === 'undefined' || productVariant === null)
+      || (typeof orderShipment === 'undefined' || orderShipment === null)
+      || (typeof options === 'undefined' || options === null)
+      || (typeof returnTypeId === 'undefined' || returnTypeId === null)) {
       return Promise.reject('missing parameters');
     }
 
@@ -70,7 +96,7 @@ exports.ReturnsController = new class ReturnsController {
           orderProduct: updatedOrderProduct
         }));
     }
-    
+
     // return createNewReturn({})
     return this.createReturnLabel(order, orderShipment)
       .then(createNewReturn)
@@ -87,9 +113,9 @@ exports.ReturnsController = new class ReturnsController {
     return shippo.transaction.create({
       shipment: {
         "object_purpose": "PURCHASE",
-        "address_from": { 
+        "address_from": {
           ...address_from,
-          object_purpose: "PURCHASE" 
+          object_purpose: "PURCHASE"
         },
         "address_to": {
           ...address_to,
@@ -117,22 +143,22 @@ exports.ReturnsController = new class ReturnsController {
       else
         throw { success: false, message: 'Return already checked in' };
     }
-    
+
     const setReturnAsCheckedIn = returnObject => {
       const returnTypeId = returnObject.get('returnTypeId');
       let newReturnStatusId;
-      switch(returnTypeId) {
+      switch (returnTypeId) {
         case 1:
           newReturnStatusId = 1;
-        break;
+          break;
 
         case 2:
           newReturnStatusId = 2;
-        break;
+          break;
 
         default:
           newReturnStatusId = 5;
-        break;
+          break;
       }
       return returnObject
         .set('checkedInAt', new Date())
@@ -172,9 +198,12 @@ exports.ReturnsController = new class ReturnsController {
         { key: 'requestReturnEmailSended', value: false },
         { key: 'checkedInEmailSended', value: false },
         { key: 'checkedInAt', value: null }
+      ],
+      notEqual: [
+        { key: 'emailDeleted', value: true }
       ]
     });
-    
+
     const checkedInReturnsEmails = ReturnsModel.getReturnsByFilters({
       equal: [
         { key: 'checkedInEmailSended', value: false },
@@ -209,7 +238,7 @@ exports.ReturnsController = new class ReturnsController {
         returnObject.set('requestReturnEmailSended', true);
       else if (returnObject.get('requestReturnEmailSended') && returnObject.get('returnStatusId') !== 0)
         returnObject.set('checkedInEmailSended', true);
-      else 
+      else
         return Promise.reject(`There is a problem sending the email about the return #${returnObject.id}`)
 
       return returnObject.save();
@@ -219,12 +248,12 @@ exports.ReturnsController = new class ReturnsController {
       if (typeof returnObject.get('shippoReturnData').label_url === 'undefined')
         return Promise.reject(`This shipment wasn't made with Shippo so is not possible to make the automatic return with it.`);
 
-        return request
+      return request
         .defaults({ encoding: null })
         .get(returnObject.get('shippoReturnData').label_url)
         .then(label => {
-          const attch = new mailgun.Attachment({ 
-            data: label, 
+          const attch = new mailgun.Attachment({
+            data: label,
             filename: 'label.pdf',
             contentType: 'application/pdf'
           });
@@ -235,11 +264,11 @@ exports.ReturnsController = new class ReturnsController {
             to: emailToSend,
             cc: process.env.NODE_ENV === 'production' ? 'Audry Rose <tracy@loveaudryrose.com>' : 'Testing <edisonpaul4@gmail.com>',
             subject: emailSubject,
-            html: '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="ie=edge"><style>a{display:none;}</style><title></title></head><body><p>' + emailText.replace(/\n/g, '<br>') + '</p></body></html >',
+            html: '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="ie=edge"><style>a{display:none;}</style><title></title></head><body><p>' + emailText.replace(/\n/g, '<br>') + '</p></body></html>',
             attachment: !returnObject.get('requestReturnEmailSended') ? attch : null
           }
         })
-        .then(message => mailgun.messages().send(message)) 
+        .then(message => mailgun.messages().send(message))
         .then(emailResult => returnObject);
     }
 
@@ -258,6 +287,7 @@ exports.ReturnsController = new class ReturnsController {
     const product = returnObject.get('product');
     const classification = product.get('classification');
     const customer = returnObject.get('customer');
+    const variant = returnObject.get('productVariant');
     return {
       id: returnObject.id,
       dateRequested: moment(returnObject.get('createdAt')).toISOString(),
@@ -282,7 +312,11 @@ exports.ReturnsController = new class ReturnsController {
       returnStatusId: returnObject.get('returnStatusId'),
       returnType: returnObject.get('returnType'),
       returnTypeId: returnObject.get('returnTypeId'),
-      shippoInfo: returnObject.get('shippoReturnData')
+      shippoInfo: returnObject.get('shippoReturnData'),
+      emailDeleted: returnObject.get('emailDeleted'),
+      pictureUrl: returnObject.get('pictureUrl') ? returnObject.get('pictureUrl') : null,
+      productId: returnObject.get('productId'),
+      originalSize: variant.get('size_value') ? variant.get('size_value') : null
     }
   }
 
@@ -305,6 +339,22 @@ exports.ReturnsController = new class ReturnsController {
       'completed'
     ];
     return typeof index !== 'undefined' ? returnStatuses[index] : returnStatuses;
-  }  
+  }
+  getRepairsPictures(productId) {
+    return ReturnsModel.getReturnsByFilters({ equal: [{ key: 'productId', value: productId }, { key: 'returnTypeId', value: 1}] }).find().then(results => {
+      results = results.filter(results => results.get('pictureUrl') != undefined);
+      return results;
+    })
+  }
+  saveRepairPicture(returnId, fileUrl) {
+    return ReturnsModel.getReturnsByFilters({ equal: [{ key: 'objectId', value: returnId }],
+    includes: ['order', 'orderProduct', 'customer', 'product', 'product.classification', 'productVariant', 'orderShipment', 'shippoReturnData'] }).first().then(result => {
+      result.add('pictureUrl', fileUrl);
+      return result.save().then(saved => {
+        return this.minifyReturnForFrontEnd(saved);
+      })
+
+    })
+  }
 
 }

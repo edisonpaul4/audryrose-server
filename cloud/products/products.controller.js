@@ -10,7 +10,7 @@ var { OrdersModel } = require('../orders/orders.model');
 var { DesignersModel } = require('../designers/designers.model');
 
 exports.ProductsController = new class ProductsController {
-  constructor(){ 
+  constructor() {
     this.Product = new Parse.Object.extend('Product');
     this.ProductVariant = new Parse.Object.extend('ProductVariant');
     this.ProductsCSV = new Parse.Object.extend('ProductsCSV');
@@ -29,10 +29,10 @@ exports.ProductsController = new class ProductsController {
    * @param productId<number>
    * @returns Promise<number> - Need to order for products
    */
-  calculateNeedToOrder(productId){      
+  calculateNeedToOrder(productId) {
     var getProductOrders = productId => OrdersController.getOrdersForProduct(productId, {
       greaterOrEqual: [
-        { key: 'createdAt', value: moment().subtract(75, 'days').toDate()}
+        { key: 'createdAt', value: moment().subtract(75, 'days').toDate() }
       ]
     }).then(e => e.length);
 
@@ -46,12 +46,12 @@ exports.ProductsController = new class ProductsController {
       getProductOrders(productId),
       getProduct(productId)
     ]).then(values => {
-        const totalOrders = values[0];
-        const product = values[1];
-        
-        var needToOrderCalc = (totalOrders * .8) - product.get('total_stock') - product.get('totalAwaitingInventory');
-        return needToOrderCalc > 0 && product.get('is_active') ? Math.round(needToOrderCalc) : 0;
-      });
+      const totalOrders = values[0];
+      const product = values[1];
+
+      var needToOrderCalc = (totalOrders * .8) - product.get('total_stock') - product.get('totalAwaitingInventory');
+      return needToOrderCalc > 0 && product.get('is_active') ? Math.round(needToOrderCalc) : 0;
+    });
   }
 
   /**
@@ -59,14 +59,14 @@ exports.ProductsController = new class ProductsController {
    * @param {number} productId 
    */
   getSizesForProduct(productId) {
-    if(typeof productId !== 'number')
+    if (typeof productId !== 'number')
       return Promise.reject().then(() => ({ success: false, message: "The productId field must be a number" }));
 
     return ProductsModel.getProductsByFilters({
       equal: [{ key: 'productId', value: productId }]
     }).first()
       .then(result => {
-        if (result) 
+        if (result)
           return result;
         throw { success: false, message: `The product ${productId} doesn't exist.` };
       })
@@ -75,13 +75,12 @@ exports.ProductsController = new class ProductsController {
         sizes: product.get('sizes')
       }));
   }
-
   /**
    * @returns CSV File url
    */
-  getProductsAsCSV(){
+  getProductsAsCSV() {
 
-    var createCSV = ({fields, productsRows}) => {
+    var createCSV = ({ fields, productsRows }) => {
       return new Promise((resolve, reject) => {
         var writer = new streams.WritableStream();
         writer.write(json2csv({ data: productsRows, fields: fields }));
@@ -98,11 +97,11 @@ exports.ProductsController = new class ProductsController {
     var parseToCSVRows = responseProducts => {
       return new Promise((resolve, reject) => {
 
-        var fields = ["Dated Added", "Bigcommerce SKU", "Audry Rose Name", "Designer Name", "Designer", "Retail Price", "Wholesale Price", "Class", "Size Scale", "Status ", "Act OH", "Total awaiting", "Color", "OH size 2", "OH size 2.5", "OH size 3", "OH size 3.5", "OH size 4", "OH size 4.5", "OH size 5", "OH size 6.5", "OH size 6", "OH size 7", "OH size 7.5", "OH size 8", "OH size 8.5", "OH size 9", "OH size 9.5", "OH size 10", "OH size 10.5", "OH size 11", "awating size 2", "awating size 2.5", "awating size 3", "awating size 3.5", "awating size 4", "awating size 4.5", "awating size 5", "awating size 6.5", "awating size 6", "awating size 7", "awating size 7.5", "awating size 8", "awating size 8.5", "awating size 9", "awating size 9.5", "awating size 10", "awating size 10.5", "awating size 11"];
+        var fields = ["Dated Added", "Bigcommerce SKU", "Audry Rose Name", "Designer Name", "Designer", "Retail Price", "Wholesale Price", "Class", "Size Scale", "Status ", "Act OH", "Total awaiting", "Color", "OH size 2", "OH size 2.5", "OH size 3", "OH size 3.5", "OH size 4", "OH size 4.5", "OH size 5", "OH size 5.5",  "OH size 6","OH size 6.5", "OH size 7", "OH size 7.5", "OH size 8", "OH size 8.5", "OH size 9", "OH size 9.5", "OH size 10", "OH size 10.5", "OH size 11", "awating size 2", "awating size 2.5", "awating size 3", "awating size 3.5", "awating size 4", "awating size 4.5", "awating size 5", "awating size 6.5", "awating size 6", "awating size 7", "awating size 7.5", "awating size 8", "awating size 8.5", "awating size 9", "awating size 9.5", "awating size 10", "awating size 10.5", "awating size 11"];
 
         var productsRows = responseProducts.reduce((allProducts, currentProduct) => {
           var csvRows = allProducts || [];
-  
+
           var currentRow = {
             "Dated Added": moment(currentProduct.createdAt).format("MM-DD-YYYY"),
             "Bigcommerce SKU": currentProduct.sku,
@@ -119,7 +118,7 @@ exports.ProductsController = new class ProductsController {
           };
 
           // Loop if has variants
-          if(typeof currentProduct.variants !== 'undefined'){
+          if (typeof currentProduct.variants !== 'undefined') {
             var variantsRows = [];
             currentProduct.variants.forEach(variant => {
               var index = variantsRows.findIndex(v => v["Color"] == variant.color_label);
@@ -154,7 +153,7 @@ exports.ProductsController = new class ProductsController {
           } else {
             csvRows.push(currentRow);
           }
-          
+
           return csvRows;
         }, []);
 
@@ -164,7 +163,7 @@ exports.ProductsController = new class ProductsController {
 
     var filters = {
       includes: ["designer", "classification", "variants", "variants.colorCode"],
-      limit: 1000,
+      limit: 10000,
       notEqual: [
         { key: 'isBundle', value: true },
       ],
@@ -176,14 +175,14 @@ exports.ProductsController = new class ProductsController {
       .then(createCSV)
 
   } // End getProductsAsCSV
-  
+
   /**
    * @return {ParseObject} Updated Product
    * @param {Number} productId
    */
   updateInventoryOnHandByProductId(productId) {
     if (typeof productId === 'undefined')
-      return Promise.reject({ success: false, message: `The product id #${productId} is not valid.`})
+      return Promise.reject({ success: false, message: `The product id #${productId} is not valid.` })
 
     const getProductById = productId => ProductsModel.getProductsByFilters({
       includes: ["variants"],
@@ -215,16 +214,16 @@ exports.ProductsController = new class ProductsController {
     };
 
     return Promise.all([
-        getProductById(productId),
-        getOrdersByProductId(productId)
+      getProductById(productId),
+      getOrdersByProductId(productId)
     ]).then(checkIfProductAndOrdersExists)
-      .then(data => 
-        Parse.Object.saveAll(data.product.get('variants').map(variant => 
+      .then(data =>
+        Parse.Object.saveAll(data.product.get('variants').map(variant =>
           this.setProductVariantInventoryOnHand(variant, getOrdersProducts(data.orders, data.product.get('productId')))
         ), { useMasterKey: true })
-        .then(updatedVariants => 
-          this.setProductInventoryOnHand(data.product, updatedVariants).save()
-        )
+          .then(updatedVariants =>
+            this.setProductInventoryOnHand(data.product, updatedVariants).save()
+          )
       ).then(product => ({
         success: true,
         product,

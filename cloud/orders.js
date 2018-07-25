@@ -1260,16 +1260,16 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
 
   }).then(function(result) {
     updatedOrder = result;
-
-    return Parse.Cloud.run('updateOrderTabCounts');
+    return updatedOrder;
+    //return Parse.Cloud.run('updateOrderTabCounts');
 
   }).then(function(result) {
-    tabCounts = result;
+   // tabCounts = result;
 
     logInfo('order successfully reloaded');
     logInfo('addOrderProductToVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
-	  response.success({updatedOrders: [updatedOrder], tabCounts: tabCounts});
+	  response.success({updatedOrders: [updatedOrder]});
 
   }, function(error) {
 	  logError(error);
