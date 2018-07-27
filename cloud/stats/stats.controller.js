@@ -37,7 +37,9 @@ exports.StatsController = new class StatsCrontroller {
       product = product.toJSON();
       return {
         productId : product.productId,
-        designer : product.designer
+        designer : product.designer,
+        returned: product.totalReturned ? product.totalReturned : 0,
+        repaired : product.totalRepaired ? product.totalRepaired : 0
       }
     }));
 
@@ -98,9 +100,14 @@ exports.StatsController = new class StatsCrontroller {
       let averageOrderValue = countingSold !== 0 ? revenue / countingSold : 0;
 
       //Check returns and repairs
-      let returnedOrders = await ReturnsModel.getReturnsByFilters({contained: [{key: 'orderProductId', value: ordersFromDesigner.map(order => order.orderProductId)}]}).find();
-      let countingReturn = returnedOrders.filter(result => result.get('returnTypeId') == 0).length;
-      let countingRepair = returnedOrders.filter(result => result.get('returnTypeId') == 1).length;
+      let countingReturn = 0;
+      let countingRepair = 0;
+      productsFromDesigner.map (function (product) {
+        countingReturn += product.returned;
+        countingRepair += product.repaired;
+        return product;
+      })
+      
 
       let returnRate = countingSold !== 0 ? (countingReturn * 100) / countingSold : 0;
       let repairRate = countingSold !== 0 ? (countingRepair * 100) / countingSold : 0;
