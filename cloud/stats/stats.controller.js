@@ -207,5 +207,73 @@ exports.StatsController = new class StatsCrontroller {
 
     return (result);
   }
+  
+  async getProductStatsByDesigner(designerId) {
+    //get the designer and their products
+    let designer = await DesignersModel.getDesigners({equal:[{key:'designerId', value: designerId}]});
+   
+    let productsFromDesigner = await ProductsModel.getProductsByFilters({limit: 10000, includes: ['designer']}).find().then(products => products.map(function(product) {
+      return product.toJSON()
+    }));
+    
+    //filter by designer
+    productsFromDesigner = productsFromDesigner.filter(function (product){    
+      if (product.designer && product.designer.designerId == designerId) {
+        return true;
+      }
+      return false;
+    })
+    
+    let vendorOrders = await DesignersModel.getVendorOrdersByFilters({includes: ['vendorOrderVariants', 'vendorOrderVariants.variant'],
+    limit: 10000}).find().then(vendorOrders => vendorOrders.map(vendorOrder => vendorOrder.toJSON()));
+    
+    let result = [];
+     
+    for (let i=0; i<productsFromDesigner.length; i++) {
+      let product = productsFromDesigner[i];
+      
+      //get the orders from this product
+      let orders = await OrdersModel.getOrderProductsByFilters({limit:100000, equal: [{key: 'product_id', value: product.productId}]}).find().then(ordersFromDesigner => ordersFromDesigner.map(order => order.toJSON()));
+    
+      let checkedIn = 0;
+      vendorOrders = vendorOrders.map(function(vendorOrder){
+        vendorOrder.vendorOrderVariants.map(function(variant){
+          if (variant.variant.productId == product.productId) {
+            checkedIn += variant.units;
+          }
+          return variant;
+        })
+        return vendorOrder;
+      })
+      
+      let onHand = product.inventoryOnHand;
+      let shipped = 0;
+      let orderedAllTime = product.total_sold;
+      
+      //TO DO: filter by date range 
+      
+      orders.map(function (order){
+        //TO DO
+        if (order.quantity_shipped) {
+          shipped += order.quantity_shipped;
+        }
+        return order;
+      })
+      
+      let discrepancy = (checkedIn - (onHand + shipped)) > 0 ? (checkedIn - (onHand + shipped)) : (checkedIn - (onHand + shipped)) * -1;
+      
+      result.push({
+        productId: product.productId,
+        productName: product.name,
+        discrepancy : discrepancy,
+        onHand : onHand,
+        shipped: shipped,
+        checkedIn : checkedIn,
+        orderedAllTime: orderedAllTime
+      })
+    }
+    
+    return result;
+  }
 
 }
