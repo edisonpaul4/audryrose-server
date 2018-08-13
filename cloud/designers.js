@@ -58,6 +58,17 @@ Parse.Cloud.define("updateVendorOrderProduct2", (req, res) => {
   res.success('SUCCESS');
 });
 
+Parse.Cloud.define("getDesignersName", async function (request, response) {
+  try {
+    let designersQuery = new Parse.Query(Designer);
+    designersQuery.limit(10000);
+    let designers = await designersQuery.find().then(function(designers) {return designers.map(function(designer){return designer.toJSON()})});
+    response.success(designers);
+  } catch (error) {
+    response.error(error.message);
+  }
+});
+
 Parse.Cloud.define("getDesigners", function (request, response) {
   logInfo('getDesigners cloud function --------------------------', true);
   var totalDesigners;
@@ -358,7 +369,7 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
     var data = {
       from: 'orders@loveaudryrose.com',
       to: vendor.get('name') + ' <' + vendor.get('email') + '>',
-      cc: isProduction ? 'Audry Rose <orders@loveaudryrose.com>' : 'Testing <hello@jeremyadam.com>',
+      cc: isProduction ? 'Audry Rose <orders@loveaudryrose.com>' : 'Testing <alfonso@test.com>',
       subject: 'Audry Rose Order ' + vendorOrder.get('vendorOrderNumber') + ' - ' + moment().tz('America/Los_Angeles').format('M.D.YY'),
       text: messageProductsText,
       html: messageProductsHTML
@@ -703,6 +714,7 @@ Parse.Cloud.define("addDesignerProductToVendorOrder", function (request, respons
 });
 
 Parse.Cloud.define("updateVendorOrderProduct", (req, res) => {
+  console.log("SAVING -----*-----")
   DesignersController.updateVendorOrderProduct(req.params.options)
     .then(success => res.success(success))
     .catch(error => res.error(error));
@@ -717,7 +729,6 @@ Parse.Cloud.define("updateVendorOrderProduct", (req, res) => {
 
 Parse.Cloud.job("saveVendorOrder", function (request, status) {
   logInfo('saveVendorOrder cloud function --------------------------', true);
-
   var startTime = moment();
 
   var designerId = request.params.data.designerId;
