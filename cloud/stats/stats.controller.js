@@ -248,7 +248,7 @@ exports.StatsController = new class StatsCrontroller {
       
       let onHand = product.inventoryOnHand;
       let shipped = 0;
-      let orderedAllTime = product.total_sold;
+      let orderedAllTime = 0;
       
       //TO DO: filter by date range 
       
@@ -256,6 +256,9 @@ exports.StatsController = new class StatsCrontroller {
         //TO DO
         if (order.quantity_shipped) {
           shipped += order.quantity_shipped;
+        }
+        if (order.quantity) {
+          orderedAllTime += order.quantity;
         }
         return order;
       })
