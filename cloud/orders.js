@@ -112,6 +112,8 @@ Parse.Cloud.define("getOrders", function(request, response) {
       case 'needs-action':
         ordersQuery = getPendingOrderQuery();
         ordersQuery.equalTo('needsAction', true);
+        //ordersQuery.notEqualTo('status', "Shipped")
+        //ordersQuery.notEqualTo('removedFromNeedsAction', true);
         break;
       default:
         ordersQuery.notEqualTo('status', 'Incomplete');
@@ -134,7 +136,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
   tabCountsQuery.equalTo('slug', 'tabCounts');
   tabCountsQuery.descending('createdAt');
   tabCountsQuery.include('metrics');
-
+  Parse.Cloud.run('updateOrderTabCounts');
   tabCountsQuery.first().then(function(result) {
     var ordersCount;
     if (result) {
@@ -200,6 +202,7 @@ Parse.Cloud.define("getOrders", function(request, response) {
 	  response.error(error.message);
 
   }).then(function(ordersResult) {
+    
     logInfo('getOrders completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     if (ordersResult.shippable || ordersResult.partiallyShippable || ordersResult.needsAction) {
       switch (subpage) {
@@ -314,6 +317,7 @@ Parse.Cloud.define("updateOrderTabCounts", function(request, response) {
 
   var needsActonQuery = getPendingOrderQuery();
   needsActonQuery.equalTo('needsAction', true);
+  //needsActonQuery.notEqualTo('removedFromNeedsAction', true);
 
   var resizableQuery = getPendingOrderQuery();
   resizableQuery.equalTo('fullyShippable', false);
@@ -535,7 +539,8 @@ Parse.Cloud.define("saveOrder", function(request, response) {
 
   var orderId = parseInt(request.params.data.orderId);
   var dateNeeded = request.params.data.dateNeeded !== undefined ? request.params.data.dateNeeded : undefined;
-
+  var removedFromNeedsAction =  request.params.data.removedFromNeedsAction !== undefined ? request.params.data.removedFromNeedsAction : undefined;
+  
   var order;
   var updatedOrder;
 
@@ -547,6 +552,12 @@ Parse.Cloud.define("saveOrder", function(request, response) {
       order.set('dateNeeded', dateNeeded);
     } else {
       order.unset('dateNeeded');
+    }
+    if (removedFromNeedsAction!==undefined) {    
+      order.set('removedFromNeedsAction', removedFromNeedsAction);
+      order.get('removedFromNeedsAction')
+    } else {
+      order.unset('removedFromNeedsAction');
     }
     return order.save(null, {useMasterKey: true});
 
@@ -2070,12 +2081,13 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
   if (needsAction) logInfo('needsAction: fullyShippable');
   if (order.get('partiallyShippable') === true) needsAction = true;
   if (needsAction) logInfo('needsAction: partiallyShippable');
-  if (order.has('dateNeeded') && PENDING_ORDER_STATUSES.indexOf(order.get('status_id')) > 0) {
+  //Commented for LS-197
+  /*if (order.has('dateNeeded') && PENDING_ORDER_STATUSES.indexOf(order.get('status_id')) > 0) {
     var dateNeededDiff = moment.utc(order.get('dateNeeded'), moment.ISO_8601).diff(moment().utc(), 'hours');
     var dateNeededThreshold = 5 * 24 // days * hours/day
     if (dateNeededDiff < dateNeededThreshold) needsAction = true;
     if (needsAction) logInfo('needsAction: dateNeeded');
-  }
+  }*/
 
   // Process properties based on OrderProducts - needs to use promises
   if (order.has('orderProducts')) {
@@ -2090,7 +2102,7 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
         nameTerms = _.map(nameTerms, toLowerCase);
         searchTerms = searchTerms.concat(nameTerms);
 
-        // Check if order products need any action
+        // Check if order products need any action //Changes from LS-197
         if (!needsAction && (order.get('status_id') === 11 || order.get('status_id') === 3)) {
           if ((orderProduct.get('quantity_shipped') < orderProduct.get('quantity')) && orderProduct.get('shippable') === false) {
             if ((!orderProduct.has('awaitingInventory') || (orderProduct.has('awaitingInventory') && orderProduct.get('awaitingInventory').length <= 0))
@@ -2109,6 +2121,8 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
       });
       return searchTerms;
     }).then(function() {
+      if (order.get('status')==="Shipped") needsAction = false;
+      if (order.get('removedFromNeedsAction')===true) needsAction = false;
       // Save the array of product ids
       order.set("productIds", orderProductIds);
       // Add the product names as search terms
