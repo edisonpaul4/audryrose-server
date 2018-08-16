@@ -2253,7 +2253,7 @@ Parse.Cloud.define("getDesignerStats", async function (req, res){
 
 Parse.Cloud.define("getProductStatsByDesigner", async function (req,res) {
   try {
-    let stats = await StatsController.getProductStatsByDesigner(req.params.designerId); 
+    let stats = await StatsController.getProductStatsByDesigner(req.params.designerId, req.params.date_from, req.params.date_to); 
     res.success(stats);
   } catch (e) {
     res.error(e);
