@@ -1274,12 +1274,13 @@ Parse.Cloud.define("addOrderProductToVendorOrder", function(request, response) {
     return updatedOrder;
     //return Parse.Cloud.run('updateOrderTabCounts');
 
-  }).then(function(result) {
+  }).then(async function(result) {
    // tabCounts = result;
 
     logInfo('order successfully reloaded');
     logInfo('addOrderProductToVendorOrder completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
+    await updatedOrder.save();
 	  response.success({updatedOrders: [updatedOrder]});
 
   }, function(error) {
@@ -2088,7 +2089,7 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
     if (dateNeededDiff < dateNeededThreshold) needsAction = true;
     if (needsAction) logInfo('needsAction: dateNeeded');
   }*/
-
+  
   // Process properties based on OrderProducts - needs to use promises
   if (order.has('orderProducts')) {
     var orderProducts = order.get('orderProducts');
@@ -2101,7 +2102,7 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
         var nameTerms = orderProduct.get('name').split(' ');
         nameTerms = _.map(nameTerms, toLowerCase);
         searchTerms = searchTerms.concat(nameTerms);
-
+        
         // Check if order products need any action //Changes from LS-197
         if (!needsAction && (order.get('status_id') === 11 || order.get('status_id') === 3)) {
           if ((orderProduct.get('quantity_shipped') < orderProduct.get('quantity')) && orderProduct.get('shippable') === false) {
@@ -2114,7 +2115,7 @@ Parse.Cloud.beforeSave("Order", function(request, response) {
               // Needs action if has awaiting inventory that is within 2 days of expected arrival countdown
               logInfo('check awaiting inventory times');
               var expectedDateDiff = moment.utc(orderProduct.get('awaitingInventoryExpectedDate'), moment.ISO_8601).diff(moment().utc(), 'hours');
-              if (expectedDateDiff < (2 * 24)) needsAction = true;
+              //if (expectedDateDiff < (2 * 24)) needsAction = true;    
             }
           }
         }
