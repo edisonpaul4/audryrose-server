@@ -221,6 +221,12 @@ exports.StatsController = new class StatsCrontroller {
     date_from = date_from ? moment(date_from).toDate() : moment('20000101').toDate();
     date_to = date_to ? moment(date_to).toDate() : moment('21000101').toDate();
     
+    var lastDay = function(y,m) {
+      return  new Date(y, m +1, 0).getDate();
+    }
+    
+    let fullMonth = date_from.getMonth() == date_to.getMonth() &&  date_from.getDate()==1 && lastDay(date_to.getFullYear(), date_to.getMonth()) == date_to.getDate() ? true : false;
+    
     
     //filter by designer
     productsFromDesigner = productsFromDesigner.filter(function (product){    
@@ -264,6 +270,15 @@ exports.StatsController = new class StatsCrontroller {
         }
         return order;
       })
+      
+      if (fullMonth) {
+        let month = date_from.getMonth()+1;
+        let year = date_from.getFullYear();
+        let productStock = await ProductsModel.getProductStockMonthly({includes:['product'], equal: [ { key: 'month', value: month }, { key: 'year', value: year }, {key: 'productId', value: product.productId}]}).find().then(productStockList => productStockList.map(stock => stock.toJSON()));  
+        if (productStock.length > 0) {
+          onHand = productStock[0].onHand;
+        }
+      }
       
       if (onHand !== "N/A") {
         var discrepancy = (checkedIn - (onHand + shipped)) > 0 ? (checkedIn - (onHand + shipped)) : (checkedIn - (onHand + shipped)) * -1;
