@@ -53,6 +53,34 @@ Parse.Cloud.job("test", function(request, status) {
 
 });
 
+Parse.Cloud.job("saveProductStockMonthly", async function (request, status){
+  let date = new Date();
+  let day = date.getUTCDate();
+  if (day !== 1) {
+    status.success("Nothing to do.");
+    return;
+  }
+  //Get previous month
+  date.setMonth(date.getMonth()-1);
+  let month = date.getMonth() + 1; //months go from 0-11
+  let year = date.getFullYear();
+  
+  logInfo('saveProductStockMonthly job --------------------------', true);
+  let products = await ProductsModel.getProductsByFilters({limit: 1000000}).find().then(products => products);
+  
+  for (let i=0; i<products.length; i++) {
+    let product = products[i];
+    let productStock = new Parse.Object('ProductStockMonthly');
+    productStock.set('product', product);
+    productStock.set('productId', product.get('productId'));
+    productStock.set('onHand', product.get('inventoryOnHand'));
+    productStock.set('month', month);
+    productStock.set('year', year);
+    await productStock.save();
+  }
+  status.success("Stock saved.");
+})
+
 Parse.Cloud.job("updateProducts", function(request, status) {
   logInfo('updateProducts job --------------------------', true);
   var totalProducts = 0;

@@ -5,6 +5,7 @@ exports.ProductsModel = new class ProductsModel extends BaseModel {
     super();
     this.Product = Parse.Object.extend('Product');
     this.ProductVariant = Parse.Object.extend('ProductVariant');
+    this.ProductStockMonthly = Parse.Object.extend('ProductStockMonthly');
   }
 
   /**
@@ -23,5 +24,10 @@ exports.ProductsModel = new class ProductsModel extends BaseModel {
   getProductsVariantsByFilters(params) {
     var productsVariantsQuery = new Parse.Query(this.ProductVariant);
     return this.searchDatabase(params, productsVariantsQuery);
+  }
+  
+  getProductStockMonthly(params) {
+    var productStockMonthlyQuery = new Parse.Query(this.ProductStockMonthly);
+    return this.searchDatabase(params, productStockMonthlyQuery);
   }
 }
