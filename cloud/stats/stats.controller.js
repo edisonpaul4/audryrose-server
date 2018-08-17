@@ -2,6 +2,7 @@ const { ProductsModel } = require('../products/products.model');
 const { ReturnsModel } = require('../returns/returns.model');
 const { OrdersModel } = require('../orders/orders.model');
 const { DesignersModel } = require('../designers/designers.model')
+var moment = require('moment');
 
 
 exports.StatsController = new class StatsCrontroller {
@@ -208,13 +209,24 @@ exports.StatsController = new class StatsCrontroller {
     return (result);
   }
   
-  async getProductStatsByDesigner(designerId) {
+  async getProductStatsByDesigner(designerId, date_from, date_to) {
     //get the designer and their products
     let designer = await DesignersModel.getDesigners({equal:[{key:'designerId', value: designerId}]});
    
     let productsFromDesigner = await ProductsModel.getProductsByFilters({limit: 10000, includes: ['designer']}).find().then(products => products.map(function(product) {
       return product.toJSON()
     }));
+    
+    let allTime = !date_from && !date_to ? true : false;
+    date_from = date_from ? moment(date_from).toDate() : moment('20000101').toDate();
+    date_to = date_to ? moment(date_to).toDate() : moment('21000101').toDate();
+    
+    var lastDay = function(y,m) {
+      return  new Date(y, m +1, 0).getDate();
+    }
+    
+    let fullMonth = date_from.getMonth() == date_to.getMonth() &&  date_from.getDate()==1 && lastDay(date_to.getFullYear(), date_to.getMonth()) == date_to.getDate() ? true : false;
+    
     
     //filter by designer
     productsFromDesigner = productsFromDesigner.filter(function (product){    
@@ -225,15 +237,15 @@ exports.StatsController = new class StatsCrontroller {
     })
     
     let vendorOrders = await DesignersModel.getVendorOrdersByFilters({includes: ['vendorOrderVariants', 'vendorOrderVariants.variant'],
-    limit: 10000}).find().then(vendorOrders => vendorOrders.map(vendorOrder => vendorOrder.toJSON()));
+    limit: 10000, greaterOrEqual: [ { key: 'createdAt', value: date_from } ], lessOrEqual: [ { key: 'createdAt', value: date_to } ]}).find().then(vendorOrders => vendorOrders.map(vendorOrder => vendorOrder.toJSON()));
     
     let result = [];
      
     for (let i=0; i<productsFromDesigner.length; i++) {
       let product = productsFromDesigner[i];
       
-      //get the orders from this product
-      let orders = await OrdersModel.getOrderProductsByFilters({limit:100000, equal: [{key: 'product_id', value: product.productId}]}).find().then(ordersFromDesigner => ordersFromDesigner.map(order => order.toJSON()));
+      //get the orders from this product between dates
+      let orders = await OrdersModel.getOrderProductsByFilters({limit:100000,greaterOrEqual: [ { key: 'createdAt', value: date_from } ], lessOrEqual: [ { key: 'createdAt', value: date_to } ],equal: [{key: 'product_id', value: product.productId}]}).find().then(ordersFromDesigner => ordersFromDesigner.map(order => order.toJSON()));
     
       let checkedIn = 0;
       vendorOrders = vendorOrders.map(function(vendorOrder){
@@ -247,23 +259,41 @@ exports.StatsController = new class StatsCrontroller {
       })
       
       let onHand = product.inventoryOnHand;
+      if (!allTime) onHand = "N/A" //To Do: calculate it if the month is exact
       let shipped = 0;
       let orderedAllTime = 0;
-      
-      //TO DO: filter by date range 
+    
       
       orders.map(function (order){
-        //TO DO
         if (order.quantity_shipped) {
           shipped += order.quantity_shipped;
         }
+        return order;
+      })
+      
+      if (fullMonth) {
+        let month = date_from.getMonth()+1;
+        let year = date_from.getFullYear();
+        let productStock = await ProductsModel.getProductStockMonthly({includes:['product'], equal: [ { key: 'month', value: month }, { key: 'year', value: year }, {key: 'productId', value: product.productId}]}).find().then(productStockList => productStockList.map(stock => stock.toJSON()));  
+        if (productStock.length > 0) {
+          onHand = productStock[0].onHand;
+        }
+      }
+      
+      if (onHand !== "N/A") {
+        var discrepancy = (checkedIn - (onHand + shipped)) > 0 ? (checkedIn - (onHand + shipped)) : (checkedIn - (onHand + shipped)) * -1;
+      } else {
+        var discrepancy = "N/A"
+      }
+      
+      let ordersAllTime = await OrdersModel.getOrderProductsByFilters({limit:100000, equal: [{key: 'product_id', value: product.productId}]}).find().then(ordersFromDesigner => ordersFromDesigner.map(order => order.toJSON()));
+      
+      ordersAllTime.map(function (order){
         if (order.quantity) {
           orderedAllTime += order.quantity;
         }
         return order;
       })
-      
-      let discrepancy = (checkedIn - (onHand + shipped)) > 0 ? (checkedIn - (onHand + shipped)) : (checkedIn - (onHand + shipped)) * -1;
       
       result.push({
         productId: product.productId,
