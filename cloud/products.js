@@ -1633,9 +1633,9 @@ Parse.Cloud.define("createResize", function(request, response) {
       return;
     }
 
-  }).then(function(results) {
+  }).then(async function(results) {
     if (results) updatedOrders = results;
-
+    await results.save();
     logInfo('createResize completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
     completed = true;
 	  response.success({updatedProducts: updatedProducts, updatedVariants: updatedVariants, updatedOrders: updatedOrders, tabCounts: tabCounts, errors: errors});
