@@ -324,6 +324,7 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
   var message = request.params.data.message;
   var vendorOrder;
   var vendorOrderVariants;
+  var customVendorOrderVariants;
   var vendor;
   var resizeVariants = [];
   var messageProductsText = message;
@@ -339,6 +340,7 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
   vendorOrderQuery.include('vendorOrderVariants');
   vendorOrderQuery.include('vendorOrderVariants.variant');
   vendorOrderQuery.include('vendorOrderVariants.resizeVariant');
+  vendorOrderQuery.include('customVendorOrderVariants');
   vendorOrderQuery.first().then(function (result) {
     if (result) {
       vendorOrder = result;
@@ -349,7 +351,8 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
     }
     vendor = vendorOrder.get('vendor');
     vendorOrderVariants = vendorOrder.get('vendorOrderVariants').filter(vov => !vov.get('deleted'));
-
+    customVendorOrderVariants = vendorOrder.get('customVendorOrderVariants');
+    
     if (vendorOrder.get('orderedAll') == true) {
       errors.push('Error sending order: order already sent.');
       response.success({ errors: errors });
@@ -361,7 +364,12 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
       var variant = vendorOrderVariant.get('variant');
       if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
     });
-    messageProductsHTML = convertVendorOrderMessage(messageProductsHTML, vendorOrderVariants, vendorOrder.get('vendorOrderNumber'));
+    
+    _.each(customVendorOrderVariants, function (vendorOrderVariant) {
+      vendorOrderVariant.set('ordered', true);
+    });
+    
+    messageProductsHTML = convertVendorOrderMessage(messageProductsHTML, vendorOrderVariants, customVendorOrderVariants, vendorOrder.get('vendorOrderNumber'));
 
     if (!vendor.has('email')) {
       errors.push('Error sending order: ' + vendor.get('name') + ' needs an email address.');
@@ -379,11 +387,11 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
 
     return mailgun.messages().send(data);
 
-  }).then(function (body) {
+  }).then(async function (body) {
     emailId = body.id;
     successMessage = 'Order ' + vendorOrder.get('vendorOrderNumber') + ' successfully sent to ' + vendor.get('email');
     logInfo(successMessage, true);
-
+    await Parse.Object.saveAll(customVendorOrderVariants, { useMasterKey: true });
     return Parse.Object.saveAll(vendorOrderVariants, { useMasterKey: true });
 
   }).then(function () {
@@ -1168,7 +1176,7 @@ var getDesignerSort = function (designersQuery, currentSort) {
   return designersQuery;
 }
 
-var convertVendorOrderMessage = function (message, vendorOrderVariants, vendorOrderNumber) {
+var convertVendorOrderMessage = function (message, vendorOrderVariants, customVendorOrderVariants, vendorOrderNumber) {
   var pTag = '<p style="box-sizing: border-box; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-weight: normal; margin: 0 0 10px 0;">';
   var thTag = '<th style="box-sizing: border-box; color: #999; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-size: 80%; margin: 0; padding: 8px; text-transform: uppercase; text-align:left;">';
   var thRightTag = '<th style="box-sizing: border-box; color: #999; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-size: 80%; margin: 0; padding: 8px; text-transform: uppercase; text-align:right;">';
@@ -1189,6 +1197,7 @@ var convertVendorOrderMessage = function (message, vendorOrderVariants, vendorOr
   productsTable += thTag + 'Notes</th>';
   productsTable += '</thead>';
   productsTable += '<tbody>';
+  var count = 0;
   _.each(vendorOrderVariants, function (vendorOrderVariant, key) {
     productsTable += `<tr style="box-sizing: border-box; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0;background:${key % 2 !== 0 ? '#eee' : 'white'}">`;
     var variant = vendorOrderVariant.get('variant');
@@ -1210,7 +1219,20 @@ var convertVendorOrderMessage = function (message, vendorOrderVariants, vendorOr
     var notes = vendorOrderVariant.get('notes');
     productsTable += tdTag + notes + '</td>';
     productsTable += '</tr>';
+    count++;
   });
+  
+  _.each(customVendorOrderVariants, function (customVendorOrderVariant, key) {
+    productsTable += `<tr style="box-sizing: border-box; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0;background:${(key+count) % 2 !== 0 ? '#eee' : 'white'}">`;
+    productsTable += tdTag + customVendorOrderVariant.get('units') + '</td>';
+    productsTable += tdTag;
+    productsTable += customVendorOrderVariant.get('productName');
+    productsTable += '</td>';
+    productsTable += tdTag + customVendorOrderVariant.get('options') + '</td>';
+    productsTable += tdTag + customVendorOrderVariant.get('notes') + '</td>';
+    productsTable += '</tr>';
+  });
+  
   productsTable += '</tbody></table>';
   message += '<div style="text-align: center; width:100%"><a target="_blank" href="https://audryrose.herokuapp.com/verifyEmail/{{vendorOrderNumber}}" style="background-color: lightgreen; padding: 10px; border-radius: 10px; font-weight: bold; color: gray; cursor: pointer">Please Click Here to Confirm you have received this order</a></div>';
   message = message.replace('{{vendorOrderNumber}}', vendorOrderNumber.toUpperCase())
