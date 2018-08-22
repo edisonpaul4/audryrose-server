@@ -163,5 +163,28 @@ exports.DesignersController = new class DesignersController {
       // }).first().then(p => p.toJSON())
     );
   }
+  
+  async addCustomProductToVendorOrder (vendorOrderNumber, options) {
+    let customVendorOrderVariant = new Parse.Object('CustomVendorOrderVariant');
+    customVendorOrderVariant.set('productName', options.productName ? options.productName : '');
+    customVendorOrderVariant.set('notes', options.notes ? options.notes : '');
+    customVendorOrderVariant.set('internalNotes', options.internalNotes ? options.internalNotes : '');
+    customVendorOrderVariant.set('units', Number(options.units) ? Number(options.units) : 0);
+    customVendorOrderVariant.set('options', options.options ? options.options : '');
+    customVendorOrderVariant.set('received', 0);
+    await customVendorOrderVariant.save();
+    
+    let vendorOrder = await DesignersModel.getVendorOrdersByFilters({equal: [{ key: 'vendorOrderNumber', value: vendorOrderNumber }]}).first();
+    
+    if (vendorOrder.get('customVendorOrderVariants')) {
+      let array = vendorOrder.get('customVendorOrderVariants');
+      array.push(customVendorOrderVariant);
+      vendorOrder.set('customVendorOrderVariants', array);
+    } else {
+        vendorOrder.set('customVendorOrderVariants', [customVendorOrderVariant]);
+    }
+    await vendorOrder.save();
+    return Parse.Cloud.run('getDesigners', { subpage: "pending" })
+  }
 
 }

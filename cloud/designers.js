@@ -10,6 +10,7 @@ var Designer = Parse.Object.extend('Designer');
 var Vendor = Parse.Object.extend('Vendor');
 var VendorOrder = Parse.Object.extend('VendorOrder');
 var VendorOrderVariant = Parse.Object.extend('VendorOrderVariant');
+var CustomVendorOrderVariant = Parse.Object.extend('CustomVendorOrderVariant');
 var ColorCode = Parse.Object.extend('ColorCode');
 var StoneCode = Parse.Object.extend('StoneCode');
 var SizeCode = Parse.Object.extend('SizeCode');
@@ -110,6 +111,7 @@ Parse.Cloud.define("getDesigners", function (request, response) {
     designersQuery.include('vendors.vendorOrders.vendorOrderVariants.orderProducts');
     designersQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
     designersQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
+    designersQuery.include('vendors.vendorOrders.customVendorOrderVariants');
   }
 
   Parse.Promise.as().then(function (count) {
@@ -720,6 +722,12 @@ Parse.Cloud.define("updateVendorOrderProduct", (req, res) => {
     .catch(error => res.error(error));
 });
 
+Parse.Cloud.define("addCustomProductToVendorOrder", (req, res) => {
+  console.log("SAVING -----*-----")
+  DesignersController.addCustomProductToVendorOrder(req.params.vendorOrderNumber, req.params.options)
+    .then(success => res.success(success))
+    .catch(error => res.error(error));
+});
 
 
 
@@ -734,9 +742,11 @@ Parse.Cloud.job("saveVendorOrder", function (request, status) {
   var designerId = request.params.data.designerId;
   var orderId = request.params.data.orderId;
   var variantsData = request.params.data.variantsData;
+  var customVariantsData = request.params.data.customVariantsData;
   var message = request.params.data.message;
   var vendorOrder;
   var vendorOrderVariants = [];
+  var customVendorOrderVariants = [];
   var vendor;
   var numReceived = 0;
   var productIds = [];
@@ -754,6 +764,21 @@ Parse.Cloud.job("saveVendorOrder", function (request, status) {
     vendor = vendorOrder.get('vendor');
 
     var promise = Parse.Promise.as();
+    
+    _.each(customVariantsData, async function (variantData){
+      var customVendorOrderVariantQuery = new Parse.Query(CustomVendorOrderVariant);
+      customVendorOrderVariantQuery.equalTo('objectId', variantData.objectId);
+      let customVendorOrderVariant = await customVendorOrderVariantQuery.first();
+      if (customVendorOrderVariant) {
+        if (variantData.internalNotes != undefined)
+          customVendorOrderVariant.set('internalNotes', variantData.internalNotes);
+        if (variantData.units != undefined) customVendorOrderVariant.set('units', parseFloat(variantData.units));
+        if (variantData.notes != undefined) customVendorOrderVariant.set('notes', variantData.notes);
+        if (variantData.productName != undefined) customVendorOrderVariant.set('productName', variantData.productName);
+        if (variantData.internalNotes != undefined) customVendorOrderVariant.set('internalNotes', variantData.internalNotes);
+        await customVendorOrderVariant.save(null, { useMasterKey: true });
+      } 
+    })
 
     _.each(variantsData, function (variantData) {
       var variant;
