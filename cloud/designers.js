@@ -770,8 +770,7 @@ Parse.Cloud.job("saveVendorOrder", function (request, status) {
       customVendorOrderVariantQuery.equalTo('objectId', variantData.objectId);
       let customVendorOrderVariant = await customVendorOrderVariantQuery.first();
       if (customVendorOrderVariant) {
-        if (variantData.internalNotes != undefined)
-          customVendorOrderVariant.set('internalNotes', variantData.internalNotes);
+        if (variantData.options != undefined) customVendorOrderVariant.set('options', variantData.options);
         if (variantData.units != undefined) customVendorOrderVariant.set('units', parseFloat(variantData.units));
         if (variantData.notes != undefined) customVendorOrderVariant.set('notes', variantData.notes);
         if (variantData.productName != undefined) customVendorOrderVariant.set('productName', variantData.productName);
