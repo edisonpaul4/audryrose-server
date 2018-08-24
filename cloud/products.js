@@ -971,6 +971,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
       var inventory = variant.inventory;
       var color = variant.color;
       var wholesalePrice = variant.wholesalePrice;
+      var in_store = variant.in_store;
       promise = promise.then(function() {
         logInfo('saving variant: ' + objectId);
 
@@ -997,6 +998,11 @@ Parse.Cloud.define("saveVariants", function(request, response) {
             variant.set('customWholesalePrice', parseFloat(wholesalePrice));
           } else {
             variant.unset('customWholesalePrice');
+          }
+          if (in_store) {
+            variant.set('in_store', parseFloat(in_store));
+          } else {
+            variant.unset('in_store');
           }
           logInfo('Set inventory for variant ' + variant.get('variantId') + ' to ' + variant.get('inventoryLevel'), true);
           logInfo('Set color for variant ' + variant.get('variantId') + ' to ' + variant.get('color_value'), true);
