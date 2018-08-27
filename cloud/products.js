@@ -4,6 +4,7 @@ var BigCommerce = require('node-bigcommerce');
 var bugsnag = require("bugsnag");
 
 var { ProductsController } = require('./products/products.controller');
+var { ProductsModel } = require('./products/products.model');
 var { StatsController } = require('./stats/stats.controller')
 var { ReturnsModel } = require('./returns/returns.model');
 
@@ -54,6 +55,26 @@ const isDebug = process.env.DEBUG == 'true';
 //  CLOUD FUNCTIONS    //
 /////////////////////////
 
+Parse.Cloud.define("updateProducts", async function (request, response){
+  try {
+    let variants = await ProductsModel.getProductsVariantsByFilters({limit:10000, greaterOrEqual: [ { key: 'in_store', value: 1 }]}).find();
+    let productIds = [];
+    variants.map(function(variant){
+      let productId = variant.get('productId');
+      if (productIds.indexOf(productId)==-1) {
+        productIds.push(productId);
+      }
+    });
+    //Now update all the products
+    let products = await ProductsModel.getProductsByFilters({limit:10000, contained: [{key: 'productId', value: productIds}]}).find();
+    await Parse.Object.saveAll(products, {useMasterKey: true});
+    response.success({message: "Success"});
+  } catch (error) {
+    response.error(error)
+  }
+});
+
+ 
 Parse.Cloud.define("getProducts", function(request, response) {
   logInfo('getProducts cloud function --------------------------', true);
   var startTime = moment();
@@ -126,6 +147,9 @@ Parse.Cloud.define("getProducts", function(request, response) {
       case 'in-stock':
         productsQuery.greaterThan('total_stock', 0);
         break;
+      case 'in-store':
+        productsQuery.greaterThan('in_store', 0);
+        break;
       case 'need-to-order':
         productsQuery.lessThan('total_stock', 1);
         break;
@@ -172,6 +196,10 @@ Parse.Cloud.define("getProducts", function(request, response) {
             tabCounts.inStock = metric.get('count');
             if (subpage == 'in-stock') productsCount = metric.get('count');
             break;
+          case 'inStore':
+            tabCounts.inStore = metric.get('count');
+            if (subpage == 'in-store') productsCount = metric.get('count');
+            break;
           case 'needToOrder':
             tabCounts.needToOrder = metric.get('count');
             if (subpage == 'need-to-order') productsCount = metric.get('count');
@@ -207,6 +235,9 @@ Parse.Cloud.define("getProducts", function(request, response) {
         case 'in-stock':
           tabCounts.inStock = totalProducts;
           break;
+        case 'in-store': 
+          tabCounts.inStore = totalProducts;
+          break;
         case 'need-to-order':
           tabCounts.needToOrder = totalProducts;
           break;
@@ -229,6 +260,15 @@ Parse.Cloud.define("getProducts", function(request, response) {
 
   }).then(function(products) {
     logInfo('getProducts completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    if (!tabCounts.inStore) {
+      let in_store = 0;
+      _.each(products, function(product) {
+        if (product.get('in_store') && product.get('in_store')>0) {
+          in_store++;
+        }
+      });
+      tabCounts.inStore = in_store;
+    }
 	  response.success({products: products, totalPages: totalPages, totalProducts: totalProducts, tabCounts: tabCounts});
 
   }, function(error) {
@@ -260,6 +300,10 @@ Parse.Cloud.define("updateProductTabCounts", function(request, response) {
   var inStockQuery = new Parse.Query(Product);
   inStockQuery.greaterThan('total_stock', 0);
   inStockQuery.equalTo('is_visible', true);
+  
+  var inStoreQuery = new Parse.Query(Product);
+  inStoreQuery.greaterThan('in_store', 0);
+  inStoreQuery.equalTo('is_visible', true);
 
   var needToOrderQuery = new Parse.Query(Product);
   needToOrderQuery.lessThan('total_stock', 1);
@@ -299,6 +343,10 @@ Parse.Cloud.define("updateProductTabCounts", function(request, response) {
   }).then(function(count) {
     tabs.all = count;
     metrics.push(createMetric('Product', 'all', 'All', count));
+    return inStoreQuery.count();
+  }).then(function (count) {  
+    tabs.inStore = count;
+    metrics.push(createMetric('Product', 'inStore', 'In Store', count));
     return Parse.Object.saveAll(metrics, {useMasterKey: true});
 
   }).then(function(results) {
@@ -2380,6 +2428,7 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
     var variantsOutOfStock = 0;
     var sizes = [];
     var sizesInStock = [];
+    var totalInStore = 0;
     Parse.Object.fetchAll(variants).then(function(variantObjects) {
       variants = variantObjects;
       _.each(variants, function(variant) {
@@ -2389,6 +2438,10 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
           if (inventory <= 0) variantsOutOfStock++;
         } else {
           variantsOutOfStock++;
+        }
+        var inStore = variant.get('in_store');
+        if (inStore) {
+          if (inStore > 0) totalInStore += inStore;
         }
   			if (!variant.has('variantOptions')) {
     			logInfo('variant has no options: ' + variant.productName + ' ' + variant.variantId);
@@ -2404,7 +2457,9 @@ Parse.Cloud.beforeSave("Product", function(request, response) {
   			}
       });
       logInfo('total stock: ' + totalStock);
+      logInfo('total in store: ' + totalInStore);
       product.set('total_stock', totalStock);
+      product.set('in_store', totalInStore);
       product.set('variantsOutOfStock', variantsOutOfStock);
 
       sizes.sort((a, b) => (a - b));
