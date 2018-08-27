@@ -943,6 +943,49 @@ Parse.Cloud.define("saveProduct", function(request, response) {
 
 });
 
+Parse.Cloud.define("soldInStore", async function(request, response) {
+  let variantId = request.params.variantId.variantId; 
+  let tabCounts;
+  let updatedVariants = [];
+  let updatedProducts = [];
+  
+  try {
+    //Get the variant
+    var variantQuery = new Parse.Query(ProductVariant);
+    variantQuery.equalTo('objectId', variantId);
+    let variant = await variantQuery.first();
+    
+    if (variant.get('sold_in_store')) {
+      variant.set('sold_in_store', parseInt(variant.get('sold_in_store')) + 1);
+    } else {
+      variant.set('sold_in_store', 1);
+    }
+    
+    variant.set('inventoryOnHand', parseInt(variant.get('inventoryOnHand')) - 1);
+    variant.set('inventoryLevel', parseInt(variant.get('inventoryLevel')) - 1);
+    variant.set('in_store', parseInt(variant.get('in_store')) - 1);
+    
+  
+    //await variant.save(null, {useMasterKey: true});
+    
+    //get the product
+    let productQuery = new Parse.Query(Product);
+    productQuery.equalTo('productId', variant.get('productId'));
+    productQuery.include('variants');
+    let product = await productQuery.first();
+    if (product.get('inventoryOnHand')) {
+      product.set('inventoryOnHand', parseInt(product.get('inventoryOnHand'))-1);
+    }
+    
+    await variant.save(null, {useMasterKey: true});
+    await product.save(null, {useMasterKey: true});
+    tabCounts = await Parse.Cloud.run('updateProductTabCounts');
+    response.success({updatedProducts: [product], updatedVariants: [variant], tabCounts: tabCounts});
+  } catch (error) {
+    response.error(error);
+  }
+});
+
 Parse.Cloud.define("saveVariants", function(request, response) {
   logInfo('saveVariants cloud function --------------------------', true);
   var startTime = moment();
@@ -971,6 +1014,7 @@ Parse.Cloud.define("saveVariants", function(request, response) {
       var inventory = variant.inventory;
       var color = variant.color;
       var wholesalePrice = variant.wholesalePrice;
+      var in_store = variant.in_store;
       promise = promise.then(function() {
         logInfo('saving variant: ' + objectId);
 
@@ -997,6 +1041,11 @@ Parse.Cloud.define("saveVariants", function(request, response) {
             variant.set('customWholesalePrice', parseFloat(wholesalePrice));
           } else {
             variant.unset('customWholesalePrice');
+          }
+          if (in_store) {
+            variant.set('in_store', parseFloat(in_store));
+          } else {
+            variant.unset('in_store');
           }
           logInfo('Set inventory for variant ' + variant.get('variantId') + ' to ' + variant.get('inventoryLevel'), true);
           logInfo('Set color for variant ' + variant.get('variantId') + ' to ' + variant.get('color_value'), true);
