@@ -31,6 +31,34 @@ exports.StatsController = new class StatsCrontroller {
       totalReveneu: productObject.get('price') * productObject.get('total_sold')
     };
   }
+  
+  async getProductStatsInStore () {
+    const products = await ProductsModel.getProductsByFilters({
+      limit: 1000000,
+      includes: ['variants']
+    }).find();
+    
+    let result = [];
+    
+    for (let i=0; i<products.length; i++) {
+      let product = products[i];
+      let sold_in_store = 0;
+      
+      product.get('variants').map(function (variant) {
+        if (variant.get('sold_in_store') && variant.get('sold_in_store') > 0) {
+          sold_in_store += variant.get('sold_in_store');
+        }
+        return variant;
+      });
+      result.push({
+        productId: product.get('productId'),
+        productName: product.get('name'),
+        soldInStore: sold_in_store,
+        totalRevenue: product.get('price') * sold_in_store
+      }) 
+    }
+    return result;  
+  }
 
   async getDesignerStats() {
     let designers = await DesignersModel.getDesigners({limit: 1000}).find().then(designers => designers.map(designer => designer.toJSON()));
