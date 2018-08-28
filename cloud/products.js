@@ -2339,6 +2339,12 @@ Parse.Cloud.define("getProductStats", (req, res) => {
     .catch(e => res.error(e));
 })
 
+Parse.Cloud.define("getProductStatsInStore", (req, res) => {
+  StatsController.getProductStatsInStore()
+    .then(r => res.success(r))
+    .catch(e => res.error(e));
+})
+
 Parse.Cloud.define("getDesignerStats", async function (req, res){
   try {
     let stats = await StatsController.getDesignerStats();
