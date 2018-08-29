@@ -991,6 +991,38 @@ Parse.Cloud.define("saveProduct", function(request, response) {
 
 });
 
+Parse.Cloud.define("addToStoreStats", async function (request, response){
+  
+  let variantObjectId = request.params.variantObjectId;
+  let quantity = parseInt(request.params.quantity);
+  console.log(variantObjectId);
+  try {
+    var variantQuery = new Parse.Query(ProductVariant);
+    variantQuery.equalTo('objectId', variantObjectId);
+    let variant = await variantQuery.first();
+    
+    if (!variant) {
+      response.error("Variant Not Found");
+      return;
+    }
+    
+    if (variant.get('sold_in_store')) {
+      variant.set('sold_in_store', parseInt(variant.get('sold_in_store')) + quantity);
+    } else {
+      variant.set('sold_in_store', quantity);
+    }
+    
+    await variant.save(null, {useMasterKey: true});
+    
+    response.success({});
+    
+  } catch (error) {
+    response.error(error);
+  }
+  
+  response.success({});
+});
+
 Parse.Cloud.define("soldInStore", async function(request, response) {
   let variantId = request.params.variantId.variantId; 
   let tabCounts;
@@ -1012,9 +1044,6 @@ Parse.Cloud.define("soldInStore", async function(request, response) {
     variant.set('inventoryOnHand', parseInt(variant.get('inventoryOnHand')) - 1);
     variant.set('inventoryLevel', parseInt(variant.get('inventoryLevel')) - 1);
     variant.set('in_store', parseInt(variant.get('in_store')) - 1);
-    
-  
-    //await variant.save(null, {useMasterKey: true});
     
     //get the product
     let productQuery = new Parse.Query(Product);
