@@ -43,13 +43,14 @@ exports.StatsController = new class StatsCrontroller {
     for (let i=0; i<products.length; i++) {
       let product = products[i];
       let sold_in_store = 0;
-      
-      product.get('variants').map(function (variant) {
-        if (variant.get('sold_in_store') && variant.get('sold_in_store') > 0) {
-          sold_in_store += variant.get('sold_in_store');
-        }
-        return variant;
-      });
+      if (product.get('variants')) {
+        product.get('variants').map(function (variant) {
+          if (variant.get('sold_in_store') && variant.get('sold_in_store') > 0) {
+            sold_in_store += variant.get('sold_in_store');
+          }
+          return variant;
+        });
+      }
       result.push({
         productId: product.get('productId'),
         productName: product.get('name'),
