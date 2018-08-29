@@ -7,6 +7,7 @@ var { ProductsController } = require('./products/products.controller');
 var { ProductsModel } = require('./products/products.model');
 var { StatsController } = require('./stats/stats.controller')
 var { ReturnsModel } = require('./returns/returns.model');
+var { OrdersModel } = require ('./orders/orders.model');
 
 var Product = Parse.Object.extend('Product');
 var ProductVariant = Parse.Object.extend('ProductVariant');
@@ -995,7 +996,8 @@ Parse.Cloud.define("addToStoreStats", async function (request, response){
   
   let variantObjectId = request.params.variantObjectId;
   let quantity = parseInt(request.params.quantity);
-  console.log(variantObjectId);
+  let orderProductId = request.params.orderProductId;
+  
   try {
     var variantQuery = new Parse.Query(ProductVariant);
     variantQuery.equalTo('objectId', variantObjectId);
@@ -1012,9 +1014,25 @@ Parse.Cloud.define("addToStoreStats", async function (request, response){
       variant.set('sold_in_store', quantity);
     }
     
-    await variant.save(null, {useMasterKey: true});
+    //Update orderProduct now
+    let orderProduct = await OrdersModel.getOrderProductsByFilters({equal: [{ key: 'orderProductId', value: orderProductId }]}).first();
+    if (orderProduct) {
+      if (orderProduct.get('variantsSoldInStore') && orderProduct.get('variantsSoldInStore').length > 0) {
+        let array = orderProduct.get('variantsSoldInStore');
+        array.push(variantObjectId);
+        orderProduct.set('variantsSoldInStore', array);
+      } else {
+        orderProduct.set('variantsSoldInStore', [variantObjectId]);
+      }
+    }
     
-    response.success({});
+    await variant.save(null, {useMasterKey: true});
+    await orderProduct.save(null, {useMasterKey: true});
+    
+    //get updated order
+    let order = await OrdersModel.getOrdersByFilters({equal: [{ key: 'orderId', value: orderProduct.get('order_id') }], includes: ['orderProducts']}).first();
+    console.log(order.toJSON());
+    response.success({order: order.toJSON(), updatedOrders:[order]});
     
   } catch (error) {
     response.error(error);
