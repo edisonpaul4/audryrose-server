@@ -32,7 +32,14 @@ exports.StatsController = new class StatsCrontroller {
     };
   }
   
-  async getProductStatsInStore () {
+  async getProductStatsInStore (date_from, date_to) {
+    
+    let allTime = !date_from && !date_to ? true : false;
+    date_from = date_from ? moment(date_from).toDate() : moment('20000101').toDate();
+    date_to = date_to ? moment(date_to).toDate() : moment('21000101').toDate();
+    date_from.setHours(0,0,0,0);
+    date_to.setHours(23,59,59,0);
+    
     const products = await ProductsModel.getProductsByFilters({
       limit: 1000000,
       includes: ['variants']
@@ -40,24 +47,59 @@ exports.StatsController = new class StatsCrontroller {
     
     let result = [];
     
-    for (let i=0; i<products.length; i++) {
-      let product = products[i];
-      let sold_in_store = 0;
-      if (product.get('variants')) {
-        product.get('variants').map(function (variant) {
-          if (variant.get('sold_in_store') && variant.get('sold_in_store') > 0) {
-            sold_in_store += variant.get('sold_in_store');
-          }
-          return variant;
-        });
+    if (allTime) {
+      console.log("All Time")
+      console.log(date_from);
+      console.log(date_to);
+      //Just check the counter from each product variant
+      for (let i=0; i<products.length; i++) {
+        let product = products[i];
+        let sold_in_store = 0;
+        if (product.get('variants')) {
+          product.get('variants').map(function (variant) {
+            if (variant.get('sold_in_store') && variant.get('sold_in_store') > 0) {
+              sold_in_store += variant.get('sold_in_store');
+            }
+            return variant;
+          });
+        }
+        result.push({
+          productId: product.get('productId'),
+          productName: product.get('name'),
+          soldInStore: sold_in_store,
+          totalRevenue: product.get('price') * sold_in_store
+        }) 
       }
-      result.push({
-        productId: product.get('productId'),
-        productName: product.get('name'),
-        soldInStore: sold_in_store,
-        totalRevenue: product.get('price') * sold_in_store
-      }) 
+    } else {
+      console.log("Range")
+      console.log(date_from);
+      console.log(date_to);
+      //check the store sales records
+      for (let i=0; i<products.length; i++) {
+        let product = products[i];
+        let sold_in_store = 0;
+        let productId = product.get('productId');
+        //console.log(productId);
+        let storeSales = await OrdersModel.getStoreSalesByFilters({limit: 100000, equal:[{key:'productId', value: productId}], greaterOrEqual: [ { key: 'dateSold', value: date_from } ], lessOrEqual: [ { key: 'dateSold', value: date_to } ]}).find();
+        if (storeSales.length > 0)
+        {console.log(storeSales.length);}
+        storeSales.map(function(storeSale) {
+          console.log(storeSale.get('quantitySold'))
+          if (storeSale.get('quantitySold') && parseInt(storeSale.get('quantitySold'))>0) {
+            sold_in_store += parseInt(storeSale.get('quantitySold'));
+          }
+          return storeSale;
+        })
+        
+        result.push({
+          productId: product.get('productId'),
+          productName: product.get('name'),
+          soldInStore: sold_in_store,
+          totalRevenue: product.get('price') * sold_in_store
+        }) 
+      }
     }
+    
     return result;  
   }
 

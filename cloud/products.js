@@ -2463,7 +2463,9 @@ Parse.Cloud.define("getProductStats", (req, res) => {
 })
 
 Parse.Cloud.define("getProductStatsInStore", (req, res) => {
-  StatsController.getProductStatsInStore()
+  let date_from = req.params.date_from;
+  let date_to = req.params.date_to;
+  StatsController.getProductStatsInStore(date_from, date_to)
     .then(r => res.success(r))
     .catch(e => res.error(e));
 })
