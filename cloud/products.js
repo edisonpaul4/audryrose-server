@@ -30,6 +30,7 @@ var ResizeVariant = Parse.Object.extend('ResizeVariant');
 var Metric = Parse.Object.extend('Metric');
 var MetricGroup = Parse.Object.extend('MetricGroup');
 var ReloadQueue = Parse.Object.extend('ReloadQueue');
+var StoreSales = Parse.Object.extend('StoreSales');
 
 // CONFIG
 bugsnag.register("a1f0b326d59e82256ebed9521d608bb2");
@@ -1029,9 +1030,46 @@ Parse.Cloud.define("addToStoreStats", async function (request, response){
     await variant.save(null, {useMasterKey: true});
     await orderProduct.save(null, {useMasterKey: true});
     
+    let dateSold = orderProduct.get('createdAt');
+    
+    //get the product
+    let productQuery = new Parse.Query(Product);
+    productQuery.equalTo('productId', variant.get('productId'));
+    let product = await productQuery.first();
+    
+    //Update Store Sales Record
+    let storeSalesQuery = new Parse.Query(StoreSales);
+    storeSalesQuery.equalTo('day', dateSold.getDate());
+    storeSalesQuery.equalTo('month', dateSold.getMonth()+1);
+    storeSalesQuery.equalTo('year', dateSold.getFullYear());
+    storeSalesQuery.equalTo('variantId', variant.get('variantId'));
+    
+    let storeSales = await storeSalesQuery.first();
+    
+    if (storeSales) {
+      if (storeSales.get('quantitySold') && parseInt(storeSales.get('quantitySold')) > 0) {
+        storeSales.set('quantitySold', parseInt(storeSales.get('quantitySold'))+quantity);
+      } else {
+        storeSales.set('quantitySold', quantity);
+      }
+    } else {
+      storeSales = new Parse.Object('StoreSales');
+      storeSales.set('dateSold', dateSold);
+      storeSales.set('day', dateSold.getDate());
+      storeSales.set('month', dateSold.getMonth()+1);
+      storeSales.set('year', dateSold.getFullYear());
+      storeSales.set('quantitySold', quantity);
+      storeSales.set('variant', variant);
+      storeSales.set('variantId', variant.get('variantId'));
+      storeSales.set('product', product);
+      storeSales.set('productId', product.get('productId'));
+    }
+    
+    await storeSales.save(null, {useMasterKey: true});
+    
     //get updated order
     let order = await OrdersModel.getOrdersByFilters({equal: [{ key: 'orderId', value: orderProduct.get('order_id') }], includes: ['orderProducts']}).first();
-    console.log(order.toJSON());
+    
     response.success({order: order.toJSON(), updatedOrders:[order]});
     
   } catch (error) {
@@ -1074,6 +1112,44 @@ Parse.Cloud.define("soldInStore", async function(request, response) {
     
     await variant.save(null, {useMasterKey: true});
     await product.save(null, {useMasterKey: true});
+    
+    
+    let today = new Date();
+    today.setSeconds(0); 
+    today.setMinutes(0); 
+    today.setHours(0);
+    today.setMilliseconds(0);
+    
+    //Update Store Sales Record
+    let storeSalesQuery = new Parse.Query(StoreSales);
+    storeSalesQuery.equalTo('day', today.getDate());
+    storeSalesQuery.equalTo('month', today.getMonth()+1);
+    storeSalesQuery.equalTo('year', today.getFullYear());
+    storeSalesQuery.equalTo('variantId', variant.get('variantId'));
+    
+    let storeSales = await storeSalesQuery.first();
+    
+    if (storeSales) {
+      if (storeSales.get('quantitySold') && parseInt(storeSales.get('quantitySold')) > 0) {
+        storeSales.set('quantitySold', parseInt(storeSales.get('quantitySold'))+1);
+      } else {
+        storeSales.set('quantitySold', 1);
+      }
+    } else {
+      storeSales = new Parse.Object('StoreSales');
+      storeSales.set('dateSold', today);
+      storeSales.set('day', today.getDate());
+      storeSales.set('month', today.getMonth()+1);
+      storeSales.set('year', today.getFullYear());
+      storeSales.set('quantitySold', 1);
+      storeSales.set('variant', variant);
+      storeSales.set('variantId', variant.get('variantId'));
+      storeSales.set('product', product);
+      storeSales.set('productId', product.get('productId'));
+    }
+    
+    await storeSales.save(null, {useMasterKey: true});
+    
     tabCounts = await Parse.Cloud.run('updateProductTabCounts');
     response.success({updatedProducts: [product], updatedVariants: [variant], tabCounts: tabCounts});
   } catch (error) {
