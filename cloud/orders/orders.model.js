@@ -7,6 +7,7 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
     super();
     this.Orders = Parse.Object.extend('Order');
     this.OrderProducts = Parse.Object.extend('OrderProduct');
+    this.StoreSales = Parse.Object.extend('StoreSales');
   }
 
   /**
@@ -27,6 +28,10 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
     return this.searchDatabase(params, orderProductsQuery);
   } // END getOrdersByFilters
 
+  getStoreSalesByFilters(params) {
+    var storeSalesQuery = new Parse.Query(this.StoreSales);
+    return this.searchDatabase(params, storeSalesQuery);
+  }
   /**
    * 
    * @param {ParseObject} orderObject 
