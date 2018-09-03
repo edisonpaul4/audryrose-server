@@ -10,6 +10,7 @@ var Designer = Parse.Object.extend('Designer');
 var Vendor = Parse.Object.extend('Vendor');
 var VendorOrder = Parse.Object.extend('VendorOrder');
 var VendorOrderVariant = Parse.Object.extend('VendorOrderVariant');
+var CustomVendorOrderVariant = Parse.Object.extend('CustomVendorOrderVariant');
 var ColorCode = Parse.Object.extend('ColorCode');
 var StoneCode = Parse.Object.extend('StoneCode');
 var SizeCode = Parse.Object.extend('SizeCode');
@@ -110,6 +111,7 @@ Parse.Cloud.define("getDesigners", function (request, response) {
     designersQuery.include('vendors.vendorOrders.vendorOrderVariants.orderProducts');
     designersQuery.include('vendors.vendorOrders.vendorOrderVariants.variant');
     designersQuery.include('vendors.vendorOrders.vendorOrderVariants.resizeVariant');
+    designersQuery.include('vendors.vendorOrders.customVendorOrderVariants');
   }
 
   Parse.Promise.as().then(function (count) {
@@ -322,6 +324,7 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
   var message = request.params.data.message;
   var vendorOrder;
   var vendorOrderVariants;
+  var customVendorOrderVariants;
   var vendor;
   var resizeVariants = [];
   var messageProductsText = message;
@@ -337,6 +340,7 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
   vendorOrderQuery.include('vendorOrderVariants');
   vendorOrderQuery.include('vendorOrderVariants.variant');
   vendorOrderQuery.include('vendorOrderVariants.resizeVariant');
+  vendorOrderQuery.include('customVendorOrderVariants');
   vendorOrderQuery.first().then(function (result) {
     if (result) {
       vendorOrder = result;
@@ -347,7 +351,8 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
     }
     vendor = vendorOrder.get('vendor');
     vendorOrderVariants = vendorOrder.get('vendorOrderVariants').filter(vov => !vov.get('deleted'));
-
+    customVendorOrderVariants = vendorOrder.get('customVendorOrderVariants');
+    
     if (vendorOrder.get('orderedAll') == true) {
       errors.push('Error sending order: order already sent.');
       response.success({ errors: errors });
@@ -359,7 +364,12 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
       var variant = vendorOrderVariant.get('variant');
       if (productIds.indexOf(variant.get('productId') < 0)) productIds.push(variant.get('productId'));
     });
-    messageProductsHTML = convertVendorOrderMessage(messageProductsHTML, vendorOrderVariants, vendorOrder.get('vendorOrderNumber'));
+    
+    _.each(customVendorOrderVariants, function (vendorOrderVariant) {
+      vendorOrderVariant.set('ordered', true);
+    });
+    
+    messageProductsHTML = convertVendorOrderMessage(messageProductsHTML, vendorOrderVariants, customVendorOrderVariants, vendorOrder.get('vendorOrderNumber'));
 
     if (!vendor.has('email')) {
       errors.push('Error sending order: ' + vendor.get('name') + ' needs an email address.');
@@ -377,11 +387,11 @@ Parse.Cloud.define("sendVendorOrder", function (request, response) {
 
     return mailgun.messages().send(data);
 
-  }).then(function (body) {
+  }).then(async function (body) {
     emailId = body.id;
     successMessage = 'Order ' + vendorOrder.get('vendorOrderNumber') + ' successfully sent to ' + vendor.get('email');
     logInfo(successMessage, true);
-
+    await Parse.Object.saveAll(customVendorOrderVariants, { useMasterKey: true });
     return Parse.Object.saveAll(vendorOrderVariants, { useMasterKey: true });
 
   }).then(function () {
@@ -720,6 +730,12 @@ Parse.Cloud.define("updateVendorOrderProduct", (req, res) => {
     .catch(error => res.error(error));
 });
 
+Parse.Cloud.define("addCustomProductToVendorOrder", (req, res) => {
+  console.log("SAVING -----*-----")
+  DesignersController.addCustomProductToVendorOrder(req.params.vendorOrderNumber, req.params.options)
+    .then(success => res.success(success))
+    .catch(error => res.error(error));
+});
 
 
 
@@ -734,9 +750,11 @@ Parse.Cloud.job("saveVendorOrder", function (request, status) {
   var designerId = request.params.data.designerId;
   var orderId = request.params.data.orderId;
   var variantsData = request.params.data.variantsData;
+  var customVariantsData = request.params.data.customVariantsData;
   var message = request.params.data.message;
   var vendorOrder;
   var vendorOrderVariants = [];
+  var customVendorOrderVariants = [];
   var vendor;
   var numReceived = 0;
   var productIds = [];
@@ -754,6 +772,22 @@ Parse.Cloud.job("saveVendorOrder", function (request, status) {
     vendor = vendorOrder.get('vendor');
 
     var promise = Parse.Promise.as();
+    
+    _.each(customVariantsData, async function (variantData){
+      var customVendorOrderVariantQuery = new Parse.Query(CustomVendorOrderVariant);
+      customVendorOrderVariantQuery.equalTo('objectId', variantData.objectId);
+      let customVendorOrderVariant = await customVendorOrderVariantQuery.first();
+      if (customVendorOrderVariant) {
+        if (variantData.options != undefined) customVendorOrderVariant.set('options', variantData.options);
+        if (variantData.units != undefined) customVendorOrderVariant.set('units', parseFloat(variantData.units));
+        if (variantData.notes != undefined) customVendorOrderVariant.set('notes', variantData.notes);
+        if (variantData.productName != undefined) customVendorOrderVariant.set('productName', variantData.productName);
+        if (variantData.internalNotes != undefined) customVendorOrderVariant.set('internalNotes', variantData.internalNotes);
+        if (variantData.onHand != undefined) customVendorOrderVariant.set('onHand', variantData.onHand);
+        if (variantData.totalAwaiting != undefined) customVendorOrderVariant.set('totalAwaiting', variantData.totalAwaiting);
+        await customVendorOrderVariant.save(null, { useMasterKey: true });
+      } 
+    })
 
     _.each(variantsData, function (variantData) {
       var variant;
@@ -1061,8 +1095,17 @@ Parse.Cloud.beforeSave("VendorOrder", function (request, response) {
   } else {
     vendorOrder.set('emailConfirmed', 'false');
   }
-  delay(10).then(function () {
+  delay(10).then(async function () {
     logInfo('go');
+    
+    if (vendorOrder.has('customVendorOrderVariants') && vendorOrder.get('customVendorOrderVariants').length > 0) {
+      let customVendorOrderVariants = await Parse.Object.fetchAll(vendorOrder.get('customVendorOrderVariants'));
+      _.each(customVendorOrderVariants, function (vendorOrderVariant) {
+        //if (vendorOrderVariant.has('units')) logInfo('vendor order variant has ' + vendorOrderVariant.get('units') + ' units');
+        console.log("REMOVING!")
+        if (vendorOrderVariant.get('units') == 0) vendorOrder.remove('customVendorOrderVariants', vendorOrderVariant);
+      });
+    }
     // Remove any vendor order variants who have 0 units to order
     if (vendorOrder.has('vendorOrderVariants') && vendorOrder.get('vendorOrderVariants').length > 0) {
       logInfo('vendor order has ' + vendorOrder.get('vendorOrderVariants').length + ' vendor order variants to fetch');
@@ -1077,7 +1120,7 @@ Parse.Cloud.beforeSave("VendorOrder", function (request, response) {
       if (vendorOrderVariant.has('units')) logInfo('vendor order variant has ' + vendorOrderVariant.get('units') + ' units');
       if (vendorOrderVariant.get('units') == 0) vendorOrder.remove('vendorOrderVariants', vendorOrderVariant);
     });
-
+  
     // Create a unique vendor order number
     return vendorOrder.get('vendor').fetch();
 
@@ -1144,7 +1187,7 @@ var getDesignerSort = function (designersQuery, currentSort) {
   return designersQuery;
 }
 
-var convertVendorOrderMessage = function (message, vendorOrderVariants, vendorOrderNumber) {
+var convertVendorOrderMessage = function (message, vendorOrderVariants, customVendorOrderVariants, vendorOrderNumber) {
   var pTag = '<p style="box-sizing: border-box; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-weight: normal; margin: 0 0 10px 0;">';
   var thTag = '<th style="box-sizing: border-box; color: #999; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-size: 80%; margin: 0; padding: 8px; text-transform: uppercase; text-align:left;">';
   var thRightTag = '<th style="box-sizing: border-box; color: #999; font-family: \'Helvetica Neue\', Helvetica, Arial, sans-serif; font-size: 80%; margin: 0; padding: 8px; text-transform: uppercase; text-align:right;">';
@@ -1165,6 +1208,7 @@ var convertVendorOrderMessage = function (message, vendorOrderVariants, vendorOr
   productsTable += thTag + 'Notes</th>';
   productsTable += '</thead>';
   productsTable += '<tbody>';
+  var count = 0;
   _.each(vendorOrderVariants, function (vendorOrderVariant, key) {
     productsTable += `<tr style="box-sizing: border-box; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0;background:${key % 2 !== 0 ? '#eee' : 'white'}">`;
     var variant = vendorOrderVariant.get('variant');
@@ -1186,7 +1230,20 @@ var convertVendorOrderMessage = function (message, vendorOrderVariants, vendorOr
     var notes = vendorOrderVariant.get('notes');
     productsTable += tdTag + notes + '</td>';
     productsTable += '</tr>';
+    count++;
   });
+  
+  _.each(customVendorOrderVariants, function (customVendorOrderVariant, key) {
+    productsTable += `<tr style="box-sizing: border-box; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0;background:${(key+count) % 2 !== 0 ? '#eee' : 'white'}">`;
+    productsTable += tdTag + customVendorOrderVariant.get('units') + '</td>';
+    productsTable += tdTag;
+    productsTable += customVendorOrderVariant.get('productName');
+    productsTable += '</td>';
+    productsTable += tdTag + customVendorOrderVariant.get('options') + '</td>';
+    productsTable += tdTag + customVendorOrderVariant.get('notes') + '</td>';
+    productsTable += '</tr>';
+  });
+  
   productsTable += '</tbody></table>';
   message += '<div style="text-align: center; width:100%"><a target="_blank" href="https://audryrose.herokuapp.com/verifyEmail/{{vendorOrderNumber}}" style="background-color: lightgreen; padding: 10px; border-radius: 10px; font-weight: bold; color: gray; cursor: pointer">Please Click Here to Confirm you have received this order</a></div>';
   message = message.replace('{{vendorOrderNumber}}', vendorOrderNumber.toUpperCase())
