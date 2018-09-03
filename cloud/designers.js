@@ -783,6 +783,8 @@ Parse.Cloud.job("saveVendorOrder", function (request, status) {
         if (variantData.notes != undefined) customVendorOrderVariant.set('notes', variantData.notes);
         if (variantData.productName != undefined) customVendorOrderVariant.set('productName', variantData.productName);
         if (variantData.internalNotes != undefined) customVendorOrderVariant.set('internalNotes', variantData.internalNotes);
+        if (variantData.onHand != undefined) customVendorOrderVariant.set('onHand', variantData.onHand);
+        if (variantData.totalAwaiting != undefined) customVendorOrderVariant.set('totalAwaiting', variantData.totalAwaiting);
         await customVendorOrderVariant.save(null, { useMasterKey: true });
       } 
     })
@@ -1093,8 +1095,17 @@ Parse.Cloud.beforeSave("VendorOrder", function (request, response) {
   } else {
     vendorOrder.set('emailConfirmed', 'false');
   }
-  delay(10).then(function () {
+  delay(10).then(async function () {
     logInfo('go');
+    
+    if (vendorOrder.has('customVendorOrderVariants') && vendorOrder.get('customVendorOrderVariants').length > 0) {
+      let customVendorOrderVariants = await Parse.Object.fetchAll(vendorOrder.get('customVendorOrderVariants'));
+      _.each(customVendorOrderVariants, function (vendorOrderVariant) {
+        //if (vendorOrderVariant.has('units')) logInfo('vendor order variant has ' + vendorOrderVariant.get('units') + ' units');
+        console.log("REMOVING!")
+        if (vendorOrderVariant.get('units') == 0) vendorOrder.remove('customVendorOrderVariants', vendorOrderVariant);
+      });
+    }
     // Remove any vendor order variants who have 0 units to order
     if (vendorOrder.has('vendorOrderVariants') && vendorOrder.get('vendorOrderVariants').length > 0) {
       logInfo('vendor order has ' + vendorOrder.get('vendorOrderVariants').length + ' vendor order variants to fetch');
@@ -1109,7 +1120,7 @@ Parse.Cloud.beforeSave("VendorOrder", function (request, response) {
       if (vendorOrderVariant.has('units')) logInfo('vendor order variant has ' + vendorOrderVariant.get('units') + ' units');
       if (vendorOrderVariant.get('units') == 0) vendorOrder.remove('vendorOrderVariants', vendorOrderVariant);
     });
-
+  
     // Create a unique vendor order number
     return vendorOrder.get('vendor').fetch();
 
