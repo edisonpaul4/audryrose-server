@@ -155,7 +155,7 @@ Parse.Cloud.define("getDesigners", function (request, response) {
                 let outStandingUnits = variant.get('units') - variant.get('received');
                 if (outStandingUnits > 0) {
                   outStandingAmountInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
-                  totalVendorOrdersOutstadingInDollars += outStandingAmountInDollars;
+                  totalVendorOrdersOutstadingInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
                 }
               }
             });
