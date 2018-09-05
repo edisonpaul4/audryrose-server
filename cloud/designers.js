@@ -141,7 +141,37 @@ Parse.Cloud.define("getDesigners", function (request, response) {
     if (results && results.length > 0) {
       completedVendorOrders = results;
     };
-    response.success({ designers: designers, totalPages: totalPages, completedVendorOrders: completedVendorOrders });
+    //Calculate amount of outstanding for /designers/sent
+    let vendorOrdersOutStandingAmount = []
+    let totalVendorOrdersOutstadingInDollars = 0;
+    if (subpage == 'sent') {
+      designers.map(function(designer){
+        designer.get('vendors').map(function(vendor){
+          vendor.get('vendorOrders').map(function(vendorOrder){
+            let vendorOrderNumber = vendorOrder.get('vendorOrderNumber');
+            let outStandingAmountInDollars = 0;
+            vendorOrder.get('vendorOrderVariants').map(function (variant) {
+              if (variant.get('variant').get('adjustedWholesalePrice')) {
+                let outStandingUnits = variant.get('units') - variant.get('received');
+                if (outStandingUnits > 0) {
+                  outStandingAmountInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
+                  totalVendorOrdersOutstadingInDollars += outStandingAmountInDollars;
+                }
+              }
+            });
+            
+            vendorOrdersOutStandingAmount.push({
+              vendorOrderNumber: vendorOrderNumber,
+              outStandingAmountInDollars: outStandingAmountInDollars
+            })
+            
+            return vendorOrder;
+          })
+        })
+      });
+    }
+    
+    response.success({ designers: designers, totalPages: totalPages, completedVendorOrders: completedVendorOrders, vendorOrdersOutStandingAmount: vendorOrdersOutStandingAmount, totalVendorOrdersOutstadingInDollars: totalVendorOrdersOutstadingInDollars});
 
   }, function (error) {
     logError(error);
