@@ -150,15 +150,21 @@ Parse.Cloud.define("getDesigners", function (request, response) {
         let variantsOutStanding = [];
         designer.get('vendors').map(function(vendor){
           vendor.get('vendorOrders').map(function(vendorOrder){
+            if (vendorOrder.get('receivedAll') && vendorOrder.get('receivedAll')==true) {
+              return vendorOrder;
+            }
             let vendorOrderNumber = vendorOrder.get('vendorOrderNumber');
             let outStandingAmountInDollars = 0;
             vendorOrder.get('vendorOrderVariants').map(function (variant) {
+              if (!variant.get('ordered') || variant.get('done') && variant.get('done')==true) {
+                return variant;
+              }
               let variantJson = variant.toJSON();  
               if (variant.get('variant').get('adjustedWholesalePrice')) {
                 let outStandingUnits = variant.get('units') - variant.get('received');
                 if (outStandingUnits > 0) {
                   outStandingAmountInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
-                  totalVendorOrdersOutstadingInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
+                  //totalVendorOrdersOutstadingInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
                 }
               }
               //add the variant to variantsOutStanding array
@@ -189,15 +195,15 @@ Parse.Cloud.define("getDesigners", function (request, response) {
                   variantsOutStanding.push(removed);
                 }
                 
-              }
-              
-              
+              }        
             });
             
             vendorOrdersOutStandingAmount.push({
               vendorOrderNumber: vendorOrderNumber,
               outStandingAmountInDollars: outStandingAmountInDollars
-            })
+            });
+            
+            totalVendorOrdersOutstadingInDollars += outStandingAmountInDollars;
             
             return vendorOrder;
           })    
@@ -205,7 +211,7 @@ Parse.Cloud.define("getDesigners", function (request, response) {
         let totalAmountOutStanding = 0;
         variantsOutStanding.map(function(variant){
           if (variant.wholesalePrice) {
-            totalAmountOutStanding += ((variant.units - variant.received) * variant.wholesalePrice);
+            totalAmountOutStanding += (Number(variant.units - variant.received) * Number(variant.wholesalePrice));
           }
         })
         outStandingUnitsByDesigner.push({
