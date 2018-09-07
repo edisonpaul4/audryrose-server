@@ -144,13 +144,16 @@ Parse.Cloud.define("getDesigners", function (request, response) {
     //Calculate amount of outstanding for /designers/sent
     let vendorOrdersOutStandingAmount = []
     let totalVendorOrdersOutstadingInDollars = 0;
+    let outStandingUnitsByDesigner = [];
     if (subpage == 'sent') {
       designers.map(function(designer){
+        let variantsOutStanding = [];
         designer.get('vendors').map(function(vendor){
           vendor.get('vendorOrders').map(function(vendorOrder){
             let vendorOrderNumber = vendorOrder.get('vendorOrderNumber');
             let outStandingAmountInDollars = 0;
             vendorOrder.get('vendorOrderVariants').map(function (variant) {
+              let variantJson = variant.toJSON();  
               if (variant.get('variant').get('adjustedWholesalePrice')) {
                 let outStandingUnits = variant.get('units') - variant.get('received');
                 if (outStandingUnits > 0) {
@@ -158,6 +161,37 @@ Parse.Cloud.define("getDesigners", function (request, response) {
                   totalVendorOrdersOutstadingInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
                 }
               }
+              //add the variant to variantsOutStanding array
+              if (!variant.get('done')  && variant.get('units') - variant.get('received') > 0) {
+                let index = variantsOutStanding.map(variant=>variant.objectId).indexOf(variantJson.variant.objectId);
+                if (index == -1) {
+                  variantsOutStanding.push({
+                    objectId: variantJson.variant.objectId,
+                    wholesalePrice: variantJson.variant.adjustedWholesalePrice,
+                    name: variantJson.variant.designerProductName ? variantJson.variant.designerProductName : variantJson.variant.productName,
+                    units: variantJson.units,
+                    received: variantJson.received,
+                    productId: variantJson.variant.productId,
+                    variantOptions: variantJson.variant.variantOptions,
+                    vendorOrderVariants: [variantJson],
+                    length:1,
+                    color: variantJson.variant.color_value,
+                    size: variantJson.variant.size_value
+                  });
+                } else {
+                  let removed = variantsOutStanding[index];
+                  //removed.set('removed', true);
+                  variantsOutStanding.splice(index,1);
+                  removed.units += variantJson.units;
+                  removed.received += variantJson.received;
+                  removed.vendorOrderVariants.push(variantJson);
+                  removed.length = removed.vendorOrderVariants.length;
+                  variantsOutStanding.push(removed);
+                }
+                
+              }
+              
+              
             });
             
             vendorOrdersOutStandingAmount.push({
@@ -166,12 +200,27 @@ Parse.Cloud.define("getDesigners", function (request, response) {
             })
             
             return vendorOrder;
-          })
+          })    
         })
+        let totalAmountOutStanding = 0;
+        variantsOutStanding.map(function(variant){
+          if (variant.wholesalePrice) {
+            totalAmountOutStanding += ((variant.units - variant.received) * variant.wholesalePrice);
+          }
+        })
+        outStandingUnitsByDesigner.push({
+          designerId: designer.get('designerId'),
+          designerName: designer.get('name'),
+          designerObjectId: designer.toJSON().objectId,
+          variantsOutStanding : variantsOutStanding,
+          totalAmountOutStanding: totalAmountOutStanding 
+        })
+        
+        return designer;
       });
     }
     
-    response.success({ designers: designers, totalPages: totalPages, completedVendorOrders: completedVendorOrders, vendorOrdersOutStandingAmount: vendorOrdersOutStandingAmount, totalVendorOrdersOutstadingInDollars: totalVendorOrdersOutstadingInDollars});
+    response.success({ designers: designers, totalPages: totalPages, completedVendorOrders: completedVendorOrders, vendorOrdersOutStandingAmount: vendorOrdersOutStandingAmount, totalVendorOrdersOutstadingInDollars: totalVendorOrdersOutstadingInDollars, outStandingUnitsByDesigner: outStandingUnitsByDesigner});
 
   }, function (error) {
     logError(error);
