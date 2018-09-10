@@ -145,58 +145,72 @@ Parse.Cloud.define("getDesigners", function (request, response) {
     let vendorOrdersOutStandingAmount = []
     let totalVendorOrdersOutstadingInDollars = 0;
     let outStandingUnitsByDesigner = [];
-    if (subpage == 'sent') {
+    if (subpage!=='completed') {
       designers.map(function(designer){
+      
+        if (!designer.get('hasSentVendorOrder')) {
+          return designer;
+        }
+      
         let variantsOutStanding = [];
-        designer.get('vendors').map(function(vendor){
+        designer.get('vendors').map(function(vendor){  
           vendor.get('vendorOrders').map(function(vendorOrder){
-            if (vendorOrder.get('receivedAll') && vendorOrder.get('receivedAll')==true) {
+            if (vendorOrder.get('receivedAll') && vendorOrder.get('receivedAll')===true) {
               return vendorOrder;
             }
+          
             let vendorOrderNumber = vendorOrder.get('vendorOrderNumber');
             let outStandingAmountInDollars = 0;
-            vendorOrder.get('vendorOrderVariants').map(function (variant) {
-              if (!variant.get('ordered') || variant.get('done') && variant.get('done')==true) {
-                return variant;
-              }
-              let variantJson = variant.toJSON();  
-              if (variant.get('variant').get('adjustedWholesalePrice')) {
-                let outStandingUnits = variant.get('units') - variant.get('received');
-                if (outStandingUnits > 0) {
-                  outStandingAmountInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
-                  //totalVendorOrdersOutstadingInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
+            if (vendorOrder.get('vendorOrderVariants')) {
+              vendorOrder.get('vendorOrderVariants').map(function (variant) {
+                if (!variant.get('ordered') || variant.get('done') && variant.get('done')==true) {
+                  return variant;
                 }
-              }
-              //add the variant to variantsOutStanding array
-              if (!variant.get('done')  && variant.get('units') - variant.get('received') > 0) {
-                let index = variantsOutStanding.map(variant=>variant.objectId).indexOf(variantJson.variant.objectId);
-                if (index == -1) {
-                  variantsOutStanding.push({
-                    objectId: variantJson.variant.objectId,
-                    wholesalePrice: variantJson.variant.adjustedWholesalePrice,
-                    name: variantJson.variant.designerProductName ? variantJson.variant.designerProductName : variantJson.variant.productName,
-                    units: variantJson.units,
-                    received: variantJson.received,
-                    productId: variantJson.variant.productId,
-                    variantOptions: variantJson.variant.variantOptions,
-                    vendorOrderVariants: [variantJson],
-                    length:1,
-                    color: variantJson.variant.color_value,
-                    size: variantJson.variant.size_value
-                  });
-                } else {
-                  let removed = variantsOutStanding[index];
-                  //removed.set('removed', true);
-                  variantsOutStanding.splice(index,1);
-                  removed.units += variantJson.units;
-                  removed.received += variantJson.received;
-                  removed.vendorOrderVariants.push(variantJson);
-                  removed.length = removed.vendorOrderVariants.length;
-                  variantsOutStanding.push(removed);
+                let variantJson = variant.toJSON();  
+                if (variant.get('variant').get('adjustedWholesalePrice')) {
+                  let outStandingUnits = variant.get('units') - variant.get('received');
+                  if (outStandingUnits > 0) {
+                    outStandingAmountInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
+                    //totalVendorOrdersOutstadingInDollars += outStandingUnits * variant.get('variant').get('adjustedWholesalePrice');
+                  }
                 }
-                
-              }        
-            });
+              
+                //add the variant to variantsOutStanding array
+                if (!variant.get('done')  && variant.get('units') - variant.get('received') > 0) {
+                  let index = variantsOutStanding.map(variant=>variant.objectId).indexOf(variantJson.variant.objectId);
+                  if (index == -1) {
+                    variantsOutStanding.push({
+                      objectId: variantJson.variant.objectId,
+                      wholesalePrice: variantJson.variant.adjustedWholesalePrice,
+                      name: variantJson.variant.designerProductName ? variantJson.variant.designerProductName : variantJson.variant.productName,
+                      units: variantJson.units,
+                      received: variantJson.received,
+                      productId: variantJson.variant.productId,
+                      variantOptions: variantJson.variant.variantOptions,
+                      vendorOrderVariants: [variantJson],
+                      length:1,
+                      color_value: variantJson.variant.color_value,
+                      size_value: variantJson.variant.size_value,
+                      gemstone_value : variantJson.variant.gemstone_value,
+                      length_value: variantJson.variant.length_value,
+                      font_value : variantJson.variant.font_value,
+                      letter_value : variantJson.variant.letter_value,
+                      singlepair_value : variantJson.variant.singlepair_value
+                    });
+                  } else {
+                    let removed = variantsOutStanding[index];
+                    //removed.set('removed', true);
+                    variantsOutStanding.splice(index,1);
+                    removed.units += variantJson.units;
+                    removed.received += variantJson.received;
+                    removed.vendorOrderVariants.push(variantJson);
+                    removed.length = removed.vendorOrderVariants.length;
+                    variantsOutStanding.push(removed);
+                  }
+                  
+                }        
+              });
+            }        
             
             vendorOrdersOutStandingAmount.push({
               vendorOrderNumber: vendorOrderNumber,
