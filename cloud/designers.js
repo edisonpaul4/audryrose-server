@@ -188,6 +188,7 @@ Parse.Cloud.define("getDesigners", function (request, response) {
                       productId: variantJson.variant.productId,
                       variantOptions: variantJson.variant.variantOptions,
                       vendorOrderVariants: [variantJson],
+                      vendorOrders : [vendorOrder.toJSON()],
                       length:1,
                       color_value: variantJson.variant.color_value,
                       size_value: variantJson.variant.size_value,
@@ -204,6 +205,7 @@ Parse.Cloud.define("getDesigners", function (request, response) {
                     removed.units += variantJson.units;
                     removed.received += variantJson.received;
                     removed.vendorOrderVariants.push(variantJson);
+                    removed.vendorOrders.push(vendorOrder.toJSON());
                     removed.length = removed.vendorOrderVariants.length;
                     variantsOutStanding.push(removed);
                   }
@@ -836,6 +838,46 @@ Parse.Cloud.define("addCustomProductToVendorOrder", (req, res) => {
     .catch(error => res.error(error));
 });
 
+Parse.Cloud.define("saveVendorOrders", async function (req, res) {
+  let vendorOrders = req.params.vendorOrders;
+  let variantsByOrder = [];
+  try {
+    if (vendorOrders.length > 0) {
+      var designerId = vendorOrders[0].designerId;
+    }
+    for (let i=0; i<vendorOrders.length; i++) {
+      let vendorOrder = vendorOrders[i];
+      let data = {
+        designerId : vendorOrder.designerId,
+        orderId : vendorOrder.objectId,
+        variantsData: vendorOrder.vendorOrderVariants,
+        customVariantsData: []
+      }
+      
+      await Parse.Cloud.httpRequest({
+        method: 'POST',
+        url: process.env.SERVER_URL + '/jobs/saveVendorOrder',
+        
+        headers: {
+          'X-Parse-Application-Id': process.env.APP_ID,
+          'X-Parse-Master-Key': process.env.MASTER_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: {
+          data:data
+        }
+      });
+      
+      variantsByOrder.push({vendorOrderId: data.orderId, variantsData: data.variantsData});
+    }
+  
+    res.success({designerId: designerId, variantsByOrder: variantsByOrder});
+  } catch(error) {
+    res.error(error);
+  }
+
+  
+})
 
 
 /////////////////////////
@@ -845,7 +887,7 @@ Parse.Cloud.define("addCustomProductToVendorOrder", (req, res) => {
 Parse.Cloud.job("saveVendorOrder", function (request, status) {
   logInfo('saveVendorOrder cloud function --------------------------', true);
   var startTime = moment();
-
+  
   var designerId = request.params.data.designerId;
   var orderId = request.params.data.orderId;
   var variantsData = request.params.data.variantsData;
