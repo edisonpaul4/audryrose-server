@@ -908,6 +908,7 @@ Parse.Cloud.job("saveVendorOrder", function (request, status) {
   vendorOrderQuery.equalTo('objectId', orderId);
   vendorOrderQuery.include('vendor');
   vendorOrderQuery.include('vendor.vendorOrders');
+  vendorOrderQuery.include('vendorOrderVariants');
   vendorOrderQuery.first().then(function (result) {
     vendorOrder = result;
     vendor = vendorOrder.get('vendor');
@@ -1010,16 +1011,30 @@ Parse.Cloud.job("saveVendorOrder", function (request, status) {
     status.error(error.message);
 
   }).then(function () {
+    let originalVendorOrderVariants = vendorOrder.get('vendorOrderVariants');
+    
+    //now merge the original vendor order variants with the updated variants
+    let newVendorOrderVariants = originalVendorOrderVariants.map(function(variant){
+      let id = variant.toJSON().objectId;
+      let variantModified = vendorOrderVariants.find(v=>v.toJSON().objectId===id);
+      return variantModified ? variantModified : variant;
+    });
+    
+    
+    vendorOrderVariants = newVendorOrderVariants;
     vendorOrder.set('vendorOrderVariants', vendorOrderVariants);
+    
     var totalWithUnits = 0;
+    let numberOfVariantsCompleted = 0;
     _.each(vendorOrderVariants, function (vendorOrderVariant) {
       if (vendorOrderVariant.get('units') > 0) totalWithUnits++;
+      if (vendorOrderVariant.get('ordered') == true && vendorOrderVariant.get('received') >= vendorOrderVariant.get('units')) numberOfVariantsCompleted++;
     });
     logInfo('Total ' + vendorOrderVariants.length + ' vendorOrderVariants, ' + totalWithUnits + ' are requesting units');
     if (totalWithUnits > 0) {
       logInfo('Save changes to vendor order');
-      vendorOrder.set('message', message);
-      if (numReceived >= vendorOrderVariants.length) {
+      vendorOrder.set('message', message);    
+      if (numberOfVariantsCompleted >= vendorOrderVariants.length) {
         vendorOrder.set('receivedAll', true);
         vendorOrder.set('dateReceived', moment().toDate());
         vendor.remove('vendorOrders', vendorOrder);
