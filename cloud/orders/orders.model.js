@@ -6,6 +6,7 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
   constructor() {
     super();
     this.Orders = Parse.Object.extend('Order');
+    this.OrderInternalNotes = Parse.Object.extend('OrderInternalNotes')
     this.OrderProducts = Parse.Object.extend('OrderProduct');
     this.StoreSales = Parse.Object.extend('StoreSales');
   }
@@ -18,6 +19,11 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
     var ordersQuery = new Parse.Query(this.Orders);
     return this.searchDatabase(params, ordersQuery);
   } // END getOrdersByFilters
+  
+  getOrderInternalNotes(params) {
+    var orderInternalNotesQuery = new Parse.Query(this.OrderInternalNotes);
+    return this.searchDatabase(params, orderInternalNotesQuery);
+  }
 
   /**
  * @returns {Promise} - Array of objects
