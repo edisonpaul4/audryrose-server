@@ -2311,6 +2311,11 @@ var loadOrder = function(bcOrderId) {
     if (internalNotes.length > 0) {
       bcOrder.internalNotes = internalNotes[0].get('internalNotes');
     }
+    
+    for (let i=0; i<internalNotes.length; i++) {
+      internalNotes[i].set('saved', true);
+      await internalNotes[i].save();
+    }
       
     if (orderResult) {
       logInfo('Order exists.');
