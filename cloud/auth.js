@@ -4,6 +4,8 @@ var Session = Parse.Object.extend('Session');
 var User = Parse.Object.extend('User');
 var Role = Parse.Object.extend('Role');
 
+const { OrdersController } = require("./orders/orders.controller")
+
 Parse.Cloud.define('getUserFromToken', function(req, res) {
   console.log('token: ' + req.params.sessionToken);
 
@@ -132,3 +134,28 @@ Parse.Cloud.define('updateUser', function(req, res) {
 
   });
 });
+
+Parse.Cloud.define("saveInternalNote", async function(req, res){
+  
+  let internalNote = req.params.internalNote;
+  let orderId = req.params.orderId;
+  
+  if (!orderId || !internalNote) {
+    res.success({status:200, success:false});
+    return;
+  }
+  let saved = false;
+  let order = await OrdersController.getOrderById(Number(orderId));
+  if (order) {
+    order.set('internalNotes', internalNote);
+    await order.save();
+    saved = true;
+  }
+  
+  let orderInternalNotes = new Parse.Object('OrderInternalNotes');
+  orderInternalNotes.set('orderId', orderId);
+  orderInternalNotes.set('internalNotes', internalNote);
+  orderInternalNotes.set('saved', saved);
+  await orderInternalNotes.save();
+  res.success({status:200, success:true})
+})
