@@ -9,6 +9,7 @@ var PDFRStreamForBuffer = require('../lib/pdfr-stream-for-buffer.js');
 
 const { OrdersController } = require('./orders/orders.controller');
 const { ProductsController } = require('./products/products.controller');
+const { OrdersModel } = require('./orders/orders.model')
 
 var Order = Parse.Object.extend('Order');
 var Customer = Parse.Object.extend('Customer');
@@ -2303,8 +2304,14 @@ var loadOrder = function(bcOrderId) {
   }, function(error) {
     logError(error);
 
-  }).then(function(orderResult) {
-
+  }).then(async function(orderResult) {
+    //Check if client sent internal notes
+    let internalNotes = await OrdersModel.getOrderInternalNotes({equal: [{ key: 'orderId', value: String(bcOrder.id) }]}).find();
+    
+    if (internalNotes.length > 0) {
+      bcOrder.internalNotes = internalNotes[0].get('internalNotes');
+    }
+      
     if (orderResult) {
       logInfo('Order exists.');
       return createOrderObject(bcOrder, orderResult).save(null, {useMasterKey: true});
@@ -2919,6 +2926,10 @@ var createOrderObject = function(orderData, currentOrder) {
   order.set('geoip_country', orderData.geoip_country);
   order.set('geoip_country_iso2', orderData.geoip_country_iso2);
 
+  if (orderData.internalNotes) {
+    order.set('internalNotes', orderData.internalNotes);
+  }
+  
   return order;
 }
 
