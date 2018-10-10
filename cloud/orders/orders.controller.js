@@ -61,6 +61,7 @@ exports.OrdersController = new class OrdersController {
         objectId: orderProduct.objectId,
         productId: orderProduct.product_id,
         name: orderProduct.name,
+        price: orderProduct.price,
         sku: orderProduct.sku,
         done: orderProduct.done,
         deleted: orderProduct.deleted,
