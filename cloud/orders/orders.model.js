@@ -137,6 +137,7 @@ exports.OrdersModel = new class OrdersModel extends BaseModel{
             vendor: productIndex !== -1 ? products[productIndex].get('vendor') : undefined,
             designer: productIndex !== -1 ? products[productIndex].get('designer') : undefined,
             isActive: productIndex !== -1 ? products[productIndex].get('is_active') : false,
+            price : productIndex !== -1 ? products[productIndex].get('price') : 0,
             totalInventory: totalStock !== null ? totalStock : productIndex !== -1 ? products[productIndex].get('total_stock') : 0,
             classificationName: productIndex !== -1 && products[productIndex].get('classification') ? products[productIndex].get('classification').get('name') : 'product',
           };
