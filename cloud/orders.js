@@ -1397,15 +1397,16 @@ Parse.Cloud.define("updateOrderNotes", (req, res) => {
     .catch(error => res.error(error));
 });
 
-Parse.Cloud.define("getOrdersToSendEmails", (req, res) => {
+Parse.Cloud.define("getOrdersToSendEmails", async function (req, res) {
   logInfo('getOrdersToSendEmails cloud function --------------------------', true);
   var startTime = moment();
-  OrdersController.getOrdersToSendEmails(req.params.orderId, req.params.orderNotes)
-    .then(orders => {
-      logInfo('getOrdersToSendEmails completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
-      res.success(orders);
-    })
-    .catch(error => res.error(error));
+  try {
+    let orders = await OrdersController.getOrdersToSendEmails(req.params.orderId, req.params.orderNotes);
+    logInfo('getOrdersToSendEmails completion time: ' + moment().diff(startTime, 'seconds') + ' seconds', true);
+    res.success(orders);
+  } catch (error) {
+    res.error(error)
+  }
 });
 
 Parse.Cloud.define("sendOrderEmail", (req, res) => {

@@ -45,7 +45,7 @@ exports.OrdersController = new class OrdersController {
    * 
    * @returns {Promise} Array<Objects>
    */
-  getOrdersToSendEmails(offset = 0) {
+  async getOrdersToSendEmails(offset = 0) {
     const formatOrder = order => ({
       objectId: order.objectId,
       orderId: order.orderId,
@@ -89,12 +89,35 @@ exports.OrdersController = new class OrdersController {
         totalSpend: order.customer.totalSpend,
       },
     });
+    
+    let orders = await OrdersModel.getCustomerOrdersForSendEmails();
+    let emailOrders = [];
+    
+    //Get the last order for this customer if any
+    for (let i=0; i<orders.length; i++) {
+      let order = formatOrder(orders[i]);
+      let previousOrderQuery = new Parse.Query(Parse.Object.extend('Order'));
+      previousOrderQuery.include('customer');
+      previousOrderQuery.include('orderProducts');
+      previousOrderQuery.notEqualTo('orderId', order.orderId);
+      previousOrderQuery.equalTo('customer', 'Customer$'+order.customer.objectId);
+      previousOrderQuery.descending('date_created');
+      let previousOrdersFromCustomer = await previousOrderQuery.find();
+      let lastOrderFromCustomer = previousOrdersFromCustomer.length > 0 ? previousOrdersFromCustomer[0] : undefined;
+      if (lastOrderFromCustomer) {
+        order.productsFromLastOrder = lastOrderFromCustomer.get('orderProducts').map(op => op.get('name'));
+      } else {
+        order.productsFromLastOrder = undefined;
+      }
+      
+      emailOrders.push(order);
+    }
 
-    return OrdersModel.getCustomerOrdersForSendEmails()
-      .then(orders => ({
-        success: true,
-        emailOrders: orders.map(order => formatOrder(order))
-      }));
+    return {
+      success:true,
+      emailOrders : emailOrders
+    }
+    
   } // END getOrdersForProduct
 
 
