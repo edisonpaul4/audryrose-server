@@ -1274,7 +1274,18 @@ Parse.Cloud.beforeSave("VendorOrder", function (request, response) {
     logInfo('vendor order has ' + vendorOrderVariants.length + ' vendor order variants');
     _.each(vendorOrderVariants, function (vendorOrderVariant) {
       if (vendorOrderVariant.has('units')) logInfo('vendor order variant has ' + vendorOrderVariant.get('units') + ' units');
-      if (vendorOrderVariant.get('units') == 0) vendorOrder.remove('vendorOrderVariants', vendorOrderVariant);
+      if (vendorOrderVariant.get('units') == 0) {
+        let newVariants = vendorOrder.get('vendorOrderVariants');
+        newVariants = newVariants.filter(v => {
+          v = v.toJSON();
+          if (v.objectId === vendorOrderVariant.toJSON().objectId) {
+            return false;
+          }
+          return true;
+        })
+        vendorOrder.set('vendorOrderVariants', newVariants);
+      }
+      //if (vendorOrderVariant.get('units') == 0) vendorOrder.remove('vendorOrderVariants', vendorOrderVariant);
     });
   
     // Create a unique vendor order number
